@@ -79,7 +79,7 @@
                 // alert("Hola mundo")
                 var src = $("#source").val()
                 var dst = $("#destination").val()
-                var url = `http://localhost:8000/interaction/${src}/${dst}`
+                var url = `/interaction/${src}/${dst}`
                 $.getJSON(url, function (data, textStatus) {  // success callback
                       // data.forEach((d) => alert(d))
                     let elements = JSON.parse(data)
@@ -102,7 +102,7 @@
           if(tappedBefore === tappedNow) {
             //tappedNow.trigger('doubleTap', event);
               let node = tappedNow.id()
-              var url = `http://localhost:8000/neighbors/${node}`
+              var url = `/neighbors/${node}`
                 $.getJSON(url, function (data, textStatus) {  // success callback
                       // data.forEach((d) => alert(d))
                     let elements = JSON.parse(data)
