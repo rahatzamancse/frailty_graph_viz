@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+    <title>Tutorial 1: Getting Started</title>
+    <!-- <script src='cytoscape.js'></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.18.0/cytoscape.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+
+</head>
+
+<style>
+    #cy {
+        width: 100%;
+        height: 80%;
+        position:fixed;
+       left:0px;
+       bottom:0px;
+    }
+</style>
+
+<body>
+  <div >
+    <h1>Evidence:</h1>
+    <ul id="evidence">
+    </ul>
+  </div>
+    <div id="cy"></div>
+    <script>
+        var cy = cytoscape({
+          container: document.getElementById('cy'),
+            style: [
+        {
+            selector: 'node',
+            style: {
+                shape: 'ellipse',
+                'background-color': 'red',
+                label: 'data(label)'
+            }
+        },
+
+          {
+            selector: 'edge',
+            style: {
+                'width': 'data(freq)',
+                label: 'data(trigger)',
+                "text-rotation": "autorotate",
+        // "text-margin-x": "data(xalign)",
+        // "text-margin-y": "data(yalign)+1"
+            }
+        }],
+        elements: [
+  // nodes
+  {data: {id: "pubchem:271", label: "Ca - pubchem:271"}}, {data: {id: "uniprot:P05231", label: "IL-6 - uniprot:P05231"}}, {data: {id: "uniprot:P10145.s", label: "IL-8 - uniprot:P10145.s"}},
+  // edges
+  {"data": {"id": "pubchem:271uniprot:P05231", "source": "pubchem:271", "target": "uniprot:P05231", "freq": 1, "trigger": "downregulate", "evidence": ["PMC4425241: Although both ZCA and CA downregulated nitric oxide , prostaglandin E 2 , tumor necrosis factor alpha , IL-1beta , and IL-6 , ZCA clearly displayed better activity ."]}}, {"data": {"id": "pubchem:271uniprot:P10145.s", "source": "pubchem:271", "target": "uniprot:P10145.s", classes: 'autorotate', "freq": 1, "trigger": "decrease", "evidence": ["PMC6017965: Pretreatment with CA notably decreased IL-8 and MCP-1 secretion in UVB irradiated keratinocytes , though not that of IL-6 ."]}}, {"data": {"id": "uniprot:P05231pubchem:271", "source": "uniprot:P05231", "target": "pubchem:271", "freq": 5, "trigger": "inhibit", "evidence": ["PMC2149353: Additionally , IL-6 ( 5 pg/l to 10 mug/l ) inhibited cytosolic Ca 2+ signals triggered by high Ca 2+ or Ni 2+ .", "PMC2149353: As expected , soluble rhIL-6R did not itself significantly affect bone resorption ( cf ., control , P = 0.536 , n = 5 slices ) , while IL-6 alone abolished the Ca effect ( cf ., Ca alone , P = 0.001 , n = 5 slices ) ( Fig. 2 c ) .", "PMC2149353: As expected , soluble rhIL-6R did not itself significantly affect bone resorption ( cf ., control , P = 0.536 , n = 5 slices ) , while IL-6 alone abolished the Ca effect ( cf ., Ca alone , P = 0.001 , n = 5 slices ) ( Fig. 2 c ) .", "PMC2149353: Taken together , the results with Ca and Ni indicate that extracellular Ca ( cation ) sensing by the osteoclast is inhibited strongly by IL-6 but not by the related cytokine , IL-11 .", "PMC2149353: The secreted IL-6 should then , through a negative autocrine loop , attenuate Ca sensing , and hence sustain bone resorption even in the face of a rising Ca level ."]}}, {"data": {"id": "uniprot:P05231pubchem:271", "source": "uniprot:P05231", "target": "pubchem:271", "freq": 5, "trigger": "inhibit", "evidence": ["PMC2149353: Additionally , IL-6 ( 5 pg/l to 10 mug/l ) inhibited cytosolic Ca 2+ signals triggered by high Ca 2+ or Ni 2+ .", "PMC2149353: As expected , soluble rhIL-6R did not itself significantly affect bone resorption ( cf ., control , P = 0.536 , n = 5 slices ) , while IL-6 alone abolished the Ca effect ( cf ., Ca alone , P = 0.001 , n = 5 slices ) ( Fig. 2 c ) .", "PMC2149353: As expected , soluble rhIL-6R did not itself significantly affect bone resorption ( cf ., control , P = 0.536 , n = 5 slices ) , while IL-6 alone abolished the Ca effect ( cf ., Ca alone , P = 0.001 , n = 5 slices ) ( Fig. 2 c ) .", "PMC2149353: Taken together , the results with Ca and Ni indicate that extracellular Ca ( cation ) sensing by the osteoclast is inhibited strongly by IL-6 but not by the related cytokine , IL-11 .", "PMC2149353: The secreted IL-6 should then , through a negative autocrine loop , attenuate Ca sensing , and hence sustain bone resorption even in the face of a rising Ca level ."]}}
+],
+        });
+
+        cy.style().selector('edge').style('curve-style', 'bezier')
+        .style('target-arrow-shape','triangle').update()
+
+
+  cy.bind('click', 'edge', function(event) {
+    let edge = event.target
+    let evidence = edge.data().evidence
+    document.getElementById("evidence").innerHTML = ""
+    evidence.forEach((item, i) => {
+      document.getElementById("evidence").innerHTML += "<li>" + item + "</li>";
+    });
+
+
+
+  })
+        cy.layout({
+    name: 'circle'
+}).run();
+
+      </script>
+
+
+
+
+</body>
+</html>

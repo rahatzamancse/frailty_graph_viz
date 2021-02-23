@@ -1,0 +1,146 @@
+<!doctype html>
+<html xmlns="http://www.w3.org/1999/html">
+<head>
+    <title>Tutorial 1: Getting Started</title>
+    <!-- <script src='cytoscape.js'></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.18.0/cytoscape.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+
+</head>
+
+<style>
+    #cy {
+        width: 100%;
+        height: 80%;
+        position:fixed;
+       left:0px;
+       bottom:0px;
+    }
+</style>
+
+<body>
+  <div >
+      <h1>Query</h1><br />
+      <b>Source: </b><input type="text" id="source"></input> <b>Destination: </b><input type="text" id="destination"></input><input id="ask" type="button" value="Find" />
+    <h1>Evidence:</h1>
+    <ul id="evidence">
+    </ul>
+  </div>
+    <div id="cy"></div>
+    <script>
+        const expanded = new Set()
+        var cy = cytoscape({
+          container: document.getElementById('cy'),
+            style: [
+        {
+            selector: 'node',
+            style: {
+                shape: 'ellipse',
+                'background-color': 'red',
+                label: 'data(label)'
+            }
+        },
+
+          {
+            selector: 'edge',
+            style: {
+                'width': 'data(freq)',
+                label: 'data(trigger)',
+                "text-rotation": "autorotate",
+        // "text-margin-x": "data(xalign)",
+        // "text-margin-y": "data(yalign)+1"
+            }
+        }],
+        elements: []
+        });
+
+        cy.style().selector('edge').style('curve-style', 'bezier')
+        .style('target-arrow-shape','triangle').update()
+
+
+  cy.bind('click', 'edge', function(event) {
+    let edge = event.target
+    let evidence = edge.data().evidence
+    document.getElementById("evidence").innerHTML = ""
+    evidence.forEach((item, i) => {
+      document.getElementById("evidence").innerHTML += "<li>" + item + "</li>";
+    });
+
+
+
+  })
+        cy.layout({
+    name: 'circle'
+}).run();
+
+        $("#ask").click(
+            function () {
+                // alert("Hola mundo")
+                var src = $("#source").val()
+                var dst = $("#destination").val()
+                var url = `http://localhost:8000/interaction/${src}/${dst}`
+                $.getJSON(url, function (data, textStatus) {  // success callback
+                      // data.forEach((d) => alert(d))
+                    let elements = JSON.parse(data)
+                    cy.json({elements: elements})
+                    cy.layout({
+                        name: 'circle'
+                    }).run();
+                });
+            }
+        )
+
+        var tappedBefore;
+        var tappedTimeout;
+
+        cy.on('tap', function(event) {
+          var tappedNow = event.target;
+          if (tappedTimeout && tappedBefore) {
+            clearTimeout(tappedTimeout);
+          }
+          if(tappedBefore === tappedNow) {
+            //tappedNow.trigger('doubleTap', event);
+              let node = tappedNow.id()
+              var url = `http://localhost:8000/neighbors/${node}`
+                $.getJSON(url, function (data, textStatus) {  // success callback
+                      // data.forEach((d) => alert(d))
+                    let elements = JSON.parse(data)
+                    if(!expanded.has(node)) {
+                        cy.add(elements)
+                        expanded.add(node)
+                    }
+                    // else{
+                    //     // cy.remove(elements)
+                    //     console.log(node)
+                    //     let x = new Set(elements.map((e) => e['data']['id']))
+                    //     console.log(x)
+                    //     x.forEach(function(e) {
+                    //         if(node !== e)
+                    //             cy.remove(e)
+                    //         // else
+                    //         //
+                    //     })
+                    //
+                    //     expanded.delete(node)
+                    // }
+                    cy.layout({
+                        name: 'circle'
+                    }).run();
+                });
+            tappedBefore = null;
+            originalTapEvent = null;
+          } else {
+            tappedTimeout = setTimeout(function(){ tappedBefore = null; }, 300);
+            tappedBefore = tappedNow;
+          }
+        });
+
+        cy.on('doubleTap', 'node', function(event) { alert("hola") });
+      </script>
+
+
+
+
+</body>
+</html>
