@@ -1,7 +1,7 @@
 <!doctype html>
 <html xmlns="http://www.w3.org/1999/html">
 <head>
-    <title>Tutorial 1: Getting Started</title>
+    <title>Hypothesis searcher</title>
     <!-- <script src='cytoscape.js'></script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.18.0/cytoscape.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
@@ -25,12 +25,12 @@
       <h1>Query</h1><br />
       <b>Source: </b><input type="text" id="source"></input> <b>Destination: </b><input type="text" id="destination"></input><input id="ask" type="button" value="Find" />
     <h1 id="evidence_pane">Evidence:</h1>
-    <ul id="evidence">
+    <ul id="evidence" >
     </ul>
   </div>
     <div id="cy"></div>
     <script>
-        const expanded = new Set()
+        const expanded = new Object()
         var cy = cytoscape({
           container: document.getElementById('cy'),
             style: [
@@ -62,12 +62,22 @@
 
 
   cy.bind('click', 'edge', function(event) {
-    let edge = event.target
-    let evidence = edge.data().evidence
-    document.getElementById("evidence").innerHTML = ""
-    evidence.forEach(item => {
-      document.getElementById("evidence").innerHTML += "<li>" + item.replace(/PMC\d+/, "<a href=\"https://www.ncbi.nlm.nih.gov/pmc/articles/$&/\" target=\"_blank\">$&</a>") + "</li>";
-    });
+      let edge = event.target
+    //   let evidence = new Array()
+    // // let evidence = edge.data().evidence
+    //   document.getElementById("evidence").innerHTML = ""
+    //   $.getJSON(`/evidence/${edge.source().id()}/${edge.target().id()}/${edge.data()['trigger']}`,
+    //       data => {
+    //           console.log(data)
+    //           console.log(typeof data)
+    //           evidence = data
+    //           evidence.forEach(item => {
+    //           document.getElementById("evidence").innerHTML += "<li>" + item.replace(/PMC\d+/, "<a href=\"https://www.ncbi.nlm.nih.gov/pmc/articles/$&/\" target=\"_blank\">$&</a>") + "</li>";
+    //         });
+    //       }
+    //   )
+
+      window.open(`/static/evidence.html?src=${edge.source().id()}&dst=${edge.target().id()}&trigger=${edge.data()['trigger']}`)
 
 
 
@@ -102,32 +112,34 @@
           }
           if(tappedBefore === tappedNow) {
             //tappedNow.trigger('doubleTap', event);
-              let node = tappedNow.id()
-              var url = `/neighbors/${node}`
-                $.getJSON(url, function (data, textStatus) {  // success callback
+            let node = tappedNow.id()
 
+            if(!(node in expanded)) {
+                let url = `/neighbors/${node}`
+                $.getJSON(url, function (data, textStatus) {
                     let elements = JSON.parse(data)
-                    if(!expanded.has(node)) {
-                        cy.add(elements)
-                        expanded.add(node)
-                    }
-                    else{
-                        let ids = new Set(elements.map((e) => e['data']['id']))
+                    cy.add(elements)
+                    expanded[node] = elements
 
-
-                        ids.forEach(function(e) {
-                            if(node !== e)
-                                cy.remove(cy.$id(e))
-                            // else
-                            //
-                        })
-
-                        expanded.delete(node)
-                    }
                     cy.layout({
                         name: 'circle'
                     }).run();
-                });
+                })
+            }
+            else{
+                let elements = expanded[node]
+                let ids = new Set(elements.map((e) => e['data']['id']))
+
+
+                ids.forEach(function(e) {
+                    if(node !== e)
+                        cy.remove(cy.$id(e))
+                })
+
+                delete expanded[node]
+            }
+
+
             tappedBefore = null;
             originalTapEvent = null;
           } else {

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Evidence</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.18.0/cytoscape.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<body>
+<b>Evidence of </b> <span id="evidence_pane"></span>
+    <ul id="evidence" >
+    </ul>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const src = urlParams.get('src');
+        const dst = urlParams.get('dst');
+        const trigger = urlParams.get('trigger');
+        // alert(src + dst + trigger)
+            $("#evidence_pane").html(`${src} ${trigger} ${dst}`)
+            $.getJSON(`/evidence/${src}/${dst}/${trigger}`,
+          data => {
+              console.log(data)
+              console.log(typeof data)
+              evidence = data
+              evidence.forEach(item => {
+              document.getElementById("evidence").innerHTML += "<li>" + item.replace(/PMC\d+/, "<a href=\"https://www.ncbi.nlm.nih.gov/pmc/articles/$&/\" target=\"_blank\">$&</a>") + "</li>";
+            });
+          }
+      )
+
+    </script>
+</body>
+</html>

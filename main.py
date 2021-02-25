@@ -48,7 +48,7 @@ async def interaction(source, destination):
 
 
 @app.get("/neighbors/{elem}")
-def neighbors(elem):
+async def neighbors(elem):
     subgraph = graph.subgraph(list(graph.neighbors(elem)) + [elem])
 
     edges = [e for e in subgraph.edges if (e[0] == elem or e[1] == elem)]
@@ -65,6 +65,15 @@ def neighbors(elem):
     new_g.remove_edges_from(discarded)
 
     return convert2cytoscapeJSON(new_g)
+
+
+@app.get('/evidence/{source}/{destination}/{trigger}')
+async def evidence(source, destination, trigger):
+    edges = graph[source][destination]
+    edge = [e for e in edges.values() if e['trigger'] == trigger][0]
+    evidence = list(set(edge['evidence']))
+    return evidence
+
 
 
 def convert2cytoscapeJSON(G):
@@ -88,6 +97,6 @@ def convert2cytoscapeJSON(G):
         data = list(G.get_edge_data(edge[0], edge[1]).values())[0]
         nx["data"]["freq"] = data['freq']
         nx["data"]["trigger"] = data['trigger'] if type(data['trigger']) != float else ""
-        nx["data"]["evidence"] = list(set(data['evidence']))
+        # nx["data"]["evidence"] = list(set(data['evidence']))
         final.append(nx)
     return json.dumps(final)
