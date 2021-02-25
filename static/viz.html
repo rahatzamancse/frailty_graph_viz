@@ -46,7 +46,8 @@
           {
             selector: 'edge',
             style: {
-                'width': 'data(freq)',
+                // 'width': 'data(freq)',
+                width: function(ele){ console.log(ele.data());return Math.log(ele.data()['freq'] + 1) },
                 label: 'data(trigger)',
                 "text-rotation": "autorotate",
         // "text-margin-x": "data(xalign)",

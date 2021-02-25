@@ -1,5 +1,6 @@
 import pickle
 import json
+import itertools as it
 import networkx as nx
 
 from fastapi import FastAPI
@@ -33,6 +34,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 async def root():
     return RedirectResponse("/static/viz.html")
 
+async def star():
+    return convert2cytoscapeJSON(graph.subgraph(list(graph.neighbors("uniprot:P05231")) + ["uniprot:P05231"]))
+
 
 @app.get("/interaction/{source}/{destination}")
 async def interaction(source, destination):
@@ -44,8 +48,23 @@ async def interaction(source, destination):
 
 
 @app.get("/neighbors/{elem}")
-async def neighbors(elem):
-    return convert2cytoscapeJSON(graph.subgraph(list(graph.neighbors(elem))[:10] + [elem]))
+def neighbors(elem):
+    subgraph = graph.subgraph(list(graph.neighbors(elem)) + [elem])
+
+    edges = [e for e in subgraph.edges if (e[0] == elem or e[1] == elem)]
+    edges.sort(key=lambda e: sum(v for k, v in subgraph.get_edge_data(*e).items() if k == 'freq'), reverse=True)
+
+    discarded = set(edges[5:])
+    edges = set(edges)
+
+    new_edges = [(*e, subgraph.get_edge_data(*e)) for e in subgraph.edges if e in edges and e not in discarded]
+    new_g = nx.MultiDiGraph()
+    # new_g.add_nodes_from(set(it.chain.from_iterable((e[0], e[1]) for e in new_edges)))
+    new_g.add_edges_from(new_edges)
+
+    new_g.remove_edges_from(discarded)
+
+    return convert2cytoscapeJSON(new_g)
 
 
 def convert2cytoscapeJSON(G):
@@ -65,7 +84,8 @@ def convert2cytoscapeJSON(G):
         nx["data"]["id"] = edge[0] + edge[1]
         nx["data"]["source"] = edge[0]
         nx["data"]["target"] = edge[1]
-        data = G.get_edge_data(edge[0], edge[1])[0]
+        print(len(G.get_edge_data(edge[0], edge[1])))
+        data = list(G.get_edge_data(edge[0], edge[1]).values())[0]
         nx["data"]["freq"] = data['freq']
         nx["data"]["trigger"] = data['trigger'] if type(data['trigger']) != float else ""
         nx["data"]["evidence"] = list(set(data['evidence']))
