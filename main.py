@@ -11,6 +11,11 @@ print("Loading data ...")
 with open("/Users/enrique/Desktop/frialty/il6.pickle", 'rb') as f:
     graph = pickle.load(f)
 
+print("Cleaning graph ...")
+graph.remove_edges_from(list(nx.selfloop_edges(graph)))
+uaz_nodes = [n for n in graph.nodes if n.startswith("uaz:")]
+graph.remove_nodes_from(uaz_nodes)
+
 app = FastAPI()
 
 app.add_middleware(
@@ -46,8 +51,7 @@ async def neighbors(elem):
 def convert2cytoscapeJSON(G):
     # load all nodes into nodes array
     final = []
-    # final["nodes"] = []
-    # final["edges"] = []
+
     for node in G.nodes():
         nx = {}
         nx["data"] = {}
@@ -63,7 +67,7 @@ def convert2cytoscapeJSON(G):
         nx["data"]["target"] = edge[1]
         data = G.get_edge_data(edge[0], edge[1])[0]
         nx["data"]["freq"] = data['freq']
-        nx["data"]["trigger"] = data['trigger']
-        nx["data"]["evidence"] = data['evidence']
+        nx["data"]["trigger"] = data['trigger'] if type(data['trigger']) != float else ""
+        nx["data"]["evidence"] = list(set(data['evidence']))
         final.append(nx)
     return json.dumps(final)

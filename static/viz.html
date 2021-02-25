@@ -17,13 +17,14 @@
        left:0px;
        bottom:0px;
     }
+
 </style>
 
 <body>
   <div >
       <h1>Query</h1><br />
       <b>Source: </b><input type="text" id="source"></input> <b>Destination: </b><input type="text" id="destination"></input><input id="ask" type="button" value="Find" />
-    <h1>Evidence:</h1>
+    <h1 id="evidence_pane">Evidence:</h1>
     <ul id="evidence">
     </ul>
   </div>
@@ -63,8 +64,8 @@
     let edge = event.target
     let evidence = edge.data().evidence
     document.getElementById("evidence").innerHTML = ""
-    evidence.forEach((item, i) => {
-      document.getElementById("evidence").innerHTML += "<li>" + item + "</li>";
+    evidence.forEach(item => {
+      document.getElementById("evidence").innerHTML += "<li>" + item.replace(/PMC\d+/, "<a href=\"https://www.ncbi.nlm.nih.gov/pmc/articles/$&/\" target=\"_blank\">$&</a>") + "</li>";
     });
 
 
@@ -76,18 +77,17 @@
 
         $("#ask").click(
             function () {
-                // alert("Hola mundo")
                 var src = $("#source").val()
                 var dst = $("#destination").val()
                 var url = `/interaction/${src}/${dst}`
-                $.getJSON(url, function (data, textStatus) {  // success callback
-                      // data.forEach((d) => alert(d))
+                $.getJSON(url, function (data) {  // success callback
                     let elements = JSON.parse(data)
                     cy.json({elements: elements})
                     cy.layout({
                         name: 'circle'
                     }).run();
                 });
+                document.getElementById("evidence").innerHTML = ""
             }
         )
 
@@ -104,26 +104,25 @@
               let node = tappedNow.id()
               var url = `/neighbors/${node}`
                 $.getJSON(url, function (data, textStatus) {  // success callback
-                      // data.forEach((d) => alert(d))
+
                     let elements = JSON.parse(data)
                     if(!expanded.has(node)) {
                         cy.add(elements)
                         expanded.add(node)
                     }
-                    // else{
-                    //     // cy.remove(elements)
-                    //     console.log(node)
-                    //     let x = new Set(elements.map((e) => e['data']['id']))
-                    //     console.log(x)
-                    //     x.forEach(function(e) {
-                    //         if(node !== e)
-                    //             cy.remove(e)
-                    //         // else
-                    //         //
-                    //     })
-                    //
-                    //     expanded.delete(node)
-                    // }
+                    else{
+                        let ids = new Set(elements.map((e) => e['data']['id']))
+
+
+                        ids.forEach(function(e) {
+                            if(node !== e)
+                                cy.remove(cy.$id(e))
+                            // else
+                            //
+                        })
+
+                        expanded.delete(node)
+                    }
                     cy.layout({
                         name: 'circle'
                     }).run();
