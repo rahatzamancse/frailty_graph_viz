@@ -60,6 +60,14 @@ async def neighbors(elem):
     new_edges = [(*e, subgraph.get_edge_data(*e)) for e in subgraph.edges if e in edges and e not in discarded]
     new_g = nx.MultiDiGraph()
     # new_g.add_nodes_from(set(it.chain.from_iterable((e[0], e[1]) for e in new_edges)))
+    new_nodes = list()
+
+    for e in new_edges:
+        print((e[0], subgraph.nodes[e[0]]))
+        new_nodes.append((e[0], subgraph.nodes[e[0]]))
+        new_nodes.append((e[1], subgraph.nodes[e[1]]))
+    # new_nodes = set(it.chain.from_iterable((n, subgraph.nodes[n]) for n in e for e in new_edges))
+    new_g.add_nodes_from(list(new_nodes))
     new_g.add_edges_from(new_edges)
 
     new_g.remove_edges_from(discarded)
