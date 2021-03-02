@@ -42,17 +42,24 @@ async def star():
     return convert2cytoscapeJSON(graph.subgraph(list(graph.neighbors("uniprot:P05231")) + ["uniprot:P05231"]))
 
 
-@app.get("/interaction/{source}/{destination}")
-async def interaction(source, destination):
+@app.get("/interaction/{source}/{destination}/{bidirectional}")
+async def interaction(source, destination, bidirectional:bool):
     # Find the shortest path between source and destination
     path = nx.shortest_path(graph, source, destination)
+    valid_edges = set(zip(path, path[1:]))
     subgraph = graph.subgraph(path)
 
-    edges = list(subgraph.edges)
-    edges.sort(key=lambda e: sum(v for k, v in subgraph.get_edge_data(*e).items() if k == 'freq'), reverse=True)
+    edges = list(sorted((e for e in subgraph.edges if bidirectional or (e[0], e[1]) in valid_edges), key=lambda e: (e[0], e[1])))
+    grouped_edges = it.groupby(edges, key=lambda e: (e[0], e[1]))
 
-    discarded = set(edges[5:])
-    edges = set(edges)
+    discarded = set()
+
+    for group, subset in grouped_edges:
+        subset = list(subset)
+        subset.sort(key=lambda e: sum(v for k, v in subgraph.get_edge_data(*e).items() if k == 'freq'), reverse=True)
+        discarded |= set(subset[5:])
+
+    # edges = set(subgraph.edges)
 
     new_edges = [(*e, subgraph.get_edge_data(*e)) for e in subgraph.edges if e in edges and e not in discarded]
     new_g = nx.MultiDiGraph()

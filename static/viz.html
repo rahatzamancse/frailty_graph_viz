@@ -67,7 +67,8 @@
       <h1>Query</h1><br />
       <b>Source: </b><input type="text" id="source" class="entity"/> <b>Destination: </b><input type="text"
                                                                                                 id="destination"
-                                                                                                class="entity"/><input id="ask" type="button" value="Find" />
+                                                                                                class="entity"/>
+      <b>Bidirectional: </b><input type="checkbox" id="bidirectional"><input id="ask" type="button" value="Find" />
   </div>
   <div id="cy"></div>
   <div id="evidence_pane">
@@ -138,12 +139,13 @@
                 let pattern = /^.+ \(([^\(\)]+)\)$/
                 let src = $("#source").val()
                 let dst = $("#destination").val()
+                let bidirect = $("#bidirectional").prop('checked')
                 if(pattern.test(src)) {
                     src = src.match(pattern)[1]
                 }
                 if(pattern.test(dst))
                     dst = dst.match(pattern)[1]
-                var url = `/interaction/${src}/${dst}`
+                var url = `/interaction/${src}/${dst}/${bidirect}`
                 $.getJSON(url, function (data) {  // success callback
                     let elements = JSON.parse(data)
                     cy.json({elements: elements})
@@ -218,9 +220,15 @@
             $("#destination").val(urlParams.get("dst"))
         }
 
+        if(urlParams.has("bidirect")){
+            $("#bidirectional").prop('checked', true)
+        }
+
         if(urlParams.has("src") && urlParams.has("dst")) {
             $("#ask").trigger("click")
         }
+
+        $("#bidirectional").click(() => { $("#ask").trigger("click") })
 
       </script>
 

@@ -45,9 +45,32 @@
               let influencers = data.influencers
               let reciprocals = data.reciprocals
 
-              populate("#reciprocal ul", reciprocals)
-              populate("#influenced ul", influenced)
-              populate("#influencers ul", influencers)
+              influenced.forEach(
+                  elem => {
+                      const id = elem[0]
+                      const label = elem[1]
+
+                      $("#influenced ul").append(`<li><a href="/static/viz.html?src=IL6 (uniprot:P05231)&dst=${label} (${id})">${label} (${id})</a></li>`)
+                  }
+              )
+
+              influencers.forEach(
+                  elem => {
+                      const id = elem[0]
+                      const label = elem[1]
+
+                      $("#influencers ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})">${label} (${id})</a></li>`)
+                  }
+              )
+
+              reciprocals.forEach(
+                  elem => {
+                      const id = elem[0]
+                      const label = elem[1]
+
+                      $("#reciprocal ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})&bidirect">${label} (${id})</a></li>`)
+                  }
+              )
           }
         )
     </script>
