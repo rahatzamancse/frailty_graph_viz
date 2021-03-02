@@ -5,17 +5,58 @@
     <!-- <script src='cytoscape.js'></script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.18.0/cytoscape.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 
 
 </head>
 
 <style>
     #cy {
-        width: 100%;
-        height: 80%;
+        width: 70%;
+        height: 100%;
+        position:fixed;
+       right:0px;
+       top:0px;
+    }
+    #evidence_pane {
+        width: 30%;
+        height: 90%;
         position:fixed;
        left:0px;
-       bottom:0px;
+        top:10%;
+        overflow: scroll;
+    }
+
+    /* Start by setting display:none to make this hidden.
+   Then we position it in relation to the viewport window
+   with position:fixed. Width, height, top and left speak
+   for themselves. Background we set to 80% white with
+   our animation centered, and no-repeating */
+    .modal {
+        display:    none;
+        position:   fixed;
+        z-index:    1000;
+        top:        0;
+        left:       0;
+        height:     100%;
+        width:      100%;
+        background: rgba( 255, 255, 255, .8 )
+                    url('http://i.stack.imgur.com/FhHRx.gif')
+                    50% 50%
+                    no-repeat;
+    }
+
+    /* When the body has the loading class, we turn
+       the scrollbar off with overflow:hidden */
+    body.loading .modal {
+        overflow: hidden;
+    }
+
+    /* Anytime the body has the loading class, our
+       modal element will be visible */
+    body.loading .modal {
+        display: block;
     }
 
 </style>
@@ -23,12 +64,16 @@
 <body>
   <div >
       <h1>Query</h1><br />
-      <b>Source: </b><input type="text" id="source"></input> <b>Destination: </b><input type="text" id="destination"></input><input id="ask" type="button" value="Find" />
-    <h1 id="evidence_pane">Evidence:</h1>
-    <ul id="evidence" >
+      <b>Source: </b><input type="text" id="source" class="entity"/> <b>Destination: </b><input type="text"
+                                                                                                id="destination"
+                                                                                                class="entity"/><input id="ask" type="button" value="Find" />
+  </div>
+  <div id="cy"></div>
+  <div id="evidence_pane">
+       <h3>Evidence:</h3>
+        <ul id="evidence" />
     </ul>
   </div>
-    <div id="cy"></div>
     <script>
         const expanded = new Object()
         var cy = cytoscape({
@@ -39,7 +84,7 @@
             style: {
                 shape: 'ellipse',
                 'background-color': 'red',
-                label: 'data(label)'
+                label: (ele) => { return ele.data()['label'] + ` (${ele.data()['id']})`}
             }
         },
 
@@ -47,8 +92,9 @@
             selector: 'edge',
             style: {
                 // 'width': 'data(freq)',
-                width: function(ele){ console.log(ele.data());return Math.log(ele.data()['freq'] + 1) },
-                label: 'data(trigger)',
+                width: function(ele){ return Math.log(ele.data()['freq'] + 1) },
+                // label: 'data(trigger)',
+                label: (ele) => { return ele.data()['trigger'] + ` (${ele.data()['freq']})`},
                 "text-rotation": "autorotate",
         // "text-margin-x": "data(xalign)",
         // "text-margin-y": "data(yalign)+1"
@@ -63,21 +109,20 @@
 
   cy.bind('click', 'edge', function(event) {
       let edge = event.target
-    //   let evidence = new Array()
-    // // let evidence = edge.data().evidence
-    //   document.getElementById("evidence").innerHTML = ""
-    //   $.getJSON(`/evidence/${edge.source().id()}/${edge.target().id()}/${edge.data()['trigger']}`,
-    //       data => {
-    //           console.log(data)
-    //           console.log(typeof data)
-    //           evidence = data
-    //           evidence.forEach(item => {
-    //           document.getElementById("evidence").innerHTML += "<li>" + item.replace(/PMC\d+/, "<a href=\"https://www.ncbi.nlm.nih.gov/pmc/articles/$&/\" target=\"_blank\">$&</a>") + "</li>";
-    //         });
-    //       }
-    //   )
+      let evidence = []
+       $("body").addClass("loading");
+      document.getElementById("evidence").innerHTML = ""
+      $.getJSON(`/evidence/${edge.source().id()}/${edge.target().id()}/${edge.data()['trigger']}`,
+          data => {
+              evidence = data
+              evidence.forEach(item => {
+                  document.getElementById("evidence").innerHTML += "<li>" + item.replace(/PMC\d+/, "<a href=\"https://www.ncbi.nlm.nih.gov/pmc/articles/$&/\" target=\"_blank\">$&</a>") + "</li>";
+              });
+              $("body").removeClass("loading");
+          }
+      )
 
-      window.open(`/static/evidence.html?src=${edge.source().id()}&dst=${edge.target().id()}&trigger=${edge.data()['trigger']}`)
+      // window.open(`/static/evidence.html?src=${edge.source().id()}&dst=${edge.target().id()}&trigger=${edge.data()['trigger']}`)
 
 
 
@@ -88,8 +133,14 @@
 
         $("#ask").click(
             function () {
-                var src = $("#source").val()
-                var dst = $("#destination").val()
+                let pattern = /^.+ \(([^\(\)]+)\)$/
+                let src = $("#source").val()
+                let dst = $("#destination").val()
+                if(pattern.test(src)) {
+                    src = src.match(pattern)[1]
+                }
+                if(pattern.test(dst))
+                    dst = dst.match(pattern)[1]
                 var url = `/interaction/${src}/${dst}`
                 $.getJSON(url, function (data) {  // success callback
                     let elements = JSON.parse(data)
@@ -115,12 +166,13 @@
             let node = tappedNow.id()
 
             if(!(node in expanded)) {
+                $("body").addClass("loading");
                 let url = `/neighbors/${node}`
                 $.getJSON(url, function (data, textStatus) {
                     let elements = JSON.parse(data)
                     cy.add(elements)
                     expanded[node] = elements
-
+                    $("body").removeClass("loading");
                     cy.layout({
                         name: 'circle'
                     }).run();
@@ -148,9 +200,15 @@
           }
         });
 
-        cy.on('doubleTap', 'node', function(event) { alert("hola") });
+        // cy.on('doubleTap', 'node', function(event) { alert("hola") });
+
+
+        $( ".entity" ).autocomplete({
+          source: '/entities', minLength: 2, delay: 1000
+        });
       </script>
 
+<div class="modal"><!-- Place at bottom of page --></div>
 
 
 

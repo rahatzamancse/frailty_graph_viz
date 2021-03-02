@@ -1,6 +1,7 @@
 import pickle
 import json
 import itertools as it
+import uvicorn
 import networkx as nx
 
 from fastapi import FastAPI
@@ -17,6 +18,8 @@ graph.remove_edges_from(list(nx.selfloop_edges(graph)))
 uaz_nodes = [n for n in graph.nodes if n.startswith("uaz:")]
 graph.remove_nodes_from(uaz_nodes)
 
+# Compute the graph entities
+entities = {f"{graph.nodes[n]['label']} ({n})" for n in graph.nodes}
 app = FastAPI()
 
 app.add_middleware(
@@ -34,6 +37,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 async def root():
     return RedirectResponse("/static/viz.html")
 
+
 async def star():
     return convert2cytoscapeJSON(graph.subgraph(list(graph.neighbors("uniprot:P05231")) + ["uniprot:P05231"]))
 
@@ -44,7 +48,27 @@ async def interaction(source, destination):
     path = nx.shortest_path(graph, source, destination)
     subgraph = graph.subgraph(path)
 
-    return convert2cytoscapeJSON(subgraph)
+    edges = list(subgraph.edges)
+    edges.sort(key=lambda e: sum(v for k, v in subgraph.get_edge_data(*e).items() if k == 'freq'), reverse=True)
+
+    discarded = set(edges[5:])
+    edges = set(edges)
+
+    new_edges = [(*e, subgraph.get_edge_data(*e)) for e in subgraph.edges if e in edges and e not in discarded]
+    new_g = nx.MultiDiGraph()
+    # new_g.add_nodes_from(set(it.chain.from_iterable((e[0], e[1]) for e in new_edges)))
+    new_nodes = list()
+
+    for e in new_edges:
+        new_nodes.append((e[0], subgraph.nodes[e[0]]))
+        new_nodes.append((e[1], subgraph.nodes[e[1]]))
+    # new_nodes = set(it.chain.from_iterable((n, subgraph.nodes[n]) for n in e for e in new_edges))
+    new_g.add_nodes_from(list(new_nodes))
+    new_g.add_edges_from(new_edges)
+
+    new_g.remove_edges_from(discarded)
+
+    return convert2cytoscapeJSON(new_g)
 
 
 @app.get("/neighbors/{elem}")
@@ -63,7 +87,6 @@ async def neighbors(elem):
     new_nodes = list()
 
     for e in new_edges:
-        print((e[0], subgraph.nodes[e[0]]))
         new_nodes.append((e[0], subgraph.nodes[e[0]]))
         new_nodes.append((e[1], subgraph.nodes[e[1]]))
     # new_nodes = set(it.chain.from_iterable((n, subgraph.nodes[n]) for n in e for e in new_edges))
@@ -83,11 +106,18 @@ async def evidence(source, destination, trigger):
     return evidence
 
 
+@app.get('/entities')
+async def graph_entities(term=''):
+    term = term.lower()
+    candidates = [e for e in entities if term in e.lower()]
+    return candidates
+
 
 def convert2cytoscapeJSON(G):
     # load all nodes into nodes array
     final = []
 
+    edges = list()
     for node in G.nodes():
         nx = {}
         nx["data"] = {}
@@ -96,15 +126,22 @@ def convert2cytoscapeJSON(G):
         final.append(nx.copy())
     # load all edges to edges array
     for edge in G.edges():
-        nx = {}
-        nx["data"] = {}
-        nx["data"]["id"] = edge[0] + edge[1]
-        nx["data"]["source"] = edge[0]
-        nx["data"]["target"] = edge[1]
-        print(len(G.get_edge_data(edge[0], edge[1])))
-        data = list(G.get_edge_data(edge[0], edge[1]).values())[0]
-        nx["data"]["freq"] = data['freq']
-        nx["data"]["trigger"] = data['trigger'] if type(data['trigger']) != float else ""
-        # nx["data"]["evidence"] = list(set(data['evidence']))
-        final.append(nx)
+        for ix, data in enumerate(G.get_edge_data(edge[0], edge[1]).values()):
+            nx = {}
+            nx["data"] = {}
+            nx["data"]["id"] = edge[0] + edge[1] + str(ix)
+            nx["data"]["source"] = edge[0]
+            nx["data"]["target"] = edge[1]
+            nx["data"]["freq"] = data['freq']
+            nx["data"]["trigger"] = (data['trigger'] if type(data['trigger']) != float else "")
+            edges.append(nx)
+
+    # Sort the edges by endpoints, then by frequency
+    edges.sort(key=lambda e: (e['data']['source'], e['data']['target'], -e['data']['freq']))
+    # Add the edges to the result
+    final += edges
     return json.dumps(final)
+
+
+if __name__ == '__main__':
+    uvicorn.run(app, host="0.0.0.0", port=8000)
