@@ -21,10 +21,10 @@
     }
     #evidence_pane {
         width: 30%;
-        height: 90%;
+        height: 87%;
         position:fixed;
        left:0px;
-        top:10%;
+        top:13%;
         overflow: scroll;
     }
 
@@ -63,6 +63,7 @@
 
 <body>
   <div >
+      <h4><a href="/"/>Back to overview</a></h4>
       <h1>Query</h1><br />
       <b>Source: </b><input type="text" id="source" class="entity"/> <b>Destination: </b><input type="text"
                                                                                                 id="destination"
@@ -75,7 +76,7 @@
     </ul>
   </div>
     <script>
-        const expanded = new Object()
+        const expanded = {}
         var cy = cytoscape({
           container: document.getElementById('cy'),
             style: [
@@ -107,29 +108,30 @@
         .style('target-arrow-shape','triangle').update()
 
 
-  cy.bind('click', 'edge', function(event) {
-      let edge = event.target
-      let evidence = []
-       $("body").addClass("loading");
-      document.getElementById("evidence").innerHTML = ""
-      $.getJSON(`/evidence/${edge.source().id()}/${edge.target().id()}/${edge.data()['trigger']}`,
-          data => {
-              evidence = data
-              evidence.forEach(item => {
-                  document.getElementById("evidence").innerHTML += "<li>" + item.replace(/PMC\d+/, "<a href=\"https://www.ncbi.nlm.nih.gov/pmc/articles/$&/\" target=\"_blank\">$&</a>") + "</li>";
-              });
-              $("body").removeClass("loading");
-          }
-      )
+        cy.bind('click', 'edge', function(event) {
+          let edge = event.target
+          let evidence = []
+           $("body").addClass("loading");
+          document.getElementById("evidence").innerHTML = ""
+          $.getJSON(`/evidence/${edge.source().id()}/${edge.target().id()}/${edge.data()['trigger']}`,
+              data => {
+                  evidence = data
+                  evidence.forEach(item => {
+                      document.getElementById("evidence").innerHTML += "<li>" + item.replace(/PMC\d+/, "<a href=\"https://www.ncbi.nlm.nih.gov/pmc/articles/$&/\" target=\"_blank\">$&</a>") + "</li>";
+                  });
+                  $("body").removeClass("loading");
+              }
+          )
 
-      // window.open(`/static/evidence.html?src=${edge.source().id()}&dst=${edge.target().id()}&trigger=${edge.data()['trigger']}`)
+          // window.open(`/static/evidence.html?src=${edge.source().id()}&dst=${edge.target().id()}&trigger=${edge.data()['trigger']}`)
 
 
 
-  })
+        })
+
         cy.layout({
-    name: 'circle'
-}).run();
+            name: 'circle'
+        }).run();
 
         $("#ask").click(
             function () {
@@ -153,8 +155,8 @@
             }
         )
 
-        var tappedBefore;
-        var tappedTimeout;
+        let tappedBefore;
+        let tappedTimeout;
 
         cy.on('tap', function(event) {
           var tappedNow = event.target;
@@ -200,12 +202,26 @@
           }
         });
 
-        // cy.on('doubleTap', 'node', function(event) { alert("hola") });
-
 
         $( ".entity" ).autocomplete({
           source: '/entities', minLength: 2, delay: 1000
         });
+
+        // Take the arguments of the query string as pre-populated values of the query inputs
+        const urlParams = new URLSearchParams(window.location.search);
+
+        if(urlParams.has("src")){
+            $("#source").val(urlParams.get("src"))
+        }
+
+        if(urlParams.has("dst")){
+            $("#destination").val(urlParams.get("dst"))
+        }
+
+        if(urlParams.has("src") && urlParams.has("dst")) {
+            $("#ask").trigger("click")
+        }
+
       </script>
 
 <div class="modal"><!-- Place at bottom of page --></div>

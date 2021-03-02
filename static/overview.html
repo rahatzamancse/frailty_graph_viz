@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Interacting Entities</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<style>
+    .container {
+        width: 33%;
+        float: left;
+    }
+</style>
+<body>
+    <h1>Overview of entities interacting with IL-6 (uniprot:P05231)</h1>
+    <div style="width: 100%">
+        <div id="influenced" class="container">
+            <h3>Influenced by:</h3>
+            <ul />
+        </div>
+        <div id="reciprocal" class="container">
+            <h3>Reciprocal with:</h3>
+            <ul />
+        </div>
+        <div id="influencers" class="container">
+            <h3>Influence:</h3>
+            <ul />
+        </div>
+    </div>
+    <script>
+        function populate(anchor, data){
+            data.forEach(
+              elem => {
+                  const id = elem[0]
+                  const label = elem[1]
+
+                  $(anchor).append(`<li><a href="/static/viz.html?src=IL6 (uniprot:P05231)&dst=${label} (${id})">${label} (${id})</a></li>`)
+              }
+            )
+        }
+
+        $.getJSON(`/overview/uniprot:P05231/`,
+          data => {
+              let influenced = data.influenced
+              let influencers = data.influencers
+              let reciprocals = data.reciprocals
+
+              populate("#reciprocal ul", reciprocals)
+              populate("#influenced ul", influenced)
+              populate("#influencers ul", influencers)
+          }
+        )
+    </script>
+</body>
+</html>

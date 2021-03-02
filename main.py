@@ -35,7 +35,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 async def root():
-    return RedirectResponse("/static/viz.html")
+    return RedirectResponse("/static/overview.html")
 
 
 async def star():
@@ -73,7 +73,7 @@ async def interaction(source, destination):
 
 @app.get("/neighbors/{elem}")
 async def neighbors(elem):
-    subgraph = graph.subgraph(list(graph.neighbors(elem)) + [elem])
+    subgraph = graph.subgraph(list(graph.neighbors(elem)) + list(graph.predecessors(elem)) + [elem])
 
     edges = [e for e in subgraph.edges if (e[0] == elem or e[1] == elem)]
     edges.sort(key=lambda e: sum(v for k, v in subgraph.get_edge_data(*e).items() if k == 'freq'), reverse=True)
@@ -111,6 +111,25 @@ async def graph_entities(term=''):
     term = term.lower()
     candidates = [e for e in entities if term in e.lower()]
     return candidates
+
+
+@app.get('/overview/{term}')
+async def anchor(term):
+    ''' Returns the neighors, classified by influenced on, by and reciprocal '''
+    successors = set(graph.neighbors(term))
+    predecessors = set(graph.predecessors(term))
+
+    reciprocals = successors & predecessors
+    influenced = successors - reciprocals
+    influencers = predecessors - reciprocals
+
+    return {
+        'reciprocals': list(sorted(((r, graph.nodes[r]['label']) for r in reciprocals), key=lambda x: x[1].lower())),
+        'influenced': list(sorted(((r, graph.nodes[r]['label']) for r in influenced), key=lambda x: x[1].lower())),
+        'influencers': list(sorted(((r, graph.nodes[r]['label']) for r in influencers), key=lambda x: x[1].lower())),
+    }
+
+
 
 
 def convert2cytoscapeJSON(G):
