@@ -131,9 +131,9 @@ async def anchor(term):
     influencers = predecessors - reciprocals
 
     return {
-        'reciprocals': list(sorted(((r, graph.nodes[r]['label']) for r in reciprocals), key=lambda x: x[1].lower())),
-        'influenced': list(sorted(((r, graph.nodes[r]['label']) for r in influenced), key=lambda x: x[1].lower())),
-        'influencers': list(sorted(((r, graph.nodes[r]['label']) for r in influencers), key=lambda x: x[1].lower())),
+        'reciprocals': list(sorted(((r, graph.nodes[r]['label']) for r in reciprocals if 'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
+        'influenced': list(sorted(((r, graph.nodes[r]['label']) for r in influenced if 'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
+        'influencers': list(sorted(((r, graph.nodes[r]['label']) for r in influencers if 'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
     }
 
 
