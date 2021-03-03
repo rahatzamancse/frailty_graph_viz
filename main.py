@@ -19,7 +19,7 @@ uaz_nodes = [n for n in graph.nodes if n.startswith("uaz:")]
 graph.remove_nodes_from(uaz_nodes)
 
 # Compute the graph entities
-entities = {f"{graph.nodes[n]['label']} ({n})" for n in graph.nodes}
+entities = {f"{graph.nodes[n]['label']} ({n})" for n in graph.nodes if 'label' in graph.nodes[n]}
 app = FastAPI()
 
 app.add_middleware(
