@@ -1,16 +1,19 @@
 import pickle
 import json
 import itertools as it
+from collections import defaultdict
+
 import uvicorn
 import networkx as nx
 
+from tqdm import tqdm
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 
 print("Loading data ...")
-with open("/Users/enrique/Desktop/frialty/il6.pickle", 'rb') as f:
+with open("/Users/enrique/Desktop/frialty/il6-2.pickle", 'rb') as f:
     graph = pickle.load(f)
 
 print("Cleaning graph ...")
@@ -20,6 +23,19 @@ graph.remove_nodes_from(uaz_nodes)
 
 # Compute the graph entities
 entities = {f"{graph.nodes[n]['label']} ({n})" for n in graph.nodes if 'label' in graph.nodes[n]}
+# Cache the evidence
+print("Building evidence")
+evidence_sentences = dict()
+weighs = defaultdict(int)
+for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
+    edge = graph[s][d][ix]
+    key = (s, d, edge['trigger'].replace(" ++++ ", ", "))
+    w_key = frozenset((s, d))
+    sents = list(set(edge['evidence']))
+    weighs[w_key] += len(sents)
+    evidence_sentences[key] = sents
+    del edge['evidence']
+
 app = FastAPI()
 
 app.add_middleware(
@@ -57,7 +73,7 @@ async def interaction(source, destination, bidirectional:bool):
     for group, subset in grouped_edges:
         subset = list(subset)
         subset.sort(key=lambda e: sum(v for k, v in subgraph.get_edge_data(*e).items() if k == 'freq'), reverse=True)
-        discarded |= set(subset[5:])
+        # discarded |= set(subset[5:])
 
     # edges = set(subgraph.edges)
 
@@ -85,7 +101,8 @@ async def neighbors(elem):
     edges = [e for e in subgraph.edges if (e[0] == elem or e[1] == elem)]
     edges.sort(key=lambda e: sum(v for k, v in subgraph.get_edge_data(*e).items() if k == 'freq'), reverse=True)
 
-    discarded = set(edges[5:])
+    discarded = set(edges[100:])
+    # discarded = set()
     edges = set(edges)
 
     new_edges = [(*e, subgraph.get_edge_data(*e)) for e in subgraph.edges if e in edges and e not in discarded]
@@ -107,10 +124,7 @@ async def neighbors(elem):
 
 @app.get('/evidence/{source}/{destination}/{trigger}')
 async def evidence(source, destination, trigger):
-    edges = graph[source][destination]
-    edge = [e for e in edges.values() if e['trigger'] == trigger][0]
-    evidence = list(set(edge['evidence']))
-    return evidence
+    return evidence_sentences[(source, destination, trigger)]
 
 
 @app.get('/entities')
@@ -131,9 +145,9 @@ async def anchor(term):
     influencers = predecessors - reciprocals
 
     return {
-        'reciprocals': list(sorted(((r, graph.nodes[r]['label']) for r in reciprocals if 'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
-        'influenced': list(sorted(((r, graph.nodes[r]['label']) for r in influenced if 'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
-        'influencers': list(sorted(((r, graph.nodes[r]['label']) for r in influencers if 'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
+        'reciprocals': list(sorted(((r, graph.nodes[r]['label'], weighs[frozenset((term, r))]) for r in reciprocals if 'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
+        'influenced': list(sorted(((r, graph.nodes[r]['label'], weighs[frozenset((term, r))]) for r in influenced if 'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
+        'influencers': list(sorted(((r, graph.nodes[r]['label'], weighs[frozenset((term, r))]) for r in influencers if 'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
     }
 
 
@@ -159,7 +173,7 @@ def convert2cytoscapeJSON(G):
             nx["data"]["source"] = edge[0]
             nx["data"]["target"] = edge[1]
             nx["data"]["freq"] = data['freq']
-            nx["data"]["trigger"] = (data['trigger'] if type(data['trigger']) != float else "")
+            nx["data"]["trigger"] = (data['trigger'].replace(" ++++ ", ", ") if type(data['trigger']) != float else "")
             edges.append(nx)
 
     # Sort the edges by endpoints, then by frequency
@@ -170,4 +184,4 @@ def convert2cytoscapeJSON(G):
 
 
 if __name__ == '__main__':
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, debug=True)

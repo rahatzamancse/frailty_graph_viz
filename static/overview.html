@@ -14,6 +14,11 @@
 <body>
     <h4><a href="/static/viz.html">Enter query directly</a></h4>
     <h1>Overview of entities interacting with IL-6 (uniprot:P05231)</h1>
+    <label for="order">Order by:</label> <select name="order" id="order">
+        <option value="weight">Frequency</option>
+        <option value="name">Name</option>
+        <option value="gid">Database I.D.</option>
+    </select>
     <div style="width: 100%">
         <div id="influenced" class="container">
             <h3>Influenced by:</h3>
@@ -29,51 +34,71 @@
         </div>
     </div>
     <script>
-        function populate(anchor, data){
-            data.forEach(
-              elem => {
-                  const id = elem[0]
-                  const label = elem[1]
+        var data = Array()
 
-                  $(anchor).append(`<li><a href="/static/viz.html?src=IL6 (uniprot:P05231)&dst=${label} (${id})">${label} (${id})</a></li>`)
-              }
-            )
-        }
+        function populateList() {
+           let influenced = data.influenced
+           let influencers = data.influencers
+           let reciprocals = data.reciprocals
+
+           const orderControl = $("#order")
+            const orderCriteria = orderControl.val()
+
+            if(orderCriteria === 'weight')
+                elementIx = 2
+            else if(orderCriteria === "name")
+                elementIx = 1
+            else
+                elementIx = 0
+
+           influenced.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
+           reciprocals.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
+           influencers.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
+
+            $("#influenced ul").empty()
+           influenced.forEach(
+               elem => {
+                   const id = elem[0]
+                   const label = elem[1]
+                   const weight = elem[2]
+
+                   $("#influenced ul").append(`<li><a href="/static/viz.html?src=IL6 (uniprot:P05231)&dst=${label} (${id})">${label} (${id})</a> - ${weight}</li>`)
+               }
+           )
+
+            $("#influencers ul").empty()
+           influencers.forEach(
+               elem => {
+                   const id = elem[0]
+                   const label = elem[1]
+                   const weight = elem[2]
+
+                   $("#influencers ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})">${label} (${id})</a> - ${weight}</li>`)
+               }
+           )
+
+            $("#reciprocal ul").empty()
+           reciprocals.forEach(
+               elem => {
+                   const id = elem[0]
+                   const label = elem[1]
+                   const weight = elem[2]
+
+                   $("#reciprocal ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})&bidirect">${label} (${id})</a> - ${weight}</li>`)
+               }
+           )
+       }
 
         $.getJSON(`/overview/uniprot:P05231/`,
-          data => {
-              let influenced = data.influenced
-              let influencers = data.influencers
-              let reciprocals = data.reciprocals
-
-              influenced.forEach(
-                  elem => {
-                      const id = elem[0]
-                      const label = elem[1]
-
-                      $("#influenced ul").append(`<li><a href="/static/viz.html?src=IL6 (uniprot:P05231)&dst=${label} (${id})">${label} (${id})</a></li>`)
-                  }
-              )
-
-              influencers.forEach(
-                  elem => {
-                      const id = elem[0]
-                      const label = elem[1]
-
-                      $("#influencers ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})">${label} (${id})</a></li>`)
-                  }
-              )
-
-              reciprocals.forEach(
-                  elem => {
-                      const id = elem[0]
-                      const label = elem[1]
-
-                      $("#reciprocal ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})&bidirect">${label} (${id})</a></li>`)
-                  }
-              )
+          result => {
+              data = result
+              populateList();
           }
         )
+
+        document.querySelector('#order').addEventListener('change', (event) => {
+          populateList()
+        });
     </script>
 </body>
 </html>
