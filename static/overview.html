@@ -19,6 +19,7 @@
         <option value="name">Name</option>
         <option value="gid">Database I.D.</option>
     </select>
+    <label>Filter by:</label> <input type="text" id="filter" onkeyup="filter(this)">
     <div style="width: 100%">
         <div id="influenced" class="container">
             <h3>Influenced by:</h3>
@@ -96,9 +97,19 @@
           }
         )
 
-        document.querySelector('#order').addEventListener('change', (event) => {
-          populateList()
+        document.querySelector('#order').addEventListener('change', populateList);
+        function filter(element) {
+        var value = $(element).val().toLowerCase();
+
+        $("ul > li").each(function() {
+            if ($(this).text().toLowerCase().search(value) > -1) {
+                $(this).show();
+            }
+            else {
+                $(this).hide();
+            }
         });
+    }
     </script>
 </body>
 </html>
