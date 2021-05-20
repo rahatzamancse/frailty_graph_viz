@@ -7,18 +7,36 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+     <script src="https://unpkg.com/dagre@0.7.4/dist/dagre.js"></script>
+    <script src="/static/cytoscape-dagre.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/elkjs@0.7.0/lib/elk.bundled.js"></script>
+    <script src="/static/cytoscape-elk.js"></script>
+    <script src="https://unpkg.com/klayjs@0.4.1/klay.js"></script>
+    <script src="/static/cytoscape-klay.js"></script>
 
 
 </head>
 
 <style>
+    body{
+        background-color:#fafafa;
+    }
     .container {
       /*display: flex;*/
       /*flex-direction: column;*/
+        position: absolute;
+        left: 0px;
+        top: 0px;
+        z-index: 1;
+        background-color:rgba(207,207,196, 0.5);
+        padding: 1em;
+        padding-top: 0em;
+        border-radius: 25px;
     }
     #cy {
-        height: 70vh;
+        height: 100vh;
         width: 100%;
+        z-index: 0;
         /*background-color: lightgrey;*/
         /*width: 100%;*/
         /*height: 5in;*/
@@ -29,7 +47,16 @@
     }
     #evidence_pane {
         width: 100%;
-        height: 20vh;
+        min-height: 20vh;
+        /*z-index: 1;*/
+        /*position: fixed;*/
+        left: 0px;
+        bottom: 0px;
+        display: none;
+        padding: 1em;
+        margin: 0px;
+        background-color:rgba(207,207,196, 0.5);
+        border-radius: 25px;
         /*height: 87%;*/
         /*position:fixed;*/
        /*left:0px;*/
@@ -81,21 +108,59 @@
   </div>
   <div id="cy"></div>
   <div id="evidence_pane">
-       <h3>Evidence:</h3>
+       <h3>Evidence: <a href="#" id="close_evidence">[Close]</a></h3>
         <ul id="evidence" />
     </ul>
   </div>
     <script>
         const expanded = {}
+
+        let layoutOpts = {
+            name:"klay",
+            fit: true
+            // spacingFactor: 10,
+            // klay:{
+            //     spacing: 300
+            // }
+        }
+
+        let layoutInitialOpts = {
+            name:"klay",
+            spacingFactor: 10,
+            fit: true,
+            klay:{
+
+            }
+        }
+
+        function color_by_label(elem, arrow=false){
+            let label = elem.data()['label'].toLowerCase()
+            if(label === "activation (positive)" || label === "positive_association")
+                if(arrow)
+                    return "#77DD77"
+                else
+                    return "#DAF7A6"
+            else if(label === "activation (negative)" || label === "negative_association")
+                if(arrow)
+                    return "#ff4137"
+                else
+                    return "#FAA0A0"
+            else
+                return "#cfcfc4"
+        }
+
         var cy = cytoscape({
           container: document.getElementById('cy'),
+            // zoom: 0.5,
             style: [
         {
             selector: 'node',
             style: {
                 shape: 'ellipse',
+                // size: "1em",
                 'background-color': 'red',
-                label: (ele) => { return ele.data()['label'] + ` (${ele.data()['id']})`}
+                label: (ele) => { return ele.data()['label'] + ` (${ele.data()['id']})`},
+                // 'font-size': '.3em'
             }
         },
 
@@ -107,6 +172,9 @@
                 // label: 'data(trigger)',
                 label: (ele) => { return ele.data()['trigger'] + ` (${ele.data()['freq']})`},
                 "text-rotation": "autorotate",
+                "line-color": color_by_label,
+                'target-arrow-color': (elem) => { return color_by_label(elem, arrow=true) },
+                // "font-size": '.3em'
         // "text-margin-x": "data(xalign)",
         // "text-margin-y": "data(yalign)+1"
             }
@@ -130,6 +198,8 @@
                       document.getElementById("evidence").innerHTML += "<li>" + item.replace(/PMC\d+/, "<a href=\"https://www.ncbi.nlm.nih.gov/pmc/articles/$&/\" target=\"_blank\">$&</a>") + "</li>";
                   });
                   $("body").removeClass("loading");
+                  $("#evidence_pane").show()
+                  document.getElementById("evidence_pane").scrollIntoView({behavior: "smooth", block: "start", inline: "nearest"});
               }
           )
 
@@ -139,9 +209,9 @@
 
         })
 
-        cy.layout({
-            name: 'circle'
-        }).run();
+        cy.layout(layoutOpts).run();
+        cy.fit(cy.elements())
+        cy.zoom(1)
 
         $("#ask").click(
             function () {
@@ -158,9 +228,9 @@
                 $.getJSON(url, function (data) {  // success callback
                     let elements = JSON.parse(data)
                     cy.json({elements: elements})
-                    cy.layout({
-                        name: 'circle'
-                    }).run();
+                    cy.layout(layoutInitialOpts).run();
+                    cy.fit(cy.elements())
+                    cy.zoom(1)
                 });
                 document.getElementById("evidence").innerHTML = ""
             }
@@ -186,9 +256,9 @@
                     cy.add(elements)
                     expanded[node] = elements
                     $("body").removeClass("loading");
-                    cy.layout({
-                        name: 'circle'
-                    }).run();
+                    cy.layout(layoutOpts).run();
+                    cy.fit(cy.elements())
+                    cy.zoom(1)
                 })
             }
             else{
@@ -238,6 +308,10 @@
         }
 
         $("#bidirectional").click(() => { $("#ask").trigger("click") })
+
+        $("#close_evidence").click(() => {
+            $("#evidence_pane").hide()
+        })
 
       </script>
 

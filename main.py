@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 
 print("Loading data ...")
-with open("/Users/enrique/Desktop/frialty/il6-2.pickle", 'rb') as f:
+with open("/Users/enrique/Desktop/frialty/il6-associations.pickle", 'rb') as f:
     graph = pickle.load(f)
 
 print("Cleaning graph ...")
@@ -25,15 +25,16 @@ graph.remove_nodes_from(uaz_nodes)
 entities = {f"{graph.nodes[n]['label']} ({n})" for n in graph.nodes if 'label' in graph.nodes[n]}
 # Cache the evidence
 print("Building evidence")
-evidence_sentences = dict()
+evidence_sentences = defaultdict(list)
 weighs = defaultdict(int)
 for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
     edge = graph[s][d][ix]
     key = (s, d, edge['trigger'].replace(" ++++ ", ", "))
+    # key = (s, d, edge['label'])
     w_key = frozenset((s, d))
     sents = list(set(edge['evidence']))
     weighs[w_key] += len(sents)
-    evidence_sentences[key] = sents
+    evidence_sentences[key] += sents
     del edge['evidence']
 
 app = FastAPI()
@@ -59,13 +60,14 @@ async def star():
 
 
 @app.get("/interaction/{source}/{destination}/{bidirectional}")
-async def interaction(source, destination, bidirectional:bool):
+async def interaction(source, destination, bidirectional: bool):
     # Find the shortest path between source and destination
     path = nx.shortest_path(graph, source, destination)
     valid_edges = set(zip(path, path[1:]))
     subgraph = graph.subgraph(path)
 
-    edges = list(sorted((e for e in subgraph.edges if bidirectional or (e[0], e[1]) in valid_edges), key=lambda e: (e[0], e[1])))
+    edges = list(
+        sorted((e for e in subgraph.edges if bidirectional or (e[0], e[1]) in valid_edges), key=lambda e: (e[0], e[1])))
     grouped_edges = it.groupby(edges, key=lambda e: (e[0], e[1]))
 
     discarded = set()
@@ -78,6 +80,28 @@ async def interaction(source, destination, bidirectional:bool):
     # edges = set(subgraph.edges)
 
     new_edges = [(*e, subgraph.get_edge_data(*e)) for e in subgraph.edges if e in edges and e not in discarded]
+
+    # Group the new edges by their label
+    aggregated_new_edges = dict()
+    for (src, dst, _, data) in new_edges:
+        # key = (src, dst, data['label'])
+        for trigger in data['trigger'].split(" ++++ "):
+            key = (src, dst, trigger)
+            local_data = dict(data.items())
+            local_data['trigger'] = trigger
+            if key not in aggregated_new_edges:
+                aggregated_new_edges[key] = local_data
+            else:
+                d = aggregated_new_edges[key]
+                d['trigger'] += ' ++++ ' + local_data['trigger']
+                d['freq'] += local_data['freq']
+
+    # Remove duplicate terms from triggers
+    for data in aggregated_new_edges.values():
+        data['trigger'] = ', '.join(sorted(set(data['trigger'].split(" ++++ "))))
+
+    new_edges = [(k[0], k[1], ix, v) for ix, (k, v) in enumerate(aggregated_new_edges.items())]
+
     new_g = nx.MultiDiGraph()
     # new_g.add_nodes_from(set(it.chain.from_iterable((e[0], e[1]) for e in new_edges)))
     new_nodes = list()
@@ -145,12 +169,13 @@ async def anchor(term):
     influencers = predecessors - reciprocals
 
     return {
-        'reciprocals': list(sorted(((r, graph.nodes[r]['label'], weighs[frozenset((term, r))]) for r in reciprocals if 'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
-        'influenced': list(sorted(((r, graph.nodes[r]['label'], weighs[frozenset((term, r))]) for r in influenced if 'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
-        'influencers': list(sorted(((r, graph.nodes[r]['label'], weighs[frozenset((term, r))]) for r in influencers if 'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
+        'reciprocals': list(sorted(((r, graph.nodes[r]['label'], weighs[frozenset((term, r))]) for r in reciprocals if
+                                    'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
+        'influenced': list(sorted(((r, graph.nodes[r]['label'], weighs[frozenset((term, r))]) for r in influenced if
+                                   'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
+        'influencers': list(sorted(((r, graph.nodes[r]['label'], weighs[frozenset((term, r))]) for r in influencers if
+                                    'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
     }
-
-
 
 
 def convert2cytoscapeJSON(G):
@@ -174,10 +199,11 @@ def convert2cytoscapeJSON(G):
             nx["data"]["target"] = edge[1]
             nx["data"]["freq"] = data['freq']
             nx["data"]["trigger"] = (data['trigger'].replace(" ++++ ", ", ") if type(data['trigger']) != float else "")
+            nx['data']['label'] = data['label']
             edges.append(nx)
 
     # Sort the edges by endpoints, then by frequency
-    edges.sort(key=lambda e: (e['data']['source'], e['data']['target'], -e['data']['freq']))
+    edges.sort(key=lambda e: (e['data']['source'], e['data']['target'], e['data']['trigger']))
     # Add the edges to the result
     final += edges
     return json.dumps(final)
