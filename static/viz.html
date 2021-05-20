@@ -134,19 +134,23 @@
         }
 
         function color_by_label(elem, arrow=false){
-            let label = elem.data()['label'].toLowerCase()
-            if(label === "activation (positive)" || label === "positive_association")
-                if(arrow)
-                    return "#77DD77"
+            if(elem.id().startsWith("cluster_"))
+                return "brown"
+            else {
+                let label = elem.data()['label'].toLowerCase()
+                if (label === "activation (positive)" || label === "positive_association")
+                    if (arrow)
+                        return "#77DD77"
+                    else
+                        return "#DAF7A6"
+                else if (label === "activation (negative)" || label === "negative_association")
+                    if (arrow)
+                        return "#ff4137"
+                    else
+                        return "#FAA0A0"
                 else
-                    return "#DAF7A6"
-            else if(label === "activation (negative)" || label === "negative_association")
-                if(arrow)
-                    return "#ff4137"
-                else
-                    return "#FAA0A0"
-            else
-                return "#cfcfc4"
+                    return "#cfcfc4"
+            }
         }
 
         var cy = cytoscape({
@@ -168,12 +172,23 @@
             selector: 'edge',
             style: {
                 // 'width': 'data(freq)',
-                width: function(ele){ return Math.log(ele.data()['freq'] + 1) },
+                width: function(ele){
+                    if(ele.id().startsWith("cluster_"))
+                        return 1
+                    else
+                        return Math.log(ele.data()['freq'] + 1)
+                },
                 // label: 'data(trigger)',
-                label: (ele) => { return ele.data()['trigger'] + ` (${ele.data()['freq']})`},
+                label: (ele) => {
+                    if(ele.id().startsWith("cluster_"))
+                        return "Click to Expand ..."
+                    else
+                        return ele.data()['trigger'] + ` (${ele.data()['freq']})`
+                },
                 "text-rotation": "autorotate",
                 "line-color": color_by_label,
                 'target-arrow-color': (elem) => { return color_by_label(elem, arrow=true) },
+                'display': (elem) => { return elem.id().startsWith("cluster_")?'element':'none' }
                 // "font-size": '.3em'
         // "text-margin-x": "data(xalign)",
         // "text-margin-y": "data(yalign)+1"
@@ -188,22 +203,38 @@
 
         cy.bind('click', 'edge', function(event) {
           let edge = event.target
-          let evidence = []
-           $("body").addClass("loading");
-          document.getElementById("evidence").innerHTML = ""
-          $.getJSON(`/evidence/${edge.source().id()}/${edge.target().id()}/${edge.data()['trigger']}`,
-              data => {
-                  evidence = data
-                  evidence.forEach(item => {
-                      document.getElementById("evidence").innerHTML += "<li>" + item.replace(/PMC\d+/, "<a href=\"https://www.ncbi.nlm.nih.gov/pmc/articles/$&/\" target=\"_blank\">$&</a>") + "</li>";
-                  });
-                  $("body").removeClass("loading");
-                  $("#evidence_pane").show()
-                  document.getElementById("evidence_pane").scrollIntoView({behavior: "smooth", block: "start", inline: "nearest"});
-              }
+
+
+            if(edge.id().startsWith("cluster_")){
+                let prefix = edge.id().split('_')[1]
+                cy.filter(function(ele){return ele.id().startsWith(prefix)}).forEach(
+                    (e) => {
+                        e.style("display", "element")
+                    }
+                )
+                edge.style("display", "none")
+            }
+            else{
+                let evidence = []
+                 $("body").addClass("loading");
+                    document.getElementById("evidence").innerHTML = ""
+                  $.getJSON(`/evidence/${edge.source().id()}/${edge.target().id()}/${edge.data()['trigger']}`,
+                      data => {
+                          evidence = data
+                          evidence.forEach(item => {
+                              document.getElementById("evidence").innerHTML += "<li>" + item.replace(/PMC\d+/, "<a href=\"https://www.ncbi.nlm.nih.gov/pmc/articles/$&/\" target=\"_blank\">$&</a>") + "</li>";
+                          });
+                          $("body").removeClass("loading");
+                          $("#evidence_pane").show()
+                          document.getElementById("evidence_pane").scrollIntoView({behavior: "smooth", block: "start", inline: "nearest"});
+                      }
           )
 
           // window.open(`/static/evidence.html?src=${edge.source().id()}&dst=${edge.target().id()}&trigger=${edge.data()['trigger']}`)
+            }
+
+
+
 
 
 

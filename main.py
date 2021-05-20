@@ -183,6 +183,7 @@ def convert2cytoscapeJSON(G):
     final = []
 
     edges = list()
+    cluster_edges = dict()
     for node in G.nodes():
         nx = {}
         nx["data"] = {}
@@ -202,10 +203,25 @@ def convert2cytoscapeJSON(G):
             nx['data']['label'] = data['label']
             edges.append(nx)
 
+    # Create the cluster edges
+    for edge in edges:
+        key = edge['data']['source'], edge['data']['target']
+        if key not in cluster_edges:
+            nx = {}
+            nx["data"] = {}
+            nx["data"]["id"] = "cluster_" + key[0] + key[1]
+            nx["data"]["source"] = key[0]
+            nx["data"]["target"] = key[1]
+            nx["data"]["freq"] = 1
+            nx["data"]["trigger"] = ""
+            nx['data']['label'] = ""
+
+            cluster_edges[key] = nx
+
     # Sort the edges by endpoints, then by frequency
     edges.sort(key=lambda e: (e['data']['source'], e['data']['target'], e['data']['trigger']))
     # Add the edges to the result
-    final += edges
+    final += (edges + list(cluster_edges.values()))
     return json.dumps(final)
 
 
