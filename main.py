@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from tqdm import tqdm
+import annotations
 
 AGGREGATION_FIELD = "polarity"
 
@@ -58,6 +59,7 @@ for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
     sents = list(set(edge['evidence']))
     weighs[w_key] += len(sents)
     evidence_sentences[key] += sents
+    # evidence_sentences[key] = sents[0]
     del edge['evidence']
 
 app = FastAPI()
@@ -173,7 +175,10 @@ async def neighbors(elem):
 
 @app.get('/evidence/{source}/{destination}/{trigger}')
 async def evidence(source, destination, trigger):
-    return evidence_sentences[(source, destination, trigger)]
+    sents = evidence_sentences[(source, destination, trigger)]
+    docs = list(annotations.pipe_sentences(sents))
+    enhanced_sents = [annotations.make_text(d) for d in docs]
+    return enhanced_sents
 
 
 @app.get('/entities')
