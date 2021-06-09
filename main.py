@@ -3,6 +3,7 @@ import json
 import itertools as it
 from collections import defaultdict
 
+import numpy as np
 import uvicorn
 import networkx as nx
 
@@ -10,10 +11,11 @@ from tqdm import tqdm
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+import math
 from fastapi.responses import RedirectResponse
 
 print("Loading data ...")
-with open("/Users/enrique/Desktop/frialty/il6-associations.pickle", 'rb') as f:
+with open("/Users/enrique/Desktop/frialty/il6-new.pickle", 'rb') as f:
     graph = pickle.load(f)
 
 print("Cleaning graph ...")
@@ -29,8 +31,11 @@ evidence_sentences = defaultdict(list)
 weighs = defaultdict(int)
 for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
     edge = graph[s][d][ix]
-    key = (s, d, edge['trigger'].replace(" ++++ ", ", "))
-    # key = (s, d, edge['label'])
+
+    trigger = edge['trigger']
+
+    # key = (s, d, trigger.replace(" ++++ ", ", "))
+    key = (s, d, edge['label'])
     w_key = frozenset((s, d))
     sents = list(set(edge['evidence']))
     weighs[w_key] += len(sents)
@@ -85,20 +90,22 @@ async def interaction(source, destination, bidirectional: bool):
     aggregated_new_edges = dict()
     for (src, dst, _, data) in new_edges:
         # key = (src, dst, data['label'])
-        for trigger in data['trigger'].split(" ++++ "):
-            key = (src, dst, trigger)
+        field = 'label'
+
+        for txt in data[field].split(" ++++ "):
+            key = (src, dst, txt)
             local_data = dict(data.items())
-            local_data['trigger'] = trigger
+            local_data[field] = txt
             if key not in aggregated_new_edges:
                 aggregated_new_edges[key] = local_data
             else:
                 d = aggregated_new_edges[key]
-                d['trigger'] += ' ++++ ' + local_data['trigger']
+                d[field] += ' ++++ ' + local_data[field]
                 d['freq'] += local_data['freq']
 
     # Remove duplicate terms from triggers
     for data in aggregated_new_edges.values():
-        data['trigger'] = ', '.join(sorted(set(data['trigger'].split(" ++++ "))))
+        data[field] = ', '.join(sorted(set(data[field].split(" ++++ "))))
 
     new_edges = [(k[0], k[1], ix, v) for ix, (k, v) in enumerate(aggregated_new_edges.items())]
 
