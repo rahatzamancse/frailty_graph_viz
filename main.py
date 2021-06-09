@@ -31,7 +31,7 @@ def infer_polarity(edge):
     return polarity
 
 
-def tag_with_triggers(sentences, triggers):
+def tag_with_triggers(sentences, triggers, polarity):
     new_sents = list()
     triggers = triggers.split(", ")
     for sent in sentences:
@@ -45,7 +45,7 @@ def tag_with_triggers(sentences, triggers):
                     is_trigger = True
                     break
             if is_trigger:
-                new_sent.append(f'<span class="trigger> {token} </span>')
+                new_sent.append(f'<span class="{polarity}"> {token} </span>')
             else:
                 new_sent.append(token)
         new_sents.append(" ".join(new_sent))
@@ -79,8 +79,7 @@ for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
     w_key = frozenset((s, d))
     sents = list(set(edge['evidence']))
     weighs[w_key] += len(sents)
-    evidence_sentences[key] += tag_with_triggers(sents, trigger)
-    # evidence_sentences[key] = sents[0]
+    evidence_sentences[key] += tag_with_triggers(sents, trigger, polarity)
     del edge['evidence']
 
 app = FastAPI()

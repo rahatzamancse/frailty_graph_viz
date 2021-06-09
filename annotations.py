@@ -64,4 +64,4 @@ def make_text(doc):
         else:
             ret.append(token.text)
 
-    return " ".join(ret)
+    return " ".join(ret).replace("< ", "<").replace(" >", ">")
