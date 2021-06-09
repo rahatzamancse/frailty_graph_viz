@@ -137,13 +137,13 @@
             if(elem.id().startsWith("cluster_"))
                 return "brown"
             else {
-                let label = elem.data()['label'].toLowerCase()
-                if (label.endsWith("(positive)") || label === "positive_association")
+                let label = elem.data()['polarity'].toLowerCase()
+                if (label === "positive")//(label.endsWith("(positive)") || label === "positive_association")
                     if (arrow)
                         return "#77DD77"
                     else
                         return "#DAF7A6"
-                else if (label.endsWith("(negative)") || label === "negative_association")
+                else if (label === "negative")//(label.endsWith("(negative)") || label === "negative_association")
                     if (arrow)
                         return "#ff4137"
                     else
@@ -181,9 +181,9 @@
                 // label: 'data(trigger)',
                 label: (ele) => {
                     if(ele.id().startsWith("cluster_"))
-                        return "Click to Expand ..."
+                        return `Click to Expand (${ele.data()['freq']}) ...`
                     else
-                        return ele.data()['label'] + ` (${ele.data()['freq']})`
+                        return ele.data()['polarity'] + ` (${ele.data()['freq']})`
                 },
                 "text-rotation": "autorotate",
                 "line-color": color_by_label,
@@ -218,7 +218,7 @@
                 let evidence = []
                  $("body").addClass("loading");
                     document.getElementById("evidence").innerHTML = ""
-                  $.getJSON(`/evidence/${edge.source().id()}/${edge.target().id()}/${edge.data()['label']}`,
+                  $.getJSON(`/evidence/${edge.source().id()}/${edge.target().id()}/${edge.data()['polarity']}`,
                       data => {
                           evidence = data
                           evidence.forEach(item => {

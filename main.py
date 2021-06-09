@@ -1,22 +1,38 @@
-import pickle
-import json
 import itertools as it
+import json
+import pickle
 from collections import defaultdict
 
-import numpy as np
-import uvicorn
 import networkx as nx
-
-from tqdm import tqdm
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-import math
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from tqdm import tqdm
+
+AGGREGATION_FIELD = "polarity"
 
 print("Loading data ...")
 with open("/Users/enrique/Desktop/frialty/il6-new.pickle", 'rb') as f:
     graph = pickle.load(f)
+
+def infer_polarity(edge):
+    """ Temporary function that will infer polarity out of the label for display and grouping purposes """
+    label = edge['label'].lower()
+    if "positive" in label:
+        polarity = "Positive"
+    elif "negative" in label:
+        polarity = "Negative"
+    else:
+        polarity = "Neutral"
+
+    return polarity
+
+# Add polarity to all edges. This will go away soon
+for (_, _, data) in graph.edges(data=True):
+    polarity = infer_polarity(data)
+    data['polarity'] = polarity
 
 print("Cleaning graph ...")
 graph.remove_edges_from(list(nx.selfloop_edges(graph)))
@@ -32,10 +48,12 @@ weighs = defaultdict(int)
 for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
     edge = graph[s][d][ix]
 
+    polarity = edge['polarity']
+
     trigger = edge['trigger']
 
     # key = (s, d, trigger.replace(" ++++ ", ", "))
-    key = (s, d, edge['label'])
+    key = (s, d, polarity)
     w_key = frozenset((s, d))
     sents = list(set(edge['evidence']))
     weighs[w_key] += len(sents)
@@ -185,7 +203,10 @@ async def anchor(term):
     }
 
 
-def convert2cytoscapeJSON(G):
+def convert2cytoscapeJSON(G, label_field="polarity"):
+    # Sort all the edges to be able to use group by. Make it a list to be able to iterate over it multiple times
+    nx_edges = list(sorted(G.edges(data=True), key=lambda e: (e[0], e[1], e[2][label_field])))
+
     # load all nodes into nodes array
     final = []
 
@@ -197,18 +218,39 @@ def convert2cytoscapeJSON(G):
         nx["data"]["id"] = node
         nx["data"]["label"] = G.nodes[node]['label'] if 'label' in G.nodes[node] else node
         final.append(nx.copy())
-    # load all edges to edges array
-    for edge in G.edges():
-        for ix, data in enumerate(G.get_edge_data(edge[0], edge[1]).values()):
-            nx = {}
-            nx["data"] = {}
-            nx["data"]["id"] = edge[0] + edge[1] + str(ix)
-            nx["data"]["source"] = edge[0]
-            nx["data"]["target"] = edge[1]
-            nx["data"]["freq"] = data['freq']
-            nx["data"]["trigger"] = (data['trigger'].replace(" ++++ ", ", ") if type(data['trigger']) != float else "")
-            nx['data']['label'] = data['label']
-            edges.append(nx)
+
+    def aggregate_edges(edges):
+        """ Aggregates edges from a groupby """
+        data = {'freq': 0, 'label': list(), 'trigger': list()}
+        for edge in edges:
+            e = edge[2]
+            data['freq'] += int(e['freq'])
+            data['trigger'].append(e['trigger'])
+            data['label'].append(e['label'])
+            data['polarity'] = e['polarity']
+
+        data['trigger'] = ', '.join(data['trigger'])
+        data['label'] = ', '.join(data['label'])
+
+        return edge[0], edge[1], data
+
+    # load all edges to edges array. Aggregate them by the label field
+    for (ix, (g, es)) in enumerate(it.groupby(nx_edges, key=lambda e: (e[0], e[1], e[2][label_field]))):
+        edge = aggregate_edges(es)
+        data = edge[2]
+        # for ix, data in enumerate(G.get_edge_data(edge[0], edge[1]).values()):
+        nx = {}
+        nx["data"] = {}
+        nx["data"]["id"] = edge[0] + edge[1] + str(ix)
+        nx["data"]["source"] = edge[0]
+        nx["data"]["target"] = edge[1]
+        nx["data"]["freq"] = data['freq']
+        nx["data"]["trigger"] = (data['trigger'].replace(" ++++ ", ", ") if type(data['trigger']) != float else "")
+        nx['data']['label'] = data['label']
+
+
+        nx['data']['polarity'] = data['polarity']
+        edges.append(nx)
 
     # Create the cluster edges
     for edge in edges:
@@ -219,11 +261,13 @@ def convert2cytoscapeJSON(G):
             nx["data"]["id"] = "cluster_" + key[0] + key[1]
             nx["data"]["source"] = key[0]
             nx["data"]["target"] = key[1]
-            nx["data"]["freq"] = 1
+            nx["data"]["freq"] = edge['data']['freq']
             nx["data"]["trigger"] = ""
             nx['data']['label'] = ""
 
             cluster_edges[key] = nx
+        else:
+            nx["data"]["freq"] += edge['data']['freq']
 
     # Sort the edges by endpoints, then by frequency
     edges.sort(key=lambda e: (e['data']['source'], e['data']['target'], e['data']['trigger']))

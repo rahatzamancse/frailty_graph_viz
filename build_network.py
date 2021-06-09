@@ -10,10 +10,9 @@ import json
 import itertools as it
 from collections import Counter, defaultdict
 import ipdb
-from  concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import numpy as np
 import os.path
-
 
 UNIPROT_PATH = 'uniprot_sprot.fasta'
 INPUT_FILES_DIR = 'new_arizona/'
@@ -56,6 +55,7 @@ def parse_files(ps):
             frs.append(fr)
     return pd.concat(frs)
 
+
 # Function to filter participants with underisable names
 def is_black_listed(s):
     # If participant is not a string, don't proceed
@@ -67,10 +67,12 @@ def is_black_listed(s):
     # Otherwise, can proceed
     return False
 
+
 def fix_frailty_groundings(pre):
     """ Will apply ad-hoc fixes to the grounding ids"""
     # Will fix labels
     return pre.replace("frailty:FR00001", "mesh:D000073496")
+
 
 def decompose_complex(sq):
     ''' Breaks down complex participants into individual participants '''
@@ -79,12 +81,13 @@ def decompose_complex(sq):
         s = s.strip('{}')
         elems = s.split(', ')
         for e in elems:
-         if '::' in e:
-             e = suffix.sub("", e)
-             assert e != ''
-             if 'uaz:' not in e:
-                 txt, gid = e.split('::')
-                 yield txt, gid.split('.')[0]
+            if '::' in e:
+                e = suffix.sub("", e)
+                assert e != ''
+                if 'uaz:' not in e:
+                    txt, gid = e.split('::')
+                    yield txt, gid.split('.')[0]
+
 
 def merge_graphs(G, H):
     """ Merges two existing graphs preserving information """
@@ -94,6 +97,7 @@ def merge_graphs(G, H):
     I.add_nodes_from(tqdm(it.chain(G.nodes(data=True), H.nodes(data=True)), desc="Merging nodes"))
 
     return I
+
 
 ### Here is the actual execution
 
@@ -118,8 +122,6 @@ frames = list()
 # Generate a data frame from the arizona output files
 giant = parse_files(tqdm(paths, desc='parsing files'))
 
-
-
 # Dict to resolve the oututs
 outputs = dict()
 # Dict to resolve the inputs
@@ -134,12 +136,14 @@ for t in tqdm(giant.itertuples(), total=len(giant), desc="Caching inputs and out
 
 pat = re.compile(r'^E\d+$')
 
-
-filtered = giant[giant.progress_apply(lambda r: not is_black_listed(r.INPUT) and not is_black_listed(r.OUTPUT) and not is_black_listed(r.CONTROLLER), axis=1)]
+filtered = giant[giant.progress_apply(
+    lambda r: not is_black_listed(r.INPUT) and not is_black_listed(r.OUTPUT) and not is_black_listed(r.CONTROLLER),
+    axis=1)]
 
 filtered['INPUT'] = filtered['INPUT'].map(fix_frailty_groundings)
 filtered['OUTPUT'] = filtered['OUTPUT'].map(fix_frailty_groundings)
 filtered['CONTROLLER'] = filtered['CONTROLLER'].map(fix_frailty_groundings)
+
 
 def split_entity(s):
     if s[0] == 'E':
@@ -155,7 +159,9 @@ def split_entity(s):
 
 
 all_descriptions = defaultdict(list)
-for txt, gid in tqdm(decompose_complex(p for p in it.chain(filtered.INPUT, filtered.OUTPUT, filtered.CONTROLLER) if p and p != 'NONE'), desc='Making descs'):
+for txt, gid in tqdm(decompose_complex(
+        p for p in it.chain(filtered.INPUT, filtered.OUTPUT, filtered.CONTROLLER) if p and p != 'NONE'),
+        desc='Making descs'):
     # if len(txt) > 1:
     num = gid.split(':')[-1]
     if num in uniprot_names:
@@ -163,14 +169,15 @@ for txt, gid in tqdm(decompose_complex(p for p in it.chain(filtered.INPUT, filte
     else:
         all_descriptions[gid].append(txt)
 
-descriptions = {k:list(sorted(v, key=len))[0] for k, v in all_descriptions.items()}
+descriptions = {k: list(sorted(v, key=len))[0] for k, v in all_descriptions.items()}
 
 counts = Counter()
 evidences = defaultdict(set)
 edges = set()
 
-
 resolutions_frame = filtered.set_index(['EVENT ID', 'SEEN IN'])
+
+
 def resolve(eid, col, paper):
     if "::" not in eid and eid != 'NONE':
         # Resolve complex events by following the trace of the events in the frame
@@ -191,14 +198,13 @@ def resolve(eid, col, paper):
 ## Build the edges from the rows in the data frame
 for t in tqdm(filtered.itertuples(), total=len(filtered), desc='Building edges'):
     # Ignore those that have adhoc entities, i.e. uaz prefixes
-    if "uaz:" not in t.INPUT and "uaz:" not in t.OUTPUT and "uaz:" not in t.CONTROLLER: #and not t.INPUT.startswith('E') and not t.OUTPUT.startswith('E') and not t.CONTROLLER.startswith('E'):
+    if "uaz:" not in t.INPUT and "uaz:" not in t.OUTPUT and "uaz:" not in t.CONTROLLER:  # and not t.INPUT.startswith('E') and not t.OUTPUT.startswith('E') and not t.CONTROLLER.startswith('E'):
         try:
             paper = t._19
             inputs = list(decompose_complex([resolve(t.INPUT, 'INPUT', paper)]))
             outputs = list(decompose_complex([resolve(t.OUTPUT, 'OUTPUT', paper)]))
             controllers = list(decompose_complex([resolve(t.CONTROLLER, 'CONTROLLER', paper)]))
             label = t._5
-
 
             if len(controllers) > 0:
                 for controller, input, output in it.product(controllers, inputs, outputs):
@@ -235,8 +241,7 @@ for t in tqdm(filtered.itertuples(), total=len(filtered), desc='Building edges')
                         # Build the edge
                         edges.add(key)
         except:
-            pass # TODO log exceptions
-
+            pass  # TODO log exceptions
 
 # Create the nx graph
 G = nx.MultiDiGraph()
@@ -252,5 +257,5 @@ for key in tqdm(edges, desc="Making graph"):
     else:
         trigger = key[4]
 
-    G.add_edge(key[0], key[2], input=key[2], trigger=trigger, freq=len(evidences[key]), evidence=[f'{id}: {s}' for id, s in evidences[key]], label=key[4])
-
+    G.add_edge(key[0], key[2], input=key[2], trigger=trigger, freq=len(evidences[key]),
+               evidence=[f'{id}: {s}' for id, s in evidences[key]], label=key[4])
