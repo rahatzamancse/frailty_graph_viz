@@ -37,18 +37,21 @@ def tag_with_triggers(sentences, triggers, polarity):
     for sent in sentences:
         tokens = sent.split(" ")
         new_sent = list()
+        trigger_found = False
         for token in tokens:
             ltok = token.lower()
             is_trigger = False
             for trigger in triggers:
                 if ltok.startswith(trigger):
                     is_trigger = True
+                    trigger_found = True
                     break
             if is_trigger:
                 new_sent.append(f'<span class="{polarity}"> {token} </span>')
             else:
                 new_sent.append(token)
-        new_sents.append(" ".join(new_sent))
+        if trigger_found:
+            new_sents.append(" ".join(new_sent))
     return new_sents
 
 # Add polarity to all edges. This will go away soon
