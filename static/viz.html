@@ -34,28 +34,61 @@
         border-radius: 25px;
     }
 
-    .Strong {
-        color:Blue;
-    }
-    .Weak{
-        color: Orange;
-    }
-    .Negations{
-        color: Red;
+    /*.Strong {*/
+    /*    color:Blue;*/
+    /*}*/
+    /*.Weak{*/
+    /*    color: Orange;*/
+    /*}*/
+    /*.Negations{*/
+    /*    color: Red;*/
+    /*}*/
+
+    /*.Positive{*/
+    /*    color: Green;*/
+    /*    font-weight: bold;*/
+    /*}*/
+
+    /*.Negative{*/
+    /*    color: Red;*/
+    /*    font-weight: bold;*/
+    /*}*/
+
+    /*.Neutral{*/
+    /*    font-weight: bold;*/
+    /*}*/
+
+    .event {
+        background-color: #D1D1CD;
+        padding: 0 .2em 0 .2em;
+        border-radius: 3px;
     }
 
-    .Positive{
-        color: Green;
-        font-weight: bold;
+    .Positive_association {
+        background-color: rgba(119, 221, 119, 0.25);
     }
 
-    .Negative{
-        color: Red;
-        font-weight: bold;
+    .Positive_activation{
+        background-color: rgba(119, 221, 119, 0.25);
     }
 
-    .Neutral{
+    .Negative_association {
+        background-color: rgba(255, 65, 55, 0.25);
+    }
+
+    .Negative_activation{
+        background-color: rgba(255, 65, 55, 0.25);
+    }
+
+    .event > .argument.trigger {
         font-weight: bold;
+        text-decoration: none;
+        font-style: normal;
+    }
+
+    .event > .argument  {
+        font-style: italic;
+        text-decoration: underline;
     }
 
     #cy {

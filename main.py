@@ -15,7 +15,7 @@ import annotations
 AGGREGATION_FIELD = "polarity"
 
 print("Loading data ...")
-with open("/Users/enrique/Desktop/frialty/il6-new.pickle", 'rb') as f:
+with open("data/graph_jul.pickle", 'rb') as f:
     graph = pickle.load(f)
 
 def infer_polarity(edge):
@@ -30,26 +30,26 @@ def infer_polarity(edge):
 
     return polarity
 
-
-def tag_with_triggers(sentences, triggers, polarity):
-    new_sents = list()
-    triggers = triggers.split(", ")
-    for sent in sentences:
-        tokens = sent.split(" ")
-        new_sent = list()
-        for token in tokens:
-            ltok = token.lower()
-            is_trigger = False
-            for trigger in triggers:
-                if ltok.startswith(trigger):
-                    is_trigger = True
-                    break
-            if is_trigger:
-                new_sent.append(f'<span class="{polarity}"> {token} </span>')
-            else:
-                new_sent.append(token)
-        new_sents.append(" ".join(new_sent))
-    return new_sents
+# TODO deprecated
+# def tag_with_triggers(sentences, triggers, polarity):
+#     new_sents = list()
+#     triggers = triggers.split(", ")
+#     for sent in sentences:
+#         tokens = sent.split(" ")
+#         new_sent = list()
+#         for token in tokens:
+#             ltok = token.lower()
+#             is_trigger = False
+#             for trigger in triggers:
+#                 if ltok.startswith(trigger):
+#                     is_trigger = True
+#                     break
+#             if is_trigger:
+#                 new_sent.append(f'<span class="{polarity}"> {token} </span>')
+#             else:
+#                 new_sent.append(token)
+#         new_sents.append(" ".join(new_sent))
+#     return new_sents
 
 # Add polarity to all edges. This will go away soon
 for (_, _, data) in graph.edges(data=True):
@@ -79,7 +79,8 @@ for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
     w_key = frozenset((s, d))
     sents = list(set(edge['evidence']))
     weighs[w_key] += len(sents)
-    evidence_sentences[key] += tag_with_triggers(sents, trigger, polarity)
+    # evidence_sentences[key] += tag_with_triggers(sents, trigger, polarity)
+    evidence_sentences[key] += sents
     del edge['evidence']
 
 app = FastAPI()
@@ -196,10 +197,7 @@ async def neighbors(elem):
 @app.get('/evidence/{source}/{destination}/{trigger}')
 async def evidence(source, destination, trigger):
     sents = evidence_sentences[(source, destination, trigger)]
-    docs = list(annotations.pipe_sentences(sents))
-    enhanced_sents = [annotations.make_text(d) for d in docs]
-    return enhanced_sents
-
+    return sents
 
 @app.get('/entities')
 async def graph_entities(term=''):

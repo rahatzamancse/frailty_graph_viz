@@ -1,7 +1,6 @@
 import csv
 import glob
 import re
-import ipdb
 from pandas.core import frame
 from tqdm import tqdm
 import networkx as nx
@@ -14,8 +13,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import numpy as np
 import os.path
 
-UNIPROT_PATH = 'uniprot_sprot.fasta'
-INPUT_FILES_DIR = 'new_arizona/'
+UNIPROT_PATH = 'data/uniprot_sprot.fasta'
+INPUT_FILES_DIR = '/home/enrique/data/arizona_associations_markup/'
 
 # Initialize the pandas hook on tqdm
 tqdm.pandas()
@@ -23,7 +22,7 @@ tqdm.pandas()
 
 ## Function definitions
 def read_uniprot(path):
-    ''' Parse the fasta file with uniprot data to generate a dictionary of descriptions '''
+    """ Parse the fasta file with uniprot data to generate a dictionary of descriptions """
 
     ret = {}
     with open(path, 'r') as f:
@@ -103,7 +102,7 @@ def merge_graphs(G, H):
 
 # Read uniprot for the descriptions
 uniprot_names = read_uniprot(UNIPROT_PATH)
-paths = list(glob.glob(os.path.join(INPUT_FILES_DIR, "*.tsv")))
+paths = list(glob.glob(os.path.join(INPUT_FILES_DIR, "*.tsv")))[:3000]
 
 frames = list()
 
