@@ -15,7 +15,7 @@ import annotations
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--graph-file', default='il6-graph.pickle')
-parser.add_argument('--port', default=8000)
+parser.add_argument('--port', default=8000, type=int)
 args = parser.parse_args()
 
 AGGREGATION_FIELD = "polarity"
