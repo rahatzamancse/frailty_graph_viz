@@ -15,6 +15,7 @@ import annotations
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--graph-file', default='il6-graph.pickle')
+parser.add_argument('--port', default=8000)
 args = parser.parse_args()
 
 AGGREGATION_FIELD = "polarity"
@@ -307,4 +308,4 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
 
 
 if __name__ == '__main__':
-    uvicorn.run(app, host="0.0.0.0", port=8000, debug=True)
+    uvicorn.run(app, host="0.0.0.0", port=args.port, debug=False)
