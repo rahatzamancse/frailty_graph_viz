@@ -1,3 +1,4 @@
+import argparse
 import itertools as it
 import json
 import pickle
@@ -12,11 +13,16 @@ from fastapi.staticfiles import StaticFiles
 from tqdm import tqdm
 import annotations
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--graph-file', default='il6-graph.pickle')
+args = parser.parse_args()
+
 AGGREGATION_FIELD = "polarity"
 
 print("Loading data ...")
-with open("data/graph_jul.pickle", 'rb') as f:
+with open(args.graph_file, 'rb') as f:
     graph = pickle.load(f)
+
 
 def infer_polarity(edge):
     """ Temporary function that will infer polarity out of the label for display and grouping purposes """
@@ -29,6 +35,7 @@ def infer_polarity(edge):
         polarity = "Neutral"
 
     return polarity
+
 
 # TODO deprecated
 # def tag_with_triggers(sentences, triggers, polarity):
@@ -199,6 +206,7 @@ async def evidence(source, destination, trigger):
     sents = evidence_sentences[(source, destination, trigger)]
     return sents
 
+
 @app.get('/entities')
 async def graph_entities(term=''):
     term = term.lower()
@@ -270,7 +278,6 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
         nx["data"]["freq"] = data['freq']
         nx["data"]["trigger"] = (data['trigger'].replace(" ++++ ", ", ") if type(data['trigger']) != float else "")
         nx['data']['label'] = data['label']
-
 
         nx['data']['polarity'] = data['polarity']
         edges.append(nx)
