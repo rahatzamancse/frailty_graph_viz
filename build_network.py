@@ -1,20 +1,18 @@
 import csv
 import glob
-import re
-from pandas.core import frame
-from tqdm import tqdm
-import networkx as nx
-import pandas as pd
-import json
 import itertools as it
-from collections import Counter, defaultdict
-import ipdb
-from concurrent.futures import ProcessPoolExecutor, as_completed
-import numpy as np
+import logging
 import os.path
+import pickle
+import re
+from collections import Counter, defaultdict
+
+import ipdb
+import networkx as nx
+from tqdm import tqdm
 
 
-## Function definitions
+# Function definitions
 def read_uniprot(path):
     """ Parse the fasta file with uniprot data to generate a dictionary of descriptions """
 
@@ -32,11 +30,13 @@ def read_uniprot(path):
 # Parse an arizona output file and generates a pandas dataframe
 def parse_file(p):
     try:
-        fr = pd.read_csv(p, delimiter='\t')
-    except:
-        pass
-    else:
-        return fr
+        with open(p) as f:
+            reader = csv.DictReader(f, delimiter='\t')
+            rows = list(reader)
+    except Exception as ex:
+        rows = list()
+
+    return rows
 
 
 # Calls parse_file on a sequence of paths and returns a concatenated data frame
@@ -44,15 +44,14 @@ def parse_files(ps):
     frs = list()
     for p in ps:
         fr = parse_file(p)
-        if fr is not None:
-            frs.append(fr)
-    return pd.concat(frs)
+        frs.extend(fr)
+    return frs
 
 
 # Function to filter participants with underisable names
-def is_black_listed(s):
+def is_black_listed(s: str) -> bool:
     # If participant is not a string, don't proceed
-    if type(s) != str:
+    if s == '':
         return True
     # If participant is "complex"  don't proceed
     if s[0] == '{' or s[-1] == '}':
@@ -64,12 +63,17 @@ def is_black_listed(s):
 def fix_frailty_groundings(pre):
     """ Will apply ad-hoc fixes to the grounding ids"""
     # Will fix labels
+    if pre == "frailty:FR00001":
+        ipdb.set_trace()
     return pre.replace("frailty:FR00001", "mesh:D000073496")
 
 
+suffix = re.compile(r"(\.\w+|:\[\w+\])+$", re.IGNORECASE)
+
+
 def decompose_complex(sq):
-    ''' Breaks down complex participants into individual participants '''
-    suffix = re.compile(r"(\.\w+|:\[\w+\])+$", re.IGNORECASE)
+    """ Breaks down complex participants into individual participants """
+
     for s in sq:
         s = s.strip('{}')
         elems = s.split(', ')
@@ -92,175 +96,150 @@ def merge_graphs(G, H):
     return I
 
 
-def main(uniprot_path = 'data/uniprot_sprot.fasta', input_files_dir = '/home/enrique/data/arizona_associations_markup/'):
-
-
-    # Initialize the pandas hook on tqdm
-    tqdm.pandas()
-
-
-    # Read uniprot for the descriptions
+def main(uniprot_path='data/uniprot_sprot.fasta', input_files_dir='/home/enrique/data/arizona_associations_markup/', output_file = "graph.pickle"):
+    # Read uniprot for the top_descriptions
     uniprot_names = read_uniprot(uniprot_path)
-    paths = list(glob.glob(os.path.join(input_files_dir, "*.tsv")))[:3000]
-
-    frames = list()
-
-    ### This was the multiprocess reading
-    # with ProcessPoolExecutor(max_workers=6) as ctx:
-    #     futures = {ctx.submit(parse_files, p) for p in np.array_split(paths, 1000)}
-    #
-    #     for future in tqdm(as_completed(futures), desc='parsing files', total=len(futures)):
-    #         res = future.result()
-    #         if res is not None:
-    #             frames.append(res)
-    #         else:
-    #             print("beep")
-    # giant = pd.concat(frames)
+    paths = glob.glob(os.path.join(input_files_dir, "*.tsv"))
 
     # Generate a data frame from the arizona output files
-    giant = parse_files(tqdm(paths, desc='parsing files'))
+    all_rows = parse_files(tqdm(paths, desc='Parsing files'))
 
     # Dict to resolve the oututs
-    outputs = dict()
+    dataset_outputs = dict()
     # Dict to resolve the inputs
-    inputs = dict()
+    dataset_inputs = dict()
 
-    for t in tqdm(giant.itertuples(), total=len(giant), desc="Caching inputs and outputs"):
-        key = (t._19, t._4)
-        val_o = t.OUTPUT
-        outputs[key] = val_o
-        val_i = t.INPUT
-        inputs[key] = val_i
+    # Fix the participant names here:
+    for row in tqdm(all_rows, desc='Fixing participant\'s names'):
+        row['INPUT'] = fix_frailty_groundings(row['INPUT'])
+        row['OUTPUT'] = fix_frailty_groundings(row['OUTPUT'])
+        row['CONTROLLER'] = fix_frailty_groundings(row['CONTROLLER'])
 
-    pat = re.compile(r'^E\d+$')
+    for row in tqdm(all_rows, desc="Caching inputs and outputs"):
+        # key = (row._19, row._4) # ._4 = EVENT ID, ._19 = SEEN IN
+        key = (row['EVENT ID'], row['SEEN IN'])
+        val_o = row['OUTPUT']
+        dataset_outputs[key] = val_o
+        val_i = row['INPUT']
+        dataset_inputs[key] = val_i
 
-    filtered = giant[giant.progress_apply(
-        lambda r: not is_black_listed(r.INPUT) and not is_black_listed(r.OUTPUT) and not is_black_listed(r.CONTROLLER),
-        axis=1)]
+    def row_stays(row):
+        return not is_black_listed(row['INPUT']) and not is_black_listed(row['OUTPUT']) and not is_black_listed(
+            row['CONTROLLER'])
 
-    filtered['INPUT'] = filtered['INPUT'].map(fix_frailty_groundings)
-    filtered['OUTPUT'] = filtered['OUTPUT'].map(fix_frailty_groundings)
-    filtered['CONTROLLER'] = filtered['CONTROLLER'].map(fix_frailty_groundings)
+    filtered_rows = [row for row in tqdm(all_rows, desc='Choosing the rows to keep') if row_stays(row)]
 
+    # Build top_descriptions
+    all_descriptions = defaultdict(Counter)
 
-    def split_entity(s):
-        if s[0] == 'E':
-            return s, s
-        elif s == 'NONE':
-            # return None, None
-            return None
-        else:
-            tokens = s.split('::')
-            text = tokens[0]
-            gid = tokens[1]
-            return gid, text
+    for row in tqdm(filtered_rows, desc='Generating entity top_descriptions'):
+        for participant in (row[p] for p in ('INPUT', 'OUTPUT', 'CONTROLLER')):
+            if participant != 'NONE':
+                for txt, gid in decompose_complex([participant]):
+                    num = gid.split(':')[-1]  # Uniprot key
+                    all_descriptions[gid][uniprot_names.get(num, txt)] += 1  # If in uniprot, use the desc, otherwise,
+                    # use the text
 
-
-    all_descriptions = defaultdict(list)
-    for txt, gid in tqdm(decompose_complex(
-            p for p in it.chain(filtered.INPUT, filtered.OUTPUT, filtered.CONTROLLER) if p and p != 'NONE'),
-            desc='Making descs'):
-        # if len(txt) > 1:
-        num = gid.split(':')[-1]
-        if num in uniprot_names:
-            all_descriptions[gid].append(uniprot_names[num])
-        else:
-            all_descriptions[gid].append(txt)
-
-    descriptions = {k: list(sorted(v, key=len))[0] for k, v in all_descriptions.items()}
+    # Choose the  most frequent description for each entity
+    top_descriptions = {k: v.most_common()[0][0] for k, v in
+                        tqdm(all_descriptions.items(), desc='Choosing the most frequent description')}
 
     counts = Counter()
     evidences = defaultdict(set)
     edges = set()
 
-    resolutions_frame = filtered.set_index(['EVENT ID', 'SEEN IN'])
-
-
     def resolve(eid, col, paper):
+        cache = dataset_inputs if col == 'OUTPUT' else dataset_outputs
+
         if "::" not in eid and eid != 'NONE':
             # Resolve complex events by following the trace of the events in the frame
-            row = resolutions_frame.loc[(eid, paper)]
+            row = cache[(eid, paper)]
             # If we look for the input, of an event, then the realized element is the outut of the input
             if col == 'INPUT':
-                return resolve(row.OUTPUT, 'OUTPUT', paper)
+                return resolve(row, 'OUTPUT', paper)
             elif col == 'OUTPUT':
-                return resolve(row.INPUT, 'INPUT', paper)
+                return resolve(row, 'INPUT', paper)
             elif col == 'CONTROLLER':
-                return resolve(row.OUTPUT, 'OUTPUT', paper)
+                return resolve(row, 'OUTPUT', paper)
             else:
                 raise Exception("Invalid resolution")
         else:
             return eid
 
-
-    ## Build the edges from the rows in the data frame
-    for t in tqdm(filtered.itertuples(), total=len(filtered), desc='Building edges'):
+    # Build the edges from the rows in the data frame
+    for row in tqdm(filtered_rows, desc='Building edges'):
         # Ignore those that have adhoc entities, i.e. uaz prefixes
-        if "uaz:" not in t.INPUT and "uaz:" not in t.OUTPUT and "uaz:" not in t.CONTROLLER:  # and not t.INPUT.startswith('E') and not t.OUTPUT.startswith('E') and not t.CONTROLLER.startswith('E'):
+        if "uaz:" not in row['INPUT'] and "uaz:" not in row['OUTPUT'] and "uaz:" not in row['CONTROLLER']:
             try:
-                paper = t._19
-                inputs = list(decompose_complex([resolve(t.INPUT, 'INPUT', paper)]))
-                outputs = list(decompose_complex([resolve(t.OUTPUT, 'OUTPUT', paper)]))
-                controllers = list(decompose_complex([resolve(t.CONTROLLER, 'CONTROLLER', paper)]))
-                label = t._5
+                paper = row['SEEN IN']
+                inputs = list(decompose_complex([resolve(row['INPUT'], 'INPUT', paper)]))
+                outputs = list(decompose_complex([resolve(row['OUTPUT'], 'OUTPUT', paper)]))
+                controllers = list(decompose_complex([resolve(row['CONTROLLER'], 'CONTROLLER', paper)]))
+                label = row['EVENT LABEL']
 
                 if len(controllers) > 0:
                     for controller, input, output in it.product(controllers, inputs, outputs):
                         controller = controller[1]
                         input = input[1]
                         output = output[1]
-                        freq = t.SEEN
-                        doc = t._19
-                        trigger = t.TRIGGERS
-                        evidence = t.EVIDENCE.split(' ++++ ')
+                        freq = row['SEEN']
+                        doc = row['SEEN IN']
+                        trigger = row['TRIGGERS']
+                        evidence = row['EVIDENCE'].split(' ++++ ')
 
                         key = (controller, input, output, trigger, label)
-                        counts[key] += freq
+                        counts[key] += int(freq)  # This comes as string, cast it to an int
                         evidences[key] |= {(doc, e) for e in evidence}
 
                         # Build the edge
                         edges.add(key)
                 elif "ssociation" in label:
 
-                    participants = [p for p in t.INPUT.split(', ') if '::' in p]
+                    participants = [p for p in row['INPUT'].split(', ') if '::' in p]
                     if len(participants) > 1:
-                        controller, output = [p[1] for p in list(decompose_complex([t.INPUT]))]
+                        controller, output = [p[1] for p in list(decompose_complex([row.INPUT]))]
                         if controller != output:
                             input = controller
-                            freq = t.SEEN
-                            doc = t._19
-                            trigger = t.TRIGGERS
-                            evidence = t.EVIDENCE.split(' ++++ ')
+                            freq = row['SEEN']
+                            doc = row['SEEN IN']
+                            trigger = row['TRIGGERS']
+                            evidence = row['EVIDENCE'].split(' ++++ ')
 
                             key = (controller, input, output, trigger, label)
-                            counts[key] += freq
+                            counts[key] += int(freq)  # This comes as string, cast it to an int
                             evidences[key] |= {(doc, e) for e in evidence}
 
                             # Build the edge
                             edges.add(key)
-            except:
+            except Exception as ex:
                 pass  # TODO log exceptions
 
     # Create the nx graph
     G = nx.MultiDiGraph()
 
     for key in tqdm(edges, desc="Making graph"):
-        if key[0] not in G.nodes:
-            G.add_nodes_from([(key[0], {'label': descriptions[key[0]]})])
-        if key[1] not in G.nodes:
-            G.add_nodes_from([(key[1], {'label': descriptions[key[1]]})])
+        try:
+            if key[0] not in G.nodes:
+                G.add_nodes_from([(key[0], {'label': top_descriptions[key[0]]})])
+            if key[1] not in G.nodes:
+                G.add_nodes_from([(key[1], {'label': top_descriptions[key[1]]})])
 
-        if type(key[3]) == str:
-            trigger = key[3]
-        else:
-            trigger = key[4]
+            if type(key[3]) == str:
+                trigger = key[3]
+            else:
+                trigger = key[4]
 
-        G.add_edge(key[0], key[2], input=key[2], trigger=trigger, freq=len(evidences[key]),
-                   evidence=[f'{id}: {s}' for id, s in evidences[key]], label=key[4])
+            G.add_edge(key[0], key[2], input=key[2], trigger=trigger, freq=len(evidences[key]),
+                       evidence=[f'{id}: {s}' for id, s in evidences[key]], label=key[4])
+        except Exception as ex:
+            print(key)
+            print(ex)
 
-
-    # Return the produced graph
-    return G
+    # Save the graph into a file
+    logging.info(f"Saving output to {output_file}")
+    with open(output_file, 'wb') as f:
+        pickle.dump(G, f)
+    logging.info("Done")
 
 
 if __name__ == "__main__":
