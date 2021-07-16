@@ -6,6 +6,7 @@ import os.path
 import pickle
 import re
 from collections import Counter, defaultdict
+from typing import NamedTuple, Set
 
 import ipdb
 import networkx as nx
@@ -27,8 +28,10 @@ def read_uniprot(path):
     return ret
 
 
-# Parse an arizona output file and generates a pandas dataframe
 def parse_file(p):
+    """
+    Reads a TSV (Arizona format) file and returns a list with dictionary elements for each row
+    """
     try:
         with open(p) as f:
             reader = csv.DictReader(f, delimiter='\t')
@@ -39,8 +42,10 @@ def parse_file(p):
     return rows
 
 
-# Calls parse_file on a sequence of paths and returns a concatenated data frame
 def parse_files(ps):
+    """
+    Reads all files and joins the resulting dictionaries
+    """
     frs = list()
     for p in ps:
         fr = parse_file(p)
@@ -48,8 +53,10 @@ def parse_files(ps):
     return frs
 
 
-# Function to filter participants with underisable names
 def is_black_listed(s: str) -> bool:
+    """
+    Used to filter out rows due to malformed participants in its fields
+    """
     # If participant is not a string, don't proceed
     if s == '':
         return True
@@ -68,6 +75,7 @@ def fix_frailty_groundings(pre):
     return pre.replace("frailty:FR00001", "mesh:D000073496")
 
 
+# Pre-compile a regex to save time
 suffix = re.compile(r"(\.\w+|:\[\w+\])+$", re.IGNORECASE)
 
 
@@ -86,17 +94,32 @@ def decompose_complex(sq):
                     yield txt, gid.split('.')[0]
 
 
-def merge_graphs(G, H):
+def merge_graphs(g, h):
     """ Merges two existing graphs preserving information """
-    I = nx.MultiDiGraph()
+    i = nx.MultiDiGraph()
 
-    I.add_edges_from(tqdm(it.chain(G.edges(data=True), H.edges(data=True)), desc="Merging edges"))
-    I.add_nodes_from(tqdm(it.chain(G.nodes(data=True), H.nodes(data=True)), desc="Merging nodes"))
+    i.add_edges_from(tqdm(it.chain(g.edges(data=True), h.edges(data=True)), desc="Merging edges"))
+    i.add_nodes_from(tqdm(it.chain(g.nodes(data=True), h.nodes(data=True)), desc="Merging nodes"))
 
-    return I
+    return i
 
 
-def main(uniprot_path='data/uniprot_sprot.fasta', input_files_dir='/home/enrique/data/arizona_associations_markup/', output_file = "graph.pickle"):
+class EdgeData(NamedTuple):
+    """ Named tuple to encode the identity of an edge in the graph"""
+    controller: str
+    input: str
+    output: str
+    trigger: str
+    label: str
+
+
+def main(uniprot_path='data/uniprot_sprot.fasta',
+         input_files_dir='/home/enrique/data/arizona_associations_markup/',
+         output_file="graph.pickle"):
+    """
+    Entry point
+    """
+
     # Read uniprot for the top_descriptions
     uniprot_names = read_uniprot(uniprot_path)
     paths = glob.glob(os.path.join(input_files_dir, "*.tsv"))
@@ -123,9 +146,10 @@ def main(uniprot_path='data/uniprot_sprot.fasta', input_files_dir='/home/enrique
         val_i = row['INPUT']
         dataset_inputs[key] = val_i
 
-    def row_stays(row):
-        return not is_black_listed(row['INPUT']) and not is_black_listed(row['OUTPUT']) and not is_black_listed(
-            row['CONTROLLER'])
+    # Filter criteria to discard any row with a malformed participant
+    row_stays = lambda row: not is_black_listed(row['INPUT']) and \
+                            not is_black_listed(row['OUTPUT']) and \
+                            not is_black_listed(row['CONTROLLER'])
 
     filtered_rows = [row for row in tqdm(all_rows, desc='Choosing the rows to keep') if row_stays(row)]
 
@@ -144,9 +168,10 @@ def main(uniprot_path='data/uniprot_sprot.fasta', input_files_dir='/home/enrique
     top_descriptions = {k: v.most_common()[0][0] for k, v in
                         tqdm(all_descriptions.items(), desc='Choosing the most frequent description')}
 
+    # Start building the graph edges here
     counts = Counter()
     evidences = defaultdict(set)
-    edges = set()
+    edges: Set[EdgeData] = set()
 
     def resolve(eid, col, paper):
         cache = dataset_inputs if col == 'OUTPUT' else dataset_outputs
@@ -187,7 +212,7 @@ def main(uniprot_path='data/uniprot_sprot.fasta', input_files_dir='/home/enrique
                         trigger = row['TRIGGERS']
                         evidence = row['EVIDENCE'].split(' ++++ ')
 
-                        key = (controller, input, output, trigger, label)
+                        key = EdgeData(controller, input, output, trigger, label)
                         counts[key] += int(freq)  # This comes as string, cast it to an int
                         evidences[key] |= {(doc, e) for e in evidence}
 
@@ -205,7 +230,7 @@ def main(uniprot_path='data/uniprot_sprot.fasta', input_files_dir='/home/enrique
                             trigger = row['TRIGGERS']
                             evidence = row['EVIDENCE'].split(' ++++ ')
 
-                            key = (controller, input, output, trigger, label)
+                            key = EdgeData(controller, input, output, trigger, label)
                             counts[key] += int(freq)  # This comes as string, cast it to an int
                             evidences[key] |= {(doc, e) for e in evidence}
 
@@ -219,18 +244,18 @@ def main(uniprot_path='data/uniprot_sprot.fasta', input_files_dir='/home/enrique
 
     for key in tqdm(edges, desc="Making graph"):
         try:
-            if key[0] not in G.nodes:
-                G.add_nodes_from([(key[0], {'label': top_descriptions[key[0]]})])
-            if key[1] not in G.nodes:
-                G.add_nodes_from([(key[1], {'label': top_descriptions[key[1]]})])
+            if key.controller not in G.nodes:
+                G.add_nodes_from([(key.controller, {'label': top_descriptions[key.controller]})])
+            if key.input not in G.nodes:
+                G.add_nodes_from([(key.input, {'label': top_descriptions[key.input]})])
 
-            if type(key[3]) == str:
-                trigger = key[3]
+            if type(key.trigger) == str:
+                trigger = key.trigger
             else:
-                trigger = key[4]
+                trigger = key.label
 
-            G.add_edge(key[0], key[2], input=key[2], trigger=trigger, freq=len(evidences[key]),
-                       evidence=[f'{id}: {s}' for id, s in evidences[key]], label=key[4])
+            G.add_edge(key.controller, key.output, input=key.output, trigger=trigger, freq=len(evidences[key]),
+                       evidence=[f'{id}: {s}' for id, s in evidences[key]], label=key.label)
         except Exception as ex:
             print(key)
             print(ex)
