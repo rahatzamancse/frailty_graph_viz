@@ -13,12 +13,6 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import numpy as np
 import os.path
 
-UNIPROT_PATH = 'data/uniprot_sprot.fasta'
-INPUT_FILES_DIR = '/home/enrique/data/arizona_associations_markup/'
-
-# Initialize the pandas hook on tqdm
-tqdm.pandas()
-
 
 ## Function definitions
 def read_uniprot(path):
@@ -98,136 +92,123 @@ def merge_graphs(G, H):
     return I
 
 
-### Here is the actual execution
-
-# Read uniprot for the descriptions
-uniprot_names = read_uniprot(UNIPROT_PATH)
-paths = list(glob.glob(os.path.join(INPUT_FILES_DIR, "*.tsv")))[:3000]
-
-frames = list()
-
-### This was the multiprocess reading
-# with ProcessPoolExecutor(max_workers=6) as ctx:
-#     futures = {ctx.submit(parse_files, p) for p in np.array_split(paths, 1000)}
-#
-#     for future in tqdm(as_completed(futures), desc='parsing files', total=len(futures)):
-#         res = future.result()
-#         if res is not None:
-#             frames.append(res)
-#         else:
-#             print("beep")
-# giant = pd.concat(frames)
-
-# Generate a data frame from the arizona output files
-giant = parse_files(tqdm(paths, desc='parsing files'))
-
-# Dict to resolve the oututs
-outputs = dict()
-# Dict to resolve the inputs
-inputs = dict()
-
-for t in tqdm(giant.itertuples(), total=len(giant), desc="Caching inputs and outputs"):
-    key = (t._19, t._4)
-    val_o = t.OUTPUT
-    outputs[key] = val_o
-    val_i = t.INPUT
-    inputs[key] = val_i
-
-pat = re.compile(r'^E\d+$')
-
-filtered = giant[giant.progress_apply(
-    lambda r: not is_black_listed(r.INPUT) and not is_black_listed(r.OUTPUT) and not is_black_listed(r.CONTROLLER),
-    axis=1)]
-
-filtered['INPUT'] = filtered['INPUT'].map(fix_frailty_groundings)
-filtered['OUTPUT'] = filtered['OUTPUT'].map(fix_frailty_groundings)
-filtered['CONTROLLER'] = filtered['CONTROLLER'].map(fix_frailty_groundings)
+def main(uniprot_path = 'data/uniprot_sprot.fasta', input_files_dir = '/home/enrique/data/arizona_associations_markup/'):
 
 
-def split_entity(s):
-    if s[0] == 'E':
-        return s, s
-    elif s == 'NONE':
-        # return None, None
-        return None
-    else:
-        tokens = s.split('::')
-        text = tokens[0]
-        gid = tokens[1]
-        return gid, text
+    # Initialize the pandas hook on tqdm
+    tqdm.pandas()
 
 
-all_descriptions = defaultdict(list)
-for txt, gid in tqdm(decompose_complex(
-        p for p in it.chain(filtered.INPUT, filtered.OUTPUT, filtered.CONTROLLER) if p and p != 'NONE'),
-        desc='Making descs'):
-    # if len(txt) > 1:
-    num = gid.split(':')[-1]
-    if num in uniprot_names:
-        all_descriptions[gid].append(uniprot_names[num])
-    else:
-        all_descriptions[gid].append(txt)
+    # Read uniprot for the descriptions
+    uniprot_names = read_uniprot(uniprot_path)
+    paths = list(glob.glob(os.path.join(input_files_dir, "*.tsv")))[:3000]
 
-descriptions = {k: list(sorted(v, key=len))[0] for k, v in all_descriptions.items()}
+    frames = list()
 
-counts = Counter()
-evidences = defaultdict(set)
-edges = set()
+    ### This was the multiprocess reading
+    # with ProcessPoolExecutor(max_workers=6) as ctx:
+    #     futures = {ctx.submit(parse_files, p) for p in np.array_split(paths, 1000)}
+    #
+    #     for future in tqdm(as_completed(futures), desc='parsing files', total=len(futures)):
+    #         res = future.result()
+    #         if res is not None:
+    #             frames.append(res)
+    #         else:
+    #             print("beep")
+    # giant = pd.concat(frames)
 
-resolutions_frame = filtered.set_index(['EVENT ID', 'SEEN IN'])
+    # Generate a data frame from the arizona output files
+    giant = parse_files(tqdm(paths, desc='parsing files'))
+
+    # Dict to resolve the oututs
+    outputs = dict()
+    # Dict to resolve the inputs
+    inputs = dict()
+
+    for t in tqdm(giant.itertuples(), total=len(giant), desc="Caching inputs and outputs"):
+        key = (t._19, t._4)
+        val_o = t.OUTPUT
+        outputs[key] = val_o
+        val_i = t.INPUT
+        inputs[key] = val_i
+
+    pat = re.compile(r'^E\d+$')
+
+    filtered = giant[giant.progress_apply(
+        lambda r: not is_black_listed(r.INPUT) and not is_black_listed(r.OUTPUT) and not is_black_listed(r.CONTROLLER),
+        axis=1)]
+
+    filtered['INPUT'] = filtered['INPUT'].map(fix_frailty_groundings)
+    filtered['OUTPUT'] = filtered['OUTPUT'].map(fix_frailty_groundings)
+    filtered['CONTROLLER'] = filtered['CONTROLLER'].map(fix_frailty_groundings)
 
 
-def resolve(eid, col, paper):
-    if "::" not in eid and eid != 'NONE':
-        # Resolve complex events by following the trace of the events in the frame
-        row = resolutions_frame.loc[(eid, paper)]
-        # If we look for the input, of an event, then the realized element is the outut of the input
-        if col == 'INPUT':
-            return resolve(row.OUTPUT, 'OUTPUT', paper)
-        elif col == 'OUTPUT':
-            return resolve(row.INPUT, 'INPUT', paper)
-        elif col == 'CONTROLLER':
-            return resolve(row.OUTPUT, 'OUTPUT', paper)
+    def split_entity(s):
+        if s[0] == 'E':
+            return s, s
+        elif s == 'NONE':
+            # return None, None
+            return None
         else:
-            raise Exception("Invalid resolution")
-    else:
-        return eid
+            tokens = s.split('::')
+            text = tokens[0]
+            gid = tokens[1]
+            return gid, text
 
 
-## Build the edges from the rows in the data frame
-for t in tqdm(filtered.itertuples(), total=len(filtered), desc='Building edges'):
-    # Ignore those that have adhoc entities, i.e. uaz prefixes
-    if "uaz:" not in t.INPUT and "uaz:" not in t.OUTPUT and "uaz:" not in t.CONTROLLER:  # and not t.INPUT.startswith('E') and not t.OUTPUT.startswith('E') and not t.CONTROLLER.startswith('E'):
-        try:
-            paper = t._19
-            inputs = list(decompose_complex([resolve(t.INPUT, 'INPUT', paper)]))
-            outputs = list(decompose_complex([resolve(t.OUTPUT, 'OUTPUT', paper)]))
-            controllers = list(decompose_complex([resolve(t.CONTROLLER, 'CONTROLLER', paper)]))
-            label = t._5
+    all_descriptions = defaultdict(list)
+    for txt, gid in tqdm(decompose_complex(
+            p for p in it.chain(filtered.INPUT, filtered.OUTPUT, filtered.CONTROLLER) if p and p != 'NONE'),
+            desc='Making descs'):
+        # if len(txt) > 1:
+        num = gid.split(':')[-1]
+        if num in uniprot_names:
+            all_descriptions[gid].append(uniprot_names[num])
+        else:
+            all_descriptions[gid].append(txt)
 
-            if len(controllers) > 0:
-                for controller, input, output in it.product(controllers, inputs, outputs):
-                    controller = controller[1]
-                    input = input[1]
-                    output = output[1]
-                    freq = t.SEEN
-                    doc = t._19
-                    trigger = t.TRIGGERS
-                    evidence = t.EVIDENCE.split(' ++++ ')
+    descriptions = {k: list(sorted(v, key=len))[0] for k, v in all_descriptions.items()}
 
-                    key = (controller, input, output, trigger, label)
-                    counts[key] += freq
-                    evidences[key] |= {(doc, e) for e in evidence}
+    counts = Counter()
+    evidences = defaultdict(set)
+    edges = set()
 
-                    # Build the edge
-                    edges.add(key)
-            elif "ssociation" in label:
+    resolutions_frame = filtered.set_index(['EVENT ID', 'SEEN IN'])
 
-                participants = [p for p in t.INPUT.split(', ') if '::' in p]
-                if len(participants) > 1:
-                    controller, output = [p[1] for p in list(decompose_complex([t.INPUT]))]
-                    if controller != output:
-                        input = controller
+
+    def resolve(eid, col, paper):
+        if "::" not in eid and eid != 'NONE':
+            # Resolve complex events by following the trace of the events in the frame
+            row = resolutions_frame.loc[(eid, paper)]
+            # If we look for the input, of an event, then the realized element is the outut of the input
+            if col == 'INPUT':
+                return resolve(row.OUTPUT, 'OUTPUT', paper)
+            elif col == 'OUTPUT':
+                return resolve(row.INPUT, 'INPUT', paper)
+            elif col == 'CONTROLLER':
+                return resolve(row.OUTPUT, 'OUTPUT', paper)
+            else:
+                raise Exception("Invalid resolution")
+        else:
+            return eid
+
+
+    ## Build the edges from the rows in the data frame
+    for t in tqdm(filtered.itertuples(), total=len(filtered), desc='Building edges'):
+        # Ignore those that have adhoc entities, i.e. uaz prefixes
+        if "uaz:" not in t.INPUT and "uaz:" not in t.OUTPUT and "uaz:" not in t.CONTROLLER:  # and not t.INPUT.startswith('E') and not t.OUTPUT.startswith('E') and not t.CONTROLLER.startswith('E'):
+            try:
+                paper = t._19
+                inputs = list(decompose_complex([resolve(t.INPUT, 'INPUT', paper)]))
+                outputs = list(decompose_complex([resolve(t.OUTPUT, 'OUTPUT', paper)]))
+                controllers = list(decompose_complex([resolve(t.CONTROLLER, 'CONTROLLER', paper)]))
+                label = t._5
+
+                if len(controllers) > 0:
+                    for controller, input, output in it.product(controllers, inputs, outputs):
+                        controller = controller[1]
+                        input = input[1]
+                        output = output[1]
                         freq = t.SEEN
                         doc = t._19
                         trigger = t.TRIGGERS
@@ -239,22 +220,48 @@ for t in tqdm(filtered.itertuples(), total=len(filtered), desc='Building edges')
 
                         # Build the edge
                         edges.add(key)
-        except:
-            pass  # TODO log exceptions
+                elif "ssociation" in label:
 
-# Create the nx graph
-G = nx.MultiDiGraph()
+                    participants = [p for p in t.INPUT.split(', ') if '::' in p]
+                    if len(participants) > 1:
+                        controller, output = [p[1] for p in list(decompose_complex([t.INPUT]))]
+                        if controller != output:
+                            input = controller
+                            freq = t.SEEN
+                            doc = t._19
+                            trigger = t.TRIGGERS
+                            evidence = t.EVIDENCE.split(' ++++ ')
 
-for key in tqdm(edges, desc="Making graph"):
-    if key[0] not in G.nodes:
-        G.add_nodes_from([(key[0], {'label': descriptions[key[0]]})])
-    if key[1] not in G.nodes:
-        G.add_nodes_from([(key[1], {'label': descriptions[key[1]]})])
+                            key = (controller, input, output, trigger, label)
+                            counts[key] += freq
+                            evidences[key] |= {(doc, e) for e in evidence}
 
-    if type(key[3]) == str:
-        trigger = key[3]
-    else:
-        trigger = key[4]
+                            # Build the edge
+                            edges.add(key)
+            except:
+                pass  # TODO log exceptions
 
-    G.add_edge(key[0], key[2], input=key[2], trigger=trigger, freq=len(evidences[key]),
-               evidence=[f'{id}: {s}' for id, s in evidences[key]], label=key[4])
+    # Create the nx graph
+    G = nx.MultiDiGraph()
+
+    for key in tqdm(edges, desc="Making graph"):
+        if key[0] not in G.nodes:
+            G.add_nodes_from([(key[0], {'label': descriptions[key[0]]})])
+        if key[1] not in G.nodes:
+            G.add_nodes_from([(key[1], {'label': descriptions[key[1]]})])
+
+        if type(key[3]) == str:
+            trigger = key[3]
+        else:
+            trigger = key[4]
+
+        G.add_edge(key[0], key[2], input=key[2], trigger=trigger, freq=len(evidences[key]),
+                   evidence=[f'{id}: {s}' for id, s in evidences[key]], label=key[4])
+
+
+    # Return the produced graph
+    return G
+
+
+if __name__ == "__main__":
+    main()
