@@ -6,10 +6,12 @@ import os.path
 import pickle
 import re
 from collections import Counter, defaultdict
+from pathlib import Path
 from typing import NamedTuple, Set
 
 import ipdb
 import networkx as nx
+import plac as plac
 from tqdm import tqdm
 
 
@@ -113,11 +115,14 @@ class EdgeData(NamedTuple):
     label: str
 
 
+@plac.pos('uniprot_path', 'Uniprot fasta file, for the participant descriptions', type=Path)
+@plac.pos('input_files_dir', 'Arizona files directory', type=Path)
+@plac.pos('output_file', 'Graph output file', type=Path)
 def main(uniprot_path='data/uniprot_sprot.fasta',
          input_files_dir='/home/enrique/data/arizona_associations_markup/',
          output_file="graph.pickle"):
     """
-    Entry point
+    Reads
     """
 
     # Read uniprot for the top_descriptions
@@ -268,4 +273,4 @@ def main(uniprot_path='data/uniprot_sprot.fasta',
 
 
 if __name__ == "__main__":
-    main()
+    plac.call(main)
