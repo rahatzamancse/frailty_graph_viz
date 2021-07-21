@@ -114,6 +114,10 @@ class EdgeData(NamedTuple):
     trigger: str
     label: str
 
+class SignificanceRow(NamedTuple):
+    """ Represents the elements of a significance extration """
+    type_: str
+    value: str
 
 @plac.pos('uniprot_path', 'Uniprot fasta file, for the participant descriptions', type=Path)
 @plac.pos('input_files_dir', 'Arizona files directory', type=Path)
@@ -136,12 +140,24 @@ def main(uniprot_path='data/uniprot_sprot.fasta',
     dataset_outputs = dict()
     # Dict to resolve the inputs
     dataset_inputs = dict()
+    # Store the significance extractions in this variable
+    significance_extractions = defaultdict(list)
 
     # Fix the participant names here:
     for row in tqdm(all_rows, desc='Fixing participant\'s names'):
         row['INPUT'] = fix_frailty_groundings(row['INPUT'])
         row['OUTPUT'] = fix_frailty_groundings(row['OUTPUT'])
         row['CONTROLLER'] = fix_frailty_groundings(row['CONTROLLER'])
+
+        # Handle significance rows
+        if row['EVENT LABEL'] == 'Significance':
+            type_ = row['INPUT'].lower()
+            value = row['OUTPUT']
+            paper = row['SEEN IN']
+            if paper is not None:  # Be sure to memorize only those instances that can be attributed to a paper
+                significance_extractions[paper].append(SignificanceRow(type_, value))
+
+
 
     for row in tqdm(all_rows, desc="Caching inputs and outputs"):
         # key = (row._19, row._4) # ._4 = EVENT ID, ._19 = SEEN IN
@@ -265,10 +281,14 @@ def main(uniprot_path='data/uniprot_sprot.fasta',
             print(key)
             print(ex)
 
+    output = {
+        'graph': G,
+        'significance': dict(**significance_extractions)
+    }
     # Save the graph into a file
     logging.info(f"Saving output to {output_file}")
     with open(output_file, 'wb') as f:
-        pickle.dump(G, f)
+        pickle.dump(output, f)
     logging.info("Done")
 
 
