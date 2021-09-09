@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from tqdm import tqdm
+from build_network import SignificanceRow # TODO move this class to a utils module
 import annotations
 
 parser = argparse.ArgumentParser()
@@ -22,8 +23,10 @@ AGGREGATION_FIELD = "polarity"
 
 print("Loading data ...")
 with open(args.graph_file, 'rb') as f:
-    graph = pickle.load(f)
+    data = pickle.load(f)
 
+graph = data['graph']
+significance = data['significance']
 
 def infer_polarity(edge):
     """ Temporary function that will infer polarity out of the label for display and grouping purposes """
@@ -104,6 +107,21 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
+def get_significance_data(edge):
+    """ Returns a dictionary with significance information for the edge which will go into cytoscape """
+    # Get the paper IDs for this edge
+    data = graph[edge[0]][edge[1]][edge[2]]
+    seen_in = data['seen_in']
+    summary = {'has_significance':False, 'num_w_significance':0}
+    for paper_id in seen_in:
+        significance_detections = significance.get(paper_id, [])
+        if len(significance_detections) > 0:
+            summary['has_significance'] = True
+            summary['num_w_significance'] += 1
+
+    return summary
+
+
 @app.get("/")
 async def root():
     return RedirectResponse("/static/overview.html")
@@ -129,11 +147,9 @@ async def interaction(source, destination, bidirectional: bool):
     for group, subset in grouped_edges:
         subset = list(subset)
         subset.sort(key=lambda e: sum(v for k, v in subgraph.get_edge_data(*e).items() if k == 'freq'), reverse=True)
-        # discarded |= set(subset[5:])
 
-    # edges = set(subgraph.edges)
-
-    new_edges = [(*e, subgraph.get_edge_data(*e)) for e in subgraph.edges if e in edges and e not in discarded]
+    # Add the significance data here
+    new_edges = [(*e, dict(**subgraph.get_edge_data(*e), **get_significance_data(e))) for e in subgraph.edges if e in edges and e not in discarded]
 
     # Group the new edges by their label
     aggregated_new_edges = dict()
@@ -147,10 +163,15 @@ async def interaction(source, destination, bidirectional: bool):
             local_data[field] = txt
             if key not in aggregated_new_edges:
                 aggregated_new_edges[key] = local_data
+                aggregated_new_edges[key]['seen_in'] = list(aggregated_new_edges[key]['seen_in'])
             else:
                 d = aggregated_new_edges[key]
                 d[field] += ' ++++ ' + local_data[field]
                 d['freq'] += local_data['freq']
+                d['has_significance'] |= local_data['has_significance']
+                d['seen_in'] += local_data['seen_in']
+                d['num_w_significance'] += local_data['num_w_significance']
+
 
     # Remove duplicate terms from triggers
     for data in aggregated_new_edges.values():
@@ -185,7 +206,7 @@ async def neighbors(elem):
     # discarded = set()
     edges = set(edges)
 
-    new_edges = [(*e, subgraph.get_edge_data(*e)) for e in subgraph.edges if e in edges and e not in discarded]
+    new_edges = [(*e, dict(**subgraph.get_edge_data(*e), **get_significance_data(e))) for e in subgraph.edges if e in edges and e not in discarded]
     new_g = nx.MultiDiGraph()
     # new_g.add_nodes_from(set(it.chain.from_iterable((e[0], e[1]) for e in new_edges)))
     new_nodes = list()
@@ -253,14 +274,19 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
 
     def aggregate_edges(edges):
         """ Aggregates edges from a groupby """
-        data = {'freq': 0, 'label': list(), 'trigger': list()}
+        data = {'freq': 0, 'seen_in': list(), 'label': list(), 'trigger': list(), 'has_significance':False, 'percentage_significance': 0}
         for edge in edges:
             e = edge[2]
             data['freq'] += int(e['freq'])
             data['trigger'].append(e['trigger'])
             data['label'].append(e['label'])
             data['polarity'] = e['polarity']
+            data['seen_in'] += e['seen_in']
+            data['has_significance'] |= e['has_significance']
+            data['percentage_significance'] += e['num_w_significance']
 
+        data['percentage_significance'] /= len(data['seen_in'])
+        del data['seen_in']
         data['trigger'] = ', '.join(data['trigger'])
         data['label'] = ', '.join(data['label'])
 
@@ -279,6 +305,8 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
         nx["data"]["freq"] = data['freq']
         nx["data"]["trigger"] = (data['trigger'].replace(" ++++ ", ", ") if type(data['trigger']) != float else "")
         nx['data']['label'] = data['label']
+        nx['data']['has_significance'] = data['has_significance']
+        nx['data']['percentage_significance'] = data['percentage_significance']
 
         nx['data']['polarity'] = data['polarity']
         edges.append(nx)
@@ -301,9 +329,12 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
             nx["data"]["freq"] += edge['data']['freq']
 
     # Sort the edges by endpoints, then by frequency
-    edges.sort(key=lambda e: (e['data']['source'], e['data']['target'], e['data']['trigger']))
+    # edges.sort(key=lambda e: (e['data']['source'], e['data']['target'], e['data']['trigger']))
+    # edges.sort(key=lambda e: e['data']['freq'])
+    cluster_edges = list(cluster_edges.values())
+    # cluster_edges.sort(key=lambda e: e['data']['freq'])
     # Add the edges to the result
-    final += (edges + list(cluster_edges.values()))
+    final += (edges + cluster_edges)
     return json.dumps(final)
 
 

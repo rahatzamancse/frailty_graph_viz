@@ -124,14 +124,14 @@ class SignificanceRow(NamedTuple):
 @plac.pos('output_file', 'Graph output file', type=Path)
 def main(uniprot_path='data/uniprot_sprot.fasta',
          input_files_dir='/home/enrique/data/arizona_associations_markup/',
-         output_file="graph.pickle"):
+         output_file="graph2.pickle"):
     """
     Reads
     """
 
     # Read uniprot for the top_descriptions
     uniprot_names = read_uniprot(uniprot_path)
-    paths = glob.glob(os.path.join(input_files_dir, "*.tsv"))
+    paths = glob.glob(os.path.join(input_files_dir, "*.tsv"))[:10000]
 
     # Generate a data frame from the arizona output files
     all_rows = parse_files(tqdm(paths, desc='Parsing files'))
@@ -192,6 +192,7 @@ def main(uniprot_path='data/uniprot_sprot.fasta',
     # Start building the graph edges here
     counts = Counter()
     evidences = defaultdict(set)
+    seen_in = defaultdict(set)  # Keep track of the papers where an edge has been observed
     edges: Set[EdgeData] = set()
 
     def resolve(eid, col, paper):
@@ -234,6 +235,7 @@ def main(uniprot_path='data/uniprot_sprot.fasta',
                         evidence = row['EVIDENCE'].split(' ++++ ')
 
                         key = EdgeData(controller, input, output, trigger, label)
+                        seen_in[key].add(doc) # This is the PMCID or paper id where the edge has been seen
                         counts[key] += int(freq)  # This comes as string, cast it to an int
                         evidences[key] |= {(doc, e) for e in evidence}
 
@@ -252,8 +254,10 @@ def main(uniprot_path='data/uniprot_sprot.fasta',
                             evidence = row['EVIDENCE'].split(' ++++ ')
 
                             key = EdgeData(controller, input, output, trigger, label)
+                            seen_in[key].add(doc)  # This is the PMCID or paper id where the edge has been seen
                             counts[key] += int(freq)  # This comes as string, cast it to an int
                             evidences[key] |= {(doc, e) for e in evidence}
+
 
                             # Build the edge
                             edges.add(key)
@@ -276,7 +280,7 @@ def main(uniprot_path='data/uniprot_sprot.fasta',
                 trigger = key.label
 
             G.add_edge(key.controller, key.output, input=key.output, trigger=trigger, freq=len(evidences[key]),
-                       evidence=[f'{id}: {s}' for id, s in evidences[key]], label=key.label)
+                       evidence=[f'{id}: {s}' for id, s in evidences[key]], seen_in=seen_in[key], label=key.label)
         except Exception as ex:
             print(key)
             print(ex)
