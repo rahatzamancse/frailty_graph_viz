@@ -124,14 +124,14 @@ class SignificanceRow(NamedTuple):
 @plac.pos('output_file', 'Graph output file', type=Path)
 def main(uniprot_path='data/uniprot_sprot.fasta',
          input_files_dir='/home/enrique/data/arizona_associations_markup/',
-         output_file="graph2.pickle"):
+         output_file="graph.pickle"):
     """
     Reads
     """
 
     # Read uniprot for the top_descriptions
     uniprot_names = read_uniprot(uniprot_path)
-    paths = glob.glob(os.path.join(input_files_dir, "*.tsv"))[:10000]
+    paths = glob.glob(os.path.join(input_files_dir, "*.tsv"))
 
     # Generate a data frame from the arizona output files
     all_rows = parse_files(tqdm(paths, desc='Parsing files'))
