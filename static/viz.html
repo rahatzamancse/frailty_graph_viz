@@ -211,6 +211,13 @@
             }
         }
 
+        function arizona_weight(elem){
+            d = elem.data()
+            ret = Math.log(d['freq'] + 1) + 2*('has_significance' in d?1.0:0.) + 10*('percentage_sigfinicance' in d?d['percentage_significance']:0.)
+
+            return  ret
+        }
+
         var cy = cytoscape({
           container: document.getElementById('cy'),
             // zoom: 0.5,
@@ -234,22 +241,19 @@
                     if(ele.id().startsWith("cluster_"))
                         return 1
                     else
-                        return Math.log(ele.data()['freq'] + 1)
+                        return arizona_weight(ele)
                 },
                 // label: 'data(trigger)',
                 label: (ele) => {
                     if(ele.id().startsWith("cluster_"))
                         return `Click to Expand (${ele.data()['freq']}) ...`
                     else
-                        return ele.data()['polarity'] + ` (${ele.data()['freq']})`
+                        return ele.data()['polarity'] + ` (${ele.data()['freq']})` +  `(${ele.data()['has_significance']})` +  `(${ele.data()['percentage_significance']})`
                 },
                 "text-rotation": "autorotate",
                 "line-color": color_by_label,
                 'target-arrow-color': (elem) => { return color_by_label(elem, arrow=true) },
                 'display': (elem) => { return elem.id().startsWith("cluster_")?'element':'none' }
-                // "font-size": '.3em'
-        // "text-margin-x": "data(xalign)",
-        // "text-margin-y": "data(yalign)+1"
             }
         }],
         elements: []
@@ -288,7 +292,6 @@
                       }
           )
 
-          // window.open(`/static/evidence.html?src=${edge.source().id()}&dst=${edge.target().id()}&trigger=${edge.data()['trigger']}`)
             }
 
 
