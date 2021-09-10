@@ -14,7 +14,9 @@
     <script src="https://unpkg.com/klayjs@0.4.1/klay.js"></script>
     <script src="/static/cytoscape-klay.js"></script>
 
+    <script>
 
+    </script>
 </head>
 
 <style>
@@ -153,6 +155,41 @@
         display: block;
     }
 
+    #weighting {
+        position: absolute;
+        left: 900px;
+        top: 0px;
+        z-index: 1;
+        background-color:rgba(207,207,196, 0.5);
+        padding: 1em;
+        padding-top: 0em;
+        border-radius: 25px;
+    }
+
+      #freq-handle, #has-sig-handle, #avg-sig-handle {
+        width: 3em;
+        height: 1.6em;
+        top: 50%;
+        margin-top: -.8em;
+        text-align: center;
+        line-height: 1.6em;
+      }
+
+      .slider{
+          width: 80%;
+      }
+
+      .coefficient{
+          display: flex;
+          flex-direction: row;
+          margin-top: 1em;
+      }
+
+      .coefficient .title{
+          margin-right: 1em;
+          width: 20%;
+      }
+
 </style>
 
 <body>
@@ -163,14 +200,152 @@
                                                                                                 id="destination"
                                                                                                 class="entity"/>
       <b>Bidirectional: </b><input type="checkbox" id="bidirectional"><input id="ask" type="button" value="Find" />
+      <h2>Weighting <a href="#" id="toggle_weight" style="font-size: small;">[Show]</a></h2>
+      <div id="weight_group" style="display: none">
+      <span class="coefficient">
+          <div class="title">Frequency:</div>
+          <div id="freq-slider" class="slider">
+            <div id="freq-handle" class="ui-slider-handle"></div>
+          </div>
+      </span>
+      <span class="coefficient">
+          <span class="title">Has significance:</span>
+          <div id="has-sig-slider" class="slider">
+            <div id="has-sig-handle" class="ui-slider-handle"></div>
+          </div>
+      </span>
+      <span class="coefficient">
+          <span class="title">Avg significance:</span>
+          <div id="avg-sig-slider" class="slider">
+            <div id="avg-sig-handle" class="ui-slider-handle"></div>
+          </div>
+      </span>
+          </div>
   </div>
+
   <div id="cy"></div>
   <div id="evidence_pane">
        <h3>Evidence: <a href="#" id="close_evidence">[Close]</a></h3>
         <ul id="evidence" />
+
     </ul>
   </div>
     <script>
+        const cy = cytoscape({
+          container: document.getElementById('cy'),
+            // zoom: 0.5,
+            style: [
+        {
+            selector: 'node',
+            style: {
+                shape: 'ellipse',
+                // size: "1em",
+                'background-color': 'red',
+                label: (ele) => { return ele.data()['label'] + ` (${ele.data()['id']})`},
+                // 'font-size': '.3em'
+            }
+        },
+
+          {
+            selector: 'edge',
+            style: {
+                // 'width': 'data(freq)',
+                width: function(ele){
+                    if(ele.id().startsWith("cluster_"))
+                        return 1
+                    else
+                        return arizona_weight(ele)
+                },
+                // label: 'data(trigger)',
+                label: (ele) => {
+                    if(ele.id().startsWith("cluster_"))
+                        return `Click to Expand (${ele.data()['freq']}) ...`
+                    else
+                        return ele.data()['polarity'] + ` (${ele.data()['freq']})` +  `(${ele.data()['has_significance']})` +  `(${ele.data()['percentage_significance']})`
+                },
+                "text-rotation": "autorotate",
+                "line-color": color_by_label,
+                'target-arrow-color': (elem) => { return color_by_label(elem, arrow=true) },
+                'display': (elem) => { return elem.id().startsWith("cluster_")?'element':'none' }
+            }
+        }],
+        elements: []
+        });
+
+        function resize_edges() {
+            const edges = cy.edges().filter(e => !e.id().startsWith("cluster_"))
+
+            edges.forEach(
+                e => {
+                    const weight = arizona_weight(e)
+                    e.style("width", weight)
+                }
+            )
+        }
+
+        function readSliderValue(name){
+
+            const localStorage = window.localStorage
+            const weight = localStorage.getItem(`${name}-weight`)
+            if(!weight)
+                return 1.
+            else
+                return weight
+        }
+
+        function setSliderValue(name, val){
+            const localStorage = window.localStorage
+            localStorage.setItem(`${name}-weight`, val)
+        }
+
+        $( function() {
+            var freqHandle = $( "#freq-handle" );
+            $( "#freq-slider" ).slider({
+                create: function () {
+                    freqHandle.text($(this).slider("value"));
+                },
+                slide: function (event, ui) {
+                    setSliderValue("freq", ui.value)
+                    freqHandle.text(ui.value);
+                    resize_edges();
+                },
+
+                step:0.1,
+                value: readSliderValue("freq"),
+                max: 20
+             });
+
+            var hasSigHandle = $( "#has-sig-handle" );
+            $( "#has-sig-slider" ).slider({
+                create: function () {
+                    hasSigHandle.text($(this).slider("value"));
+                },
+                slide: function (event, ui) {
+                    setSliderValue("has-sig", ui.value)
+                    hasSigHandle.text(ui.value);
+                    resize_edges();
+                },
+                step:0.1,
+                value: readSliderValue("has-sig"),
+                max: 20
+             });
+
+            var avgSigHandle = $( "#avg-sig-handle" );
+            $( "#avg-sig-slider" ).slider({
+                create: function () {
+                    avgSigHandle.text($(this).slider("value"));
+                },
+                slide: function (event, ui) {
+                    setSliderValue("avg-sig", ui.value)
+                    avgSigHandle.text(ui.value);
+                    resize_edges();
+                },
+                step:0.1,
+                value: readSliderValue("avg-sig"),
+                max: 20
+             });
+        } );
+
         const expanded = {}
 
         let layoutOpts = {
@@ -212,52 +387,17 @@
         }
 
         function arizona_weight(elem){
-            d = elem.data()
-            ret = Math.log(d['freq'] + 1) + 2*('has_significance' in d?1.0:0.) + 10*('percentage_sigfinicance' in d?d['percentage_significance']:0.)
 
-            return  ret
+            const freq_w = readSliderValue("freq")
+            const has_sig_w = readSliderValue("has-sig")
+            const avg_sig_w = readSliderValue("avg-sig")
+
+            const d = elem.data()
+            return  freq_w * Math.log((d['freq'] + 1)) +
+                has_sig_w * ('has_significance' in d ? +d['has_significance'] : 0.) +
+                avg_sig_w * ('percentage_significance' in d ? d['percentage_significance'] : 0.)
         }
 
-        var cy = cytoscape({
-          container: document.getElementById('cy'),
-            // zoom: 0.5,
-            style: [
-        {
-            selector: 'node',
-            style: {
-                shape: 'ellipse',
-                // size: "1em",
-                'background-color': 'red',
-                label: (ele) => { return ele.data()['label'] + ` (${ele.data()['id']})`},
-                // 'font-size': '.3em'
-            }
-        },
-
-          {
-            selector: 'edge',
-            style: {
-                // 'width': 'data(freq)',
-                width: function(ele){
-                    if(ele.id().startsWith("cluster_"))
-                        return 1
-                    else
-                        return arizona_weight(ele)
-                },
-                // label: 'data(trigger)',
-                label: (ele) => {
-                    if(ele.id().startsWith("cluster_"))
-                        return `Click to Expand (${ele.data()['freq']}) ...`
-                    else
-                        return ele.data()['polarity'] + ` (${ele.data()['freq']})` +  `(${ele.data()['has_significance']})` +  `(${ele.data()['percentage_significance']})`
-                },
-                "text-rotation": "autorotate",
-                "line-color": color_by_label,
-                'target-arrow-color': (elem) => { return color_by_label(elem, arrow=true) },
-                'display': (elem) => { return elem.id().startsWith("cluster_")?'element':'none' }
-            }
-        }],
-        elements: []
-        });
 
         cy.style().selector('edge').style('curve-style', 'bezier')
         .style('target-arrow-shape','triangle').update()
@@ -403,6 +543,17 @@
 
         $("#close_evidence").click(() => {
             $("#evidence_pane").hide()
+        })
+
+        $("#toggle_weight").click(() => {
+            if(!$("#weight_group").is(":hidden")){
+                $("#weight_group").hide()
+                $("#toggle_weight").text("[Show]")
+            }
+            else{
+                $("#weight_group").show()
+                $("#toggle_weight").text("[Hide]")
+            }
         })
 
       </script>
