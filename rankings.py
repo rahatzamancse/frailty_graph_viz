@@ -1,3 +1,5 @@
+""" Make a dictionary with maps from PMCID -> journal name and journal name to impact metrics """
+
 from tqdm import tqdm
 import pandas as pd
 import csv
@@ -53,6 +55,7 @@ def main(pmc_file_list = '/Users/enrique//Downloads/oa_file_list.csv', rankings_
 
     with open(output_pickle, 'wb') as f:
         pickle.dump({
+            'journals':pmcid_2_journal,
             'hindex': hindex,
             'sjr':sjr
         }, f)
