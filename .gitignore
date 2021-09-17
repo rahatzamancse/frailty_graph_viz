@@ -144,3 +144,6 @@ data/
 .idea/
 
 *.pickle
+.DS_Store
+.gitignore
+.vscode/launch.json
