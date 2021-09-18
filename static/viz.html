@@ -166,7 +166,7 @@
         border-radius: 25px;
     }
 
-      #freq-handle, #has-sig-handle, #avg-sig-handle {
+      #freq-handle, #has-sig-handle, #avg-sig-handle, #avg-impact-handle, #max-impact-handle{
         width: 3em;
         height: 1.6em;
         top: 50%;
@@ -218,6 +218,18 @@
           <span class="title">Avg significance:</span>
           <div id="avg-sig-slider" class="slider">
             <div id="avg-sig-handle" class="ui-slider-handle"></div>
+          </div>
+      </span>
+      <span class="coefficient">
+          <span class="title">Avg impact factor:</span>
+          <div id="avg-impact-slider" class="slider">
+            <div id="avg-impact-handle" class="ui-slider-handle"></div>
+          </div>
+      </span>
+      <span class="coefficient">
+          <span class="title">Max impact factor:</span>
+          <div id="max-impact-slider" class="slider">
+            <div id="max-impact-handle" class="ui-slider-handle"></div>
           </div>
       </span>
           </div>
@@ -345,6 +357,36 @@
                 value: readSliderValue("avg-sig"),
                 max: 20
              });
+
+            var avgImpactHandle = $( "#avg-impact-handle" );
+            $( "#avg-impact-slider" ).slider({
+                create: function () {
+                    avgImpactHandle.text($(this).slider("value"));
+                },
+                slide: function (event, ui) {
+                    setSliderValue("avg-impact", ui.value)
+                    avgImpactHandle.text(ui.value);
+                    resize_edges();
+                },
+                step:0.1,
+                value: readSliderValue("avg-impact"),
+                max: 20
+             });
+
+            var maxImpactHandle = $( "#max-impact-handle" );
+            $( "#max-impact-slider" ).slider({
+                create: function () {
+                    maxImpactHandle.text($(this).slider("value"));
+                },
+                slide: function (event, ui) {
+                    setSliderValue("max-impact", ui.value)
+                    maxImpactHandle.text(ui.value);
+                    resize_edges();
+                },
+                step:0.1,
+                value: readSliderValue("max-impact"),
+                max: 20
+             });
         } );
 
         const expanded = {}
@@ -392,11 +434,15 @@
             const freq_w = readSliderValue("freq")
             const has_sig_w = readSliderValue("has-sig")
             const avg_sig_w = readSliderValue("avg-sig")
+            const avg_impact_w = readSliderValue("avg-impact")
+            const max_impact_w = readSliderValue("max-impact")
 
             const d = elem.data()
             return  freq_w * Math.log((d['freq'] + 1)) +
                 has_sig_w * ('has_significance' in d ? +d['has_significance'] : 0.) +
-                avg_sig_w * Math.pow('percentage_significance' in d ? 2*d['percentage_significance'] : 0., 2)
+                avg_sig_w * Math.pow('percentage_significance' in d ? 2*d['percentage_significance'] : 0., 2) +
+                avg_impact_w * d['avg_impact'] +
+                max_impact_w * d['max_impact']
         }
 
         function make_label(elem){

@@ -116,7 +116,7 @@ def get_significance_data(edge):
     # Get the paper IDs for this edge
     data = graph[edge[0]][edge[1]][edge[2]]
     seen_in = set(data['seen_in']) # Make this a set to avoid double counting
-    summary = {'has_significance':False, 'num_w_significance':0}
+    summary = {'has_significance':False, 'num_w_significance':0, 'impact_factors': list()}
     for paper_id in seen_in:
         # Fetch the significance extractions
         significance_detections = significance.get(paper_id, [])
@@ -126,7 +126,7 @@ def get_significance_data(edge):
 
         # Fetch the impact factors
         impact_factor = impacts.get_impact(paper_id)
-        summary['impact_factor'] = impact_factor
+        summary['impact_factors'].append(impact_factor)
 
     return summary
 
@@ -173,8 +173,7 @@ async def interaction(source, destination, bidirectional: bool):
             if key not in aggregated_new_edges:
                 aggregated_new_edges[key] = local_data
                 aggregated_new_edges[key]['seen_in'] = list(aggregated_new_edges[key]['seen_in'])
-                aggregated_new_edges[key]['impact_factors'] = [local_data['impact_factor']]
-                del aggregated_new_edges[key]['impact_factor']
+                aggregated_new_edges[key]['impact_factors'] = list(local_data['impact_factors'])
             else:
                 d = aggregated_new_edges[key]
                 d[field] += ' ++++ ' + local_data[field]
@@ -182,7 +181,7 @@ async def interaction(source, destination, bidirectional: bool):
                 d['has_significance'] |= local_data['has_significance']
                 d['seen_in'] += local_data['seen_in']
                 d['num_w_significance'] += local_data['num_w_significance']
-                d['impact_factors'].append(local_data['impact_factor'])
+                d['impact_factors'] += local_data['impact_factors']
 
 
     # Remove duplicate terms from triggers
@@ -327,6 +326,8 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
         nx['data']['label'] = data['label']
         nx['data']['has_significance'] = data['has_significance']
         nx['data']['percentage_significance'] = data['percentage_significance']
+        nx['data']['avg_impact'] = data['avg_impact']
+        nx['data']['max_impact'] = data['max_impact']
 
         nx['data']['polarity'] = data['polarity']
         edges.append(nx)
