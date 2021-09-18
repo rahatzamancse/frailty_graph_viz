@@ -8,10 +8,48 @@ from pathlib import Path
 import plac
 from tqdm import tqdm
 
+class ImpactFactors:
+    """ Puts together all the information for easy retrieval of impact factor information """
+
+    def __init__(self, data_path: Path) -> None:
+        with data_path.open('rb') as f:
+            data = pickle.load(f)
+
+        self._pmc_to_sjr = data['pmc_to_sjr']
+        self._journals = data['journals']
+        self._hindex = data['hindex']
+        self._sjr = data['sjr']
+
+    def get_impact(self, pmcid:str, metric="sjr") -> float:
+        """ Returns an impact factor metric for a PMCID entry """
+
+        metric = self.__data_for(metric)
+
+        # Get the journal for the specific pmcid
+        if pmcid in self._journals:
+            journal = self._journals[pmcid]
+            value = metric.get(journal, 0.) # Find the impact for the current journal. If missing, then return 0.
+            return value
+        else:
+            return 0. # No journal info, then no impact
+
+
+
+    def __data_for(self, metric):
+        """ Utility method to fetch the appropriate impact metric """
+        if metric == "hindex":
+            return self._hindex
+        if metric == "sjr":
+            return self._sjr
+        else:
+            raise Exception(f"Invalid impact metric: {metric}")
+
+
 @plac.pos('pmc_file_list', help='Path to the FTP service file list', type=Path)
 @plac.pos('rankings_file', help='CSV file with the rankings and impact factor data', type=Path)
 @plac.pos('output_pickle', help='Output path for the pickle with the resulsts', type=Path)
 def main(pmc_file_list:Path = Path('data', 'oa_file_list.csv'), rankings_file = Path('data', 'scimagojr 2020.csv'), output_pickle = Path('data', "journal_rankings.pickle")):
+    """ Builds the data structures with the impact factor information """
 
 
     with open(pmc_file_list) as f:

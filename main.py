@@ -3,6 +3,7 @@ import itertools as it
 import json
 import pickle
 from collections import defaultdict
+from pathlib import Path
 
 import networkx as nx
 import uvicorn
@@ -13,9 +14,11 @@ from fastapi.staticfiles import StaticFiles
 from tqdm import tqdm
 from build_network import SignificanceRow # TODO move this class to a utils module
 import annotations
+from rankings import ImpactFactors
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--graph-file', default='il6-graph.pickle')
+parser.add_argument('--impact-factors', default='journal_rankings.pickle')
 parser.add_argument('--port', default=8000, type=int)
 args = parser.parse_args()
 
@@ -27,6 +30,7 @@ with open(args.graph_file, 'rb') as f:
 
 graph = data['graph']
 significance = data['significance']
+impacts = ImpactFactors(Path(args.impact_factors))
 
 def infer_polarity(edge):
     """ Temporary function that will infer polarity out of the label for display and grouping purposes """
@@ -111,13 +115,18 @@ def get_significance_data(edge):
     """ Returns a dictionary with significance information for the edge which will go into cytoscape """
     # Get the paper IDs for this edge
     data = graph[edge[0]][edge[1]][edge[2]]
-    seen_in = data['seen_in']
+    seen_in = set(data['seen_in']) # Make this a set to avoid double counting
     summary = {'has_significance':False, 'num_w_significance':0}
     for paper_id in seen_in:
+        # Fetch the significance extractions
         significance_detections = significance.get(paper_id, [])
         if len(significance_detections) > 0:
             summary['has_significance'] = True
             summary['num_w_significance'] += 1
+
+        # Fetch the impact factors
+        impact_factor = impacts.get_impact(paper_id)
+        summary['impact_factor'] = impact_factor
 
     return summary
 
@@ -164,6 +173,8 @@ async def interaction(source, destination, bidirectional: bool):
             if key not in aggregated_new_edges:
                 aggregated_new_edges[key] = local_data
                 aggregated_new_edges[key]['seen_in'] = list(aggregated_new_edges[key]['seen_in'])
+                aggregated_new_edges[key]['impact_factors'] = [local_data['impact_factor']]
+                del aggregated_new_edges[key]['impact_factor']
             else:
                 d = aggregated_new_edges[key]
                 d[field] += ' ++++ ' + local_data[field]
@@ -171,6 +182,7 @@ async def interaction(source, destination, bidirectional: bool):
                 d['has_significance'] |= local_data['has_significance']
                 d['seen_in'] += local_data['seen_in']
                 d['num_w_significance'] += local_data['num_w_significance']
+                d['impact_factors'].append(local_data['impact_factor'])
 
 
     # Remove duplicate terms from triggers
@@ -274,7 +286,9 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
 
     def aggregate_edges(edges):
         """ Aggregates edges from a groupby """
-        data = {'freq': 0, 'seen_in': list(), 'label': list(), 'trigger': list(), 'has_significance':False, 'percentage_significance': 0}
+        data = {'freq': 0, 'seen_in': list(), 'label': list(), 'trigger': list(),
+                'has_significance':False, 'percentage_significance': 0,
+                'avg_impact': 0., 'max_impact': 0.}
         for edge in edges:
             e = edge[2]
             data['freq'] += int(e['freq'])
@@ -284,8 +298,14 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
             data['seen_in'] += e['seen_in']
             data['has_significance'] |= e['has_significance']
             data['percentage_significance'] += e['num_w_significance']
+            for impact in e['impact_factors']:
+                data['avg_impact'] += impact
+                if impact > data['max_impact']:
+                    data['max_impact'] = impact
+
 
         data['percentage_significance'] /= len(data['seen_in'])
+        data['avg_impact'] /=  len(data['seen_in'])
         del data['seen_in']
         data['trigger'] = ', '.join(data['trigger'])
         data['label'] = ', '.join(data['label'])
