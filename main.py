@@ -220,7 +220,7 @@ async def neighbors(elem):
 @app.get('/evidence/{source}/{destination}/{trigger}')
 async def evidence(source, destination, trigger):
     sents = evidence_sentences[(source, destination, trigger)]
-    return [s for s, _ in sorted(sents, key=lambda x:x[1], reverse=True)]
+    return [s for s, _ in sorted(sents, key=lambda x:x[1], reverse=True)][:500]
 
 
 @app.get('/entities')
