@@ -264,7 +264,7 @@ async def anchor(term):
         avg_impact = sum(impacts) / len(impacts)
         avg_sig /= len(impacts)
 
-        return {'avg_sig':avg_sig, 'has_sig':has_sig, 'avg_impact': avg_impact, 'max_impact':max_impact}
+        return {'percentage_significance':avg_sig, 'has_significance':int(has_sig), 'avg_impact': avg_impact, 'max_impact':max_impact}
 
 
     return {

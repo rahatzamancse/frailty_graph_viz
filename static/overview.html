@@ -4,7 +4,23 @@
     <meta charset="UTF-8">
     <title>Interacting Entities</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
     <script src="utils.js"></script>
+    <script>
+        function filter(element) {
+            var value = $(element).val().toLowerCase();
+
+            $("ul > li").each(function() {
+                if ($(this).text().toLowerCase().search(value) > -1) {
+                    $(this).show();
+                }
+                else {
+                    $(this).hide();
+                }
+            });
+        }
+    </script>
 </head>
 <style>
     .container {
@@ -14,6 +30,30 @@
     li {
         font-size: small;
     }
+
+    #freq-handle, #has-sig-handle, #avg-sig-handle, #avg-impact-handle, #max-impact-handle{
+        width: 3em;
+        height: 1.6em;
+        top: 50%;
+        margin-top: -.8em;
+        text-align: center;
+        line-height: 1.6em;
+      }
+
+      .slider{
+          width: 80%;
+      }
+
+      .coefficient{
+          display: flex;
+          flex-direction: row;
+          margin-top: 1em;
+      }
+
+      .coefficient .title{
+          margin-right: 1em;
+          width: 10%;
+      }
 </style>
 <body>
     <h4><a href="/static/viz.html">Enter query directly</a></h4>
@@ -25,6 +65,40 @@
         <option value="gid">Database I.D.</option>
     </select>
     <label>Filter by:</label> <input type="text" id="filter" onkeyup="filter(this)">
+    <h2>Weighting <a href="#" id="toggle_weight" style="font-size: small;">[Show]</a></h2>
+      <div id="weight_group" style="display: none">
+      <span class="coefficient">
+          <div class="title">Frequency:</div>
+          <div id="freq-slider" class="slider">
+            <div id="freq-handle" class="ui-slider-handle"></div>
+          </div>
+      </span>
+      <span class="coefficient">
+          <span class="title">Has significance:</span>
+          <div id="has-sig-slider" class="slider">
+            <div id="has-sig-handle" class="ui-slider-handle"></div>
+          </div>
+      </span>
+      <span class="coefficient">
+          <span class="title">Avg significance:</span>
+          <div id="avg-sig-slider" class="slider">
+            <div id="avg-sig-handle" class="ui-slider-handle"></div>
+          </div>
+      </span>
+      <span class="coefficient">
+          <span class="title">Avg impact factor:</span>
+          <div id="avg-impact-slider" class="slider">
+            <div id="avg-impact-handle" class="ui-slider-handle"></div>
+          </div>
+      </span>
+      <span class="coefficient">
+          <span class="title">Max impact factor:</span>
+          <div id="max-impact-slider" class="slider">
+            <div id="max-impact-handle" class="ui-slider-handle"></div>
+          </div>
+      </span>
+    </div>
+
     <div style="width: 100%">
         <div id="influenced" class="container">
             <h3>Influenced by:</h3>
@@ -38,113 +112,208 @@
             <h3>Influence:</h3>
             <ul />
         </div>
+
     </div>
     <script>
-        var data = Array()
 
-        function populateList() {
-           let influenced = data.influenced
-           let influencers = data.influencers
-           let reciprocals = data.reciprocals
 
-           const orderControl = $("#order")
-            const orderCriteria = orderControl.val()
+        function weight_result(data){
+                let influenced = data.influenced
+                let influencers = data.influencers
+                let reciprocals = data.reciprocals
 
-            if(orderCriteria === 'freq')
-                elementIx = 2
-            else if(orderCriteria === "name")
-                elementIx = 1
-            else if(orderCriteria === "weight")
-                elementIx = 3
-            else
-                elementIx = 0
+               function helper(elems){
+                    elems.forEach(elem => {
+                       elem[3]['freq'] = elem[2]
+                    })
 
-           influenced.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
-           reciprocals.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
-           influencers.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
-
-            $("#influenced ul").empty()
-           influenced.forEach(
-               elem => {
-                   const id = elem[0]
-                   const label = elem[1]
-                   const freq = elem[2]
-                   const weight = elem[3]
-
-                   $("#influenced ul").append(`<li><a href="/static/viz.html?src=IL6 (uniprot:P05231)&dst=${label} (${id})">${label} (${id})</a> - F: ${freq} - W: ${weight.toFixed(2)}</li>`)
+                    elems.forEach(elem => {
+                        const w = arizona_weight(elem[3])
+                        elem[4] = w
+                    })
                }
-           )
 
-            $("#influencers ul").empty()
-           influencers.forEach(
-               elem => {
-                   const id = elem[0]
-                   const label = elem[1]
-                   const freq = elem[2]
-                   const weight = elem[3]
+               helper(influenced)
+               helper(influencers)
+               helper(reciprocals)
 
-                   const w =
-
-                   $("#influencers ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})">${label} (${id})</a> - F: ${freq} - W: ${weight.toFixed(2)}</li>`)
-               }
-           )
-
-            $("#reciprocal ul").empty()
-           reciprocals.forEach(
-               elem => {
-                   const id = elem[0]
-                   const label = elem[1]
-                   const freq = elem[2]
-                   const weight = elem[3]
-
-                   $("#reciprocal ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})&bidirect">${label} (${id})</a> - F: ${freq} - W: ${weight.toFixed(2)}</li>`)
-               }
-           )
-       }
-
-       function weight_result(data){
-            let influenced = data.influenced
-            let influencers = data.influencers
-            let reciprocals = data.reciprocals
-
-           function helper(elems){
-                elems.forEach(elem => {
-                   elem[3]['freq'] = elem[2]
-                })
-
-                elems.forEach(elem => {
-                    const w = arizona_weight(elem[3])
-                    elem[3] = w
-                })
            }
 
-           helper(influenced)
-           helper(influencers)
-           helper(reciprocals)
 
-       }
 
-        $.getJSON(`/overview/uniprot:P05231/`,
-          result => {
-              data = result
-              weight_result(data)
-              populateList();
-          }
-        )
+        $(function(){
+            var data = Array()
 
-        document.querySelector('#order').addEventListener('change', populateList);
-        function filter(element) {
-        var value = $(element).val().toLowerCase();
+            function populateList() {
+               weight_result(data)
+               let influenced = data.influenced
+               let influencers = data.influencers
+               let reciprocals = data.reciprocals
 
-        $("ul > li").each(function() {
-            if ($(this).text().toLowerCase().search(value) > -1) {
-                $(this).show();
+               const orderControl = $("#order")
+                const orderCriteria = orderControl.val()
+
+                if(orderCriteria === 'freq')
+                    elementIx = 2
+                else if(orderCriteria === "name")
+                    elementIx = 1
+                else if(orderCriteria === "weight")
+                    elementIx = 4
+                else
+                    elementIx = 0
+
+               influenced.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
+               reciprocals.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
+               influencers.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
+
+                $("#influenced ul").empty()
+               influenced.forEach(
+                   elem => {
+                       const id = elem[0]
+                       const label = elem[1]
+                       const freq = elem[2]
+                       const weight = elem[4]
+
+                       $("#influenced ul").append(`<li><a href="/static/viz.html?src=IL6 (uniprot:P05231)&dst=${label} (${id})">${label} (${id})</a> - F: ${freq} - W: ${weight.toFixed(2)}</li>`)
+                   }
+               )
+
+                $("#influencers ul").empty()
+               influencers.forEach(
+                   elem => {
+                       const id = elem[0]
+                       const label = elem[1]
+                       const freq = elem[2]
+                       const weight = elem[4]
+
+                       const w =
+
+                       $("#influencers ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})">${label} (${id})</a> - F: ${freq} - W: ${weight.toFixed(2)}</li>`)
+                   }
+               )
+
+                $("#reciprocal ul").empty()
+               reciprocals.forEach(
+                   elem => {
+                       const id = elem[0]
+                       const label = elem[1]
+                       const freq = elem[2]
+                       const weight = elem[4]
+
+                       $("#reciprocal ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})&bidirect">${label} (${id})</a> - F: ${freq} - W: ${weight.toFixed(2)}</li>`)
+                   }
+               )
+           }
+
+            $.getJSON(`/overview/uniprot:P05231/`,
+              result => {
+                  data = result
+                  populateList();
+              }
+            )
+
+            document.querySelector('#order').addEventListener('change', populateList);
+
+
+            const showWeightControls = window.localStorage.getItem("show-weight")
+
+            if(showWeightControls === "true"){
+                $("#weight_group").show()
+                $("#toggle_weight").text("[Hide]")
             }
-            else {
-                $(this).hide();
-            }
-        });
-    }
+
+            $("#toggle_weight").click(() => {
+                if(!$("#weight_group").is(":hidden")){
+                    $("#weight_group").hide()
+                    $("#toggle_weight").text("[Show]")
+                    window.localStorage.setItem("show-weight", false)
+                }
+                else{
+                    $("#weight_group").show()
+                    $("#toggle_weight").text("[Hide]")
+                    window.localStorage.setItem("show-weight", true)
+                }
+            })
+
+            var freqHandle = $( "#freq-handle" );
+                $( "#freq-slider" ).slider({
+                    create: function () {
+                        freqHandle.text($(this).slider("value"));
+                    },
+                    slide: function (event, ui) {
+                        setSliderValue("freq", ui.value)
+                        freqHandle.text(ui.value);
+                    },
+                    stop: populateList,
+
+                    step:0.1,
+                    value: readSliderValue("freq"),
+                    max: 20
+                 });
+
+                var hasSigHandle = $( "#has-sig-handle" );
+                $( "#has-sig-slider" ).slider({
+                    create: function () {
+                        hasSigHandle.text($(this).slider("value"));
+                    },
+                    slide: function (event, ui) {
+                        setSliderValue("has-sig", ui.value)
+                        hasSigHandle.text(ui.value);
+                    },
+                    stop: populateList,
+                    step:0.1,
+                    value: readSliderValue("has-sig"),
+                    max: 20
+                 });
+
+                var avgSigHandle = $( "#avg-sig-handle" );
+                $( "#avg-sig-slider" ).slider({
+                    create: function () {
+                        avgSigHandle.text($(this).slider("value"));
+                    },
+                    slide: function (event, ui) {
+                        setSliderValue("avg-sig", ui.value)
+                        avgSigHandle.text(ui.value);
+                    },
+                    stop: populateList,
+                    step:0.1,
+                    value: readSliderValue("avg-sig"),
+                    max: 20
+                 });
+
+                var avgImpactHandle = $( "#avg-impact-handle" );
+                $( "#avg-impact-slider" ).slider({
+                    create: function () {
+                        avgImpactHandle.text($(this).slider("value"));
+                    },
+                    slide: function (event, ui) {
+                        setSliderValue("avg-impact", ui.value)
+                        avgImpactHandle.text(ui.value);
+                    },
+                    stop: populateList,
+                    step:0.1,
+                    value: readSliderValue("avg-impact"),
+                    max: 20
+                 });
+
+                var maxImpactHandle = $( "#max-impact-handle" );
+                $( "#max-impact-slider" ).slider({
+                    create: function () {
+                        maxImpactHandle.text($(this).slider("value"));
+                    },
+                    slide: function (event, ui) {
+                        setSliderValue("max-impact", ui.value)
+                        maxImpactHandle.text(ui.value);
+                    },
+                    stop: populateList,
+                    step:0.1,
+                    value: readSliderValue("max-impact"),
+                    max: 20
+                 });
+
+        })
+
+
     </script>
 </body>
 </html>
