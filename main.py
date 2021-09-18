@@ -45,27 +45,6 @@ def infer_polarity(edge):
     return polarity
 
 
-# TODO deprecated
-# def tag_with_triggers(sentences, triggers, polarity):
-#     new_sents = list()
-#     triggers = triggers.split(", ")
-#     for sent in sentences:
-#         tokens = sent.split(" ")
-#         new_sent = list()
-#         for token in tokens:
-#             ltok = token.lower()
-#             is_trigger = False
-#             for trigger in triggers:
-#                 if ltok.startswith(trigger):
-#                     is_trigger = True
-#                     break
-#             if is_trigger:
-#                 new_sent.append(f'<span class="{polarity}"> {token} </span>')
-#             else:
-#                 new_sent.append(token)
-#         new_sents.append(" ".join(new_sent))
-#     return new_sents
-
 # Add polarity to all edges. This will go away soon
 for (_, _, data) in graph.edges(data=True):
     polarity = infer_polarity(data)
@@ -89,13 +68,17 @@ for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
 
     trigger = edge['trigger']
 
-    # key = (s, d, trigger.replace(" ++++ ", ", "))
     key = (s, d, polarity)
     w_key = frozenset((s, d))
     sents = list(set(edge['evidence']))
-    weighs[w_key] += len(sents)
-    # evidence_sentences[key] += tag_with_triggers(sents, trigger, polarity)
-    evidence_sentences[key] += sents
+    formatted_sents = list()
+    for pmcid, s in sents:
+        impact = impacts.get_impact(pmcid)
+        fimpact = "%.1f" % impact
+        formatted_sents.append((f'({fimpact}) {pmcid}: {s}', impact))
+
+    weighs[w_key] += len(formatted_sents)
+    evidence_sentences[key] += formatted_sents
     del edge['evidence']
 
 app = FastAPI()
@@ -237,7 +220,7 @@ async def neighbors(elem):
 @app.get('/evidence/{source}/{destination}/{trigger}')
 async def evidence(source, destination, trigger):
     sents = evidence_sentences[(source, destination, trigger)]
-    return sents
+    return [s for s, _ in sorted(sents, key=lambda x:x[1], reverse=True)]
 
 
 @app.get('/entities')

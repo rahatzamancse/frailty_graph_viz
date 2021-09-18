@@ -280,7 +280,7 @@ def main(uniprot_path='data/uniprot_sprot.fasta',
                 trigger = key.label
 
             G.add_edge(key.controller, key.output, input=key.output, trigger=trigger, freq=len(evidences[key]),
-                       evidence=[f'{id}: {s}' for id, s in evidences[key]], seen_in=seen_in[key], label=key.label)
+                       evidence=[(id, s) for id, s in evidences[key]], seen_in=seen_in[key], label=key.label)
         except Exception as ex:
             print(key)
             print(ex)
