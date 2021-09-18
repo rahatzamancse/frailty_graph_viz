@@ -60,7 +60,7 @@ entities = {f"{graph.nodes[n]['label']} ({n})" for n in graph.nodes if 'label' i
 # Cache the evidence
 print("Building evidence")
 evidence_sentences = defaultdict(list)
-weighs = defaultdict(int)
+frequencies = defaultdict(int)
 for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
     edge = graph[s][d][ix]
 
@@ -77,7 +77,7 @@ for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
         fimpact = "%.1f" % impact
         formatted_sents.append((f'({fimpact}) {pmcid}: {s}', impact))
 
-    weighs[w_key] += len(formatted_sents)
+    frequencies[w_key] += len(formatted_sents)
     evidence_sentences[key] += formatted_sents
     del edge['evidence']
 
@@ -240,12 +240,39 @@ async def anchor(term):
     influenced = successors - reciprocals
     influencers = predecessors - reciprocals
 
+    # Get the terms of the weights
+    def get_weight_terms(a, b, bidirectional=False):
+        has_sig = False
+        avg_sig = 0.
+        impacts = list()
+        max_impact = 0.
+
+        if bidirectional:
+            edges = it.chain(((a, b, i) for i in graph[a][b]), ((b, a, i) for i in graph[b][a]))
+        else:
+            edges = ((a, b, i) for i in graph[a][b])
+
+        for x, y, z in edges:
+            d = get_significance_data((x, y, z))
+            has_sig |= d['has_significance']
+            avg_sig += d['num_w_significance']
+            impacts += d['impact_factors']
+            for impact in d['impact_factors']:
+                if impact > max_impact:
+                    max_impact = impact
+
+        avg_impact = sum(impacts) / len(impacts)
+        avg_sig /= len(impacts)
+
+        return {'avg_sig':avg_sig, 'has_sig':has_sig, 'avg_impact': avg_impact, 'max_impact':max_impact}
+
+
     return {
-        'reciprocals': list(sorted(((r, graph.nodes[r]['label'], weighs[frozenset((term, r))]) for r in reciprocals if
+        'reciprocals': list(sorted(((r, graph.nodes[r]['label'], frequencies[frozenset((term, r))], get_weight_terms(term, r)) for r in reciprocals if
                                     'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
-        'influenced': list(sorted(((r, graph.nodes[r]['label'], weighs[frozenset((term, r))]) for r in influenced if
+        'influenced': list(sorted(((r, graph.nodes[r]['label'], frequencies[frozenset((term, r))], get_weight_terms(term, r)) for r in influenced if
                                    'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
-        'influencers': list(sorted(((r, graph.nodes[r]['label'], weighs[frozenset((term, r))]) for r in influencers if
+        'influencers': list(sorted(((r, graph.nodes[r]['label'], frequencies[frozenset((term, r))], get_weight_terms(r, term)) for r in influencers if
                                     'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
     }
 

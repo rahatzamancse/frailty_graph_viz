@@ -13,7 +13,7 @@
     <script src="/static/cytoscape-elk.js"></script>
     <script src="https://unpkg.com/klayjs@0.4.1/klay.js"></script>
     <script src="/static/cytoscape-klay.js"></script>
-
+    <script src="utils.js"></script>
     <script>
 
     </script>
@@ -266,7 +266,7 @@
                     if(ele.id().startsWith("cluster_"))
                         return 1
                     else
-                        return arizona_weight(ele)
+                        return arizona_weight(ele.data())
                 },
                 label: (ele) => {
                     if(ele.id().startsWith("cluster_"))
@@ -288,7 +288,7 @@
 
             edges.forEach(
                 e => {
-                    const weight = arizona_weight(e)
+                    const weight = arizona_weight(e.data())
                     const label = make_label(e)
                     e.style("width", weight)
                     e.style("label", label)
@@ -296,20 +296,7 @@
             )
         }
 
-        function readSliderValue(name){
 
-            const localStorage = window.localStorage
-            const weight = localStorage.getItem(`${name}-weight`)
-            if(!weight)
-                return 1.
-            else
-                return weight
-        }
-
-        function setSliderValue(name, val){
-            const localStorage = window.localStorage
-            localStorage.setItem(`${name}-weight`, val)
-        }
 
         $( function() {
             var freqHandle = $( "#freq-handle" );
@@ -429,26 +416,12 @@
             }
         }
 
-        function arizona_weight(elem){
 
-            const freq_w = readSliderValue("freq")
-            const has_sig_w = readSliderValue("has-sig")
-            const avg_sig_w = readSliderValue("avg-sig")
-            const avg_impact_w = readSliderValue("avg-impact")
-            const max_impact_w = readSliderValue("max-impact")
-
-            const d = elem.data()
-            return  freq_w * Math.log((d['freq'] + 1)) +
-                has_sig_w * ('has_significance' in d ? +d['has_significance'] : 0.) +
-                avg_sig_w * Math.pow('percentage_significance' in d ? 2*d['percentage_significance'] : 0., 2) +
-                avg_impact_w * d['avg_impact'] +
-                max_impact_w * Math.log(d['max_impact'] + 1)
-        }
 
         function make_label(elem){
             const data = elem.data()
             const polarity = data['polarity'];
-            const w = arizona_weight(elem)
+            const w = arizona_weight(elem.data())
             const freq = data['freq']
             return `${polarity} (${freq}) W: ${w.toFixed(2)}`
         }

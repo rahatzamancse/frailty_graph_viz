@@ -4,18 +4,23 @@
     <meta charset="UTF-8">
     <title>Interacting Entities</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="utils.js"></script>
 </head>
 <style>
     .container {
         width: 33%;
         float: left;
     }
+    li {
+        font-size: small;
+    }
 </style>
 <body>
     <h4><a href="/static/viz.html">Enter query directly</a></h4>
     <h1>Overview of entities interacting with IL-6 (uniprot:P05231)</h1>
     <label for="order">Order by:</label> <select name="order" id="order">
-        <option value="weight">Frequency</option>
+        <option value="weight">Custom Weight</option>
+        <option value="freq">Frequency</option>
         <option value="name">Name</option>
         <option value="gid">Database I.D.</option>
     </select>
@@ -45,10 +50,12 @@
            const orderControl = $("#order")
             const orderCriteria = orderControl.val()
 
-            if(orderCriteria === 'weight')
+            if(orderCriteria === 'freq')
                 elementIx = 2
             else if(orderCriteria === "name")
                 elementIx = 1
+            else if(orderCriteria === "weight")
+                elementIx = 3
             else
                 elementIx = 0
 
@@ -61,9 +68,10 @@
                elem => {
                    const id = elem[0]
                    const label = elem[1]
-                   const weight = elem[2]
+                   const freq = elem[2]
+                   const weight = elem[3]
 
-                   $("#influenced ul").append(`<li><a href="/static/viz.html?src=IL6 (uniprot:P05231)&dst=${label} (${id})">${label} (${id})</a> - ${weight}</li>`)
+                   $("#influenced ul").append(`<li><a href="/static/viz.html?src=IL6 (uniprot:P05231)&dst=${label} (${id})">${label} (${id})</a> - F: ${freq} - W: ${weight.toFixed(2)}</li>`)
                }
            )
 
@@ -72,9 +80,12 @@
                elem => {
                    const id = elem[0]
                    const label = elem[1]
-                   const weight = elem[2]
+                   const freq = elem[2]
+                   const weight = elem[3]
 
-                   $("#influencers ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})">${label} (${id})</a> - ${weight}</li>`)
+                   const w =
+
+                   $("#influencers ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})">${label} (${id})</a> - F: ${freq} - W: ${weight.toFixed(2)}</li>`)
                }
            )
 
@@ -83,16 +94,40 @@
                elem => {
                    const id = elem[0]
                    const label = elem[1]
-                   const weight = elem[2]
+                   const freq = elem[2]
+                   const weight = elem[3]
 
-                   $("#reciprocal ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})&bidirect">${label} (${id})</a> - ${weight}</li>`)
+                   $("#reciprocal ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})&bidirect">${label} (${id})</a> - F: ${freq} - W: ${weight.toFixed(2)}</li>`)
                }
            )
+       }
+
+       function weight_result(data){
+            let influenced = data.influenced
+            let influencers = data.influencers
+            let reciprocals = data.reciprocals
+
+           function helper(elems){
+                elems.forEach(elem => {
+                   elem[3]['freq'] = elem[2]
+                })
+
+                elems.forEach(elem => {
+                    const w = arizona_weight(elem[3])
+                    elem[3] = w
+                })
+           }
+
+           helper(influenced)
+           helper(influencers)
+           helper(reciprocals)
+
        }
 
         $.getJSON(`/overview/uniprot:P05231/`,
           result => {
               data = result
+              weight_result(data)
               populateList();
           }
         )
