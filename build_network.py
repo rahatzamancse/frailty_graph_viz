@@ -9,7 +9,6 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import NamedTuple, Set
 
-import ipdb
 import networkx as nx
 import plac as plac
 from tqdm import tqdm
