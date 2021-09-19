@@ -54,6 +54,37 @@
           margin-right: 1em;
           width: 10%;
       }
+
+          /* When the body has the loading class, we turn
+       the scrollbar off with overflow:hidden */
+    body.loading .modal {
+        overflow: hidden;
+    }
+
+    /* Anytime the body has the loading class, our
+       modal element will be visible */
+    body.loading .modal {
+        display: block;
+    }
+
+    /* Start by setting display:none to make this hidden.
+   Then we position it in relation to the viewport window
+   with position:fixed. Width, height, top and left speak
+   for themselves. Background we set to 80% white with
+   our animation centered, and no-repeating */
+    .modal {
+        display:    none;
+        position:   fixed;
+        z-index:    1000;
+        top:        0;
+        left:       0;
+        height:     100%;
+        width:      100%;
+        background: rgba( 255, 255, 255, .8 )
+                    url('http://i.stack.imgur.com/FhHRx.gif')
+                    50% 50%
+                    no-repeat;
+    }
 </style>
 <body>
     <h4><a href="/static/viz.html">Enter query directly</a></h4>
@@ -145,6 +176,7 @@
             var data = Array()
 
             function populateList() {
+               $("body").addClass("loading");
                weight_result(data)
                let influenced = data.influenced
                let influencers = data.influencers
@@ -203,6 +235,7 @@
                        $("#reciprocal ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})&bidirect">${label} (${id})</a> - F: ${freq} - W: ${weight.toFixed(2)}</li>`)
                    }
                )
+               $("body").removeClass("loading");
            }
 
             $.getJSON(`/overview/uniprot:P05231/`,
@@ -315,5 +348,7 @@
 
 
     </script>
+
+<div class="modal"><!-- Place at bottom of page --></div>
 </body>
 </html>
