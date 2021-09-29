@@ -16,11 +16,29 @@ from build_network import SignificanceRow # TODO move this class to a utils modu
 import annotations
 from rankings import ImpactFactors
 
+from sql_app import crud, models, schemas
+from sql_app.database import SessionLocal, engine
+from utils import get_git_revision_hash, md5_hash
+import logging
+
+logger = logging.getLogger("frailty_viz_main")
+
+logger.addHandler(logging.StreamHandler())
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--graph-file', default='il6-graph.pickle')
 parser.add_argument('--impact-factors', default='journal_rankings.pickle')
 parser.add_argument('--port', default=8000, type=int)
 args = parser.parse_args()
+
+
+# Get the current directory from the script's location
+commit_hash = get_git_revision_hash(str(Path(__file__).parent))
+logger.info("Hashing files ...")
+graph_hash = md5_hash(args.graph_file)
+rankings_hash = md5_hash(args.impact_factors)
+logger.info("Finished hashing files")
+
 
 AGGREGATION_FIELD = "polarity"
 
