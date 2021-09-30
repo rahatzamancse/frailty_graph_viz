@@ -22,7 +22,7 @@ class RecordMetadata(Base):
     rankings_hash = Column(String)
     extra = Column(String, nullable=True)
 
-    records = relationship("Record", back_populates = "metadata")
+    records = relationship("Record", back_populates = "meta_data")
 
 class Record(Base):
     __tablename__ = "records"

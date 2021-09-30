@@ -2,15 +2,17 @@ import argparse
 import itertools as it
 import json
 import pickle
+import uuid
 from collections import defaultdict
 from pathlib import Path
 
 import networkx as nx
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 from tqdm import tqdm
 from build_network import SignificanceRow # TODO move this class to a utils module
 import annotations
@@ -18,15 +20,25 @@ from rankings import ImpactFactors
 
 from sql_app import crud, models, schemas
 from sql_app.database import SessionLocal, engine
+from sql_app.schemas import RecordCreate, RecordMetadataCreate
 from utils import get_git_revision_hash, md5_hash
 import logging
+import models as md
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 logger = logging.getLogger("frailty_viz_main")
 
 logger.addHandler(logging.StreamHandler())
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--graph-file', default='il6-graph.pickle')
+parser.add_argument('--graph-file', default='graph2.pickle')
 parser.add_argument('--impact-factors', default='journal_rankings.pickle')
 parser.add_argument('--port', default=8000, type=int)
 args = parser.parse_args()
@@ -247,6 +259,31 @@ async def graph_entities(term=''):
     candidates = [e for e in entities if term in e.lower()]
     return candidates
 
+@app.put('/record_weights/')
+def record_weights(data: md.UserRecord, db: Session = Depends(get_db)):
+
+    metadata = RecordMetadataCreate(
+        commit=commit_hash,
+        query_str= data.query_str,
+        graph_name = args.graph_file,
+        graph_hash = graph_hash,
+        rankings_name= args.impact_factors,
+        rankings_hash= rankings_hash
+    )
+
+    metadata = crud.create_metadata(db, metadata)
+
+    # Create the coefficients record
+    records = list()
+    for d in data.coefficients:
+        variable = crud.get_or_create_variable(db, d.name)
+        record = RecordCreate(variable_id= variable.id, value=d.value)
+        records.append(record)
+
+    # Save  it to the DB
+    crud.create_records(db, records, metadata_id=metadata.id, observation_id=str(uuid.uuid1()))
+
+    return "Success"
 
 @app.get('/overview/{term}')
 async def anchor(term):
@@ -385,6 +422,7 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
     # Add the edges to the result
     final += (edges + cluster_edges)
     return json.dumps(final)
+
 
 
 if __name__ == '__main__':

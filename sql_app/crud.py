@@ -34,8 +34,25 @@ def create_records(db: Session, recs: List[schemas.RecordCreate], metadata_id: i
                                metadata_id= metadata_id,
                                observation_id = observation_id)
         db.add(db_rec)
-        created.append(rec)
+        created.append(db_rec)
     db.commit()
     for r in created:
         db.refresh(r)
     return created
+
+
+def get_or_create_variable(db: Session, name:str) -> models.Variable:
+    """ Searches for the variable entry with this name. If doesn't exists, it creates it and returns the record """
+    res = db.query(models.Variable).filter_by(name= name).first()
+
+    # If there is no result, then create it
+    if not res:
+        db_rec = models.Variable(name = name)
+        db.add(db_rec)
+        db.commit()
+        db.refresh(db_rec)
+    # If it exists, take the first element and return it
+    else:
+        db_rec = res
+
+    return db_rec
