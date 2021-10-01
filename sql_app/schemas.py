@@ -1,11 +1,13 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from pydantic import BaseModel
+
+from sql_app import models
 
 
 class RecordBase(BaseModel):
 
-    variable_id: int
+    variable: str
     value: float
 
 

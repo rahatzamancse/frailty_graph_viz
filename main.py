@@ -271,17 +271,17 @@ def record_weights(data: md.UserRecord, db: Session = Depends(get_db)):
         rankings_hash= rankings_hash
     )
 
-    metadata = crud.create_metadata(db, metadata)
+    # metadata = crud.create_metadata(db, metadata)
 
     # Create the coefficients record
     records = list()
     for d in data.coefficients:
-        variable = crud.get_or_create_variable(db, d.name)
-        record = RecordCreate(variable_id= variable.id, value=d.value)
+        # variable = crud.get_or_create_variable(db, d.name)
+        record = RecordCreate(variable= d.name, value=d.value)
         records.append(record)
 
     # Save  it to the DB
-    crud.create_records(db, records, metadata_id=metadata.id, observation_id=str(uuid.uuid1()))
+    crud.create_records(db, records, metadata=metadata, observation_id=str(uuid.uuid1()))
 
     return "Success"
 
