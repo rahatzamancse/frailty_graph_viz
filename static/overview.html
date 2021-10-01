@@ -6,6 +6,10 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async
+              src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+     </script>
     <script src="utils.js"></script>
     <script>
         function filter(element) {
@@ -98,6 +102,7 @@
     <label>Filter by:</label> <input type="text" id="filter" onkeyup="filter(this)">
     <h2>Weighting <a href="#" id="toggle_weight" style="font-size: small;">[Show]</a></h2>
       <div id="weight_group" style="display: none">
+          <span id="formula"></span>
       <span class="coefficient">
           <div class="title">Frequency:</div>
           <div id="freq-slider" class="slider">
@@ -180,7 +185,18 @@
 
 
         $(function(){
-            var data = Array()
+            let data = Array();
+
+            function refresh(){
+                populateList()
+                renderFormula()
+            }
+
+            function renderFormula(){
+                let formulaContainer = document.getElementById("formula")
+                formulaContainer.innerText = arizona_weight_latex()
+                MathJax.typeset()
+            }
 
             function populateList() {
                $("body").addClass("loading");
@@ -283,8 +299,8 @@
                     slide: function (event, ui) {
                         setSliderValue("freq", ui.value)
                         freqHandle.text(ui.value);
+                        refresh();
                     },
-                    stop: populateList,
 
                     step:0.1,
                     value: readSliderValue("freq"),
@@ -299,8 +315,8 @@
                     slide: function (event, ui) {
                         setSliderValue("has-sig", ui.value)
                         hasSigHandle.text(ui.value);
+                        refresh();
                     },
-                    stop: populateList,
                     step:0.1,
                     value: readSliderValue("has-sig"),
                     max: 20
@@ -314,8 +330,8 @@
                     slide: function (event, ui) {
                         setSliderValue("avg-sig", ui.value)
                         avgSigHandle.text(ui.value);
+                        refresh();
                     },
-                    stop: populateList,
                     step:0.1,
                     value: readSliderValue("avg-sig"),
                     max: 20
@@ -329,8 +345,8 @@
                     slide: function (event, ui) {
                         setSliderValue("avg-impact", ui.value)
                         avgImpactHandle.text(ui.value);
+                        refresh();
                     },
-                    stop: populateList,
                     step:0.1,
                     value: readSliderValue("avg-impact"),
                     max: 20
@@ -344,8 +360,8 @@
                     slide: function (event, ui) {
                         setSliderValue("max-impact", ui.value)
                         maxImpactHandle.text(ui.value);
+                        refresh();
                     },
-                    stop: populateList,
                     step:0.1,
                     value: readSliderValue("max-impact"),
                     max: 20
@@ -359,15 +375,15 @@
                         slide: function (event, ui) {
                             setSliderValue("avg-pvalue", ui.value)
                             avgPval.text(ui.value);
+                            refresh();
                         },
-                        stop: populateList,
                         step:0.1,
                         value: readSliderValue("avg-pvalue"),
                         max: 20
                  });
 
+            renderFormula()
         })
-
 
     </script>
 
