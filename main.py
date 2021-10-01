@@ -5,6 +5,7 @@ import pickle
 import uuid
 from collections import defaultdict
 from pathlib import Path
+from typing import cast, List, Mapping
 
 import networkx as nx
 import uvicorn
@@ -68,8 +69,8 @@ print("Loading data ...")
 with open(args.graph_file, 'rb') as f:
     data = pickle.load(f)
 
-graph = data['graph']
-significance = data['significance']
+graph:nx.MultiDiGraph = data['graph']
+significance: Mapping[str, List[SignificanceRow]] = data['significance']
 impacts = ImpactFactors(Path(args.impact_factors))
 
 def infer_polarity(edge):
@@ -134,18 +135,33 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-def get_significance_data(edge):
+def get_global_edge_data(edge):
     """ Returns a dictionary with significance information for the edge which will go into cytoscape """
     # Get the paper IDs for this edge
     data = graph[edge[0]][edge[1]][edge[2]]
     seen_in = set(data['seen_in']) # Make this a set to avoid double counting
-    summary = {'has_significance':False, 'num_w_significance':0, 'impact_factors': list()}
+    summary = {
+        'has_significance':False,
+        'num_w_significance':0,
+        'impact_factors': list(),
+        'p_values': list(),
+    }
     for paper_id in seen_in:
         # Fetch the significance extractions
-        significance_detections = significance.get(paper_id, [])
+        significance_detections: List[SignificanceRow] = significance.get(paper_id, [])
         if len(significance_detections) > 0:
             summary['has_significance'] = True
             summary['num_w_significance'] += 1
+
+        # Get the p-values and the correlations
+        for detection in significance_detections:
+            if  detection.type_.strip() == "p":
+                try:
+                    val = float(detection.value.strip().strip('='))
+                except ValueError as ex:
+                    logger.exception(ex)
+                else:
+                    summary['p_values'].append(val)
 
         # Fetch the impact factors
         impact_factor = impacts.get_impact(paper_id)
@@ -181,7 +197,7 @@ async def interaction(source, destination, bidirectional: bool):
         subset.sort(key=lambda e: sum(v for k, v in subgraph.get_edge_data(*e).items() if k == 'freq'), reverse=True)
 
     # Add the significance data here
-    new_edges = [(*e, dict(**subgraph.get_edge_data(*e), **get_significance_data(e))) for e in subgraph.edges if e in edges and e not in discarded]
+    new_edges = [(*e, dict(**subgraph.get_edge_data(*e), **get_global_edge_data(e))) for e in subgraph.edges if e in edges and e not in discarded]
 
     # Group the new edges by their label
     aggregated_new_edges = dict()
@@ -197,6 +213,7 @@ async def interaction(source, destination, bidirectional: bool):
                 aggregated_new_edges[key] = local_data
                 aggregated_new_edges[key]['seen_in'] = list(aggregated_new_edges[key]['seen_in'])
                 aggregated_new_edges[key]['impact_factors'] = list(local_data['impact_factors'])
+                aggregated_new_edges[key]['p_values'] = list(local_data['p_values'])
             else:
                 d = aggregated_new_edges[key]
                 d[field] += ' ++++ ' + local_data[field]
@@ -205,6 +222,7 @@ async def interaction(source, destination, bidirectional: bool):
                 d['seen_in'] += local_data['seen_in']
                 d['num_w_significance'] += local_data['num_w_significance']
                 d['impact_factors'] += local_data['impact_factors']
+                d['p_values'] += local_data['p_values']
 
 
     # Remove duplicate terms from triggers
@@ -240,7 +258,7 @@ async def neighbors(elem):
     # discarded = set()
     edges = set(edges)
 
-    new_edges = [(*e, dict(**subgraph.get_edge_data(*e), **get_significance_data(e))) for e in subgraph.edges if e in edges and e not in discarded]
+    new_edges = [(*e, dict(**subgraph.get_edge_data(*e), **get_global_edge_data(e))) for e in subgraph.edges if e in edges and e not in discarded]
     new_g = nx.MultiDiGraph()
     # new_g.add_nodes_from(set(it.chain.from_iterable((e[0], e[1]) for e in new_edges)))
     new_nodes = list()
@@ -310,6 +328,7 @@ async def anchor(term):
         has_sig = False
         avg_sig = 0.
         impacts = list()
+        p_vals = list()
         max_impact = 0.
 
         if bidirectional:
@@ -318,18 +337,20 @@ async def anchor(term):
             edges = ((a, b, i) for i in graph[a][b])
 
         for x, y, z in edges:
-            d = get_significance_data((x, y, z))
+            d = get_global_edge_data((x, y, z))
             has_sig |= d['has_significance']
             avg_sig += d['num_w_significance']
             impacts += d['impact_factors']
+            p_vals += d['p_values']
             for impact in d['impact_factors']:
                 if impact > max_impact:
                     max_impact = impact
 
         avg_impact = sum(impacts) / len(impacts)
         avg_sig /= len(impacts)
+        avg_p_value = (sum(p_vals) / len(p_vals)) if len(p_vals) > 0 else 1.
 
-        return {'percentage_significance':avg_sig, 'has_significance':int(has_sig), 'avg_impact': avg_impact, 'max_impact':max_impact}
+        return {'percentage_significance':avg_sig, 'has_significance':int(has_sig), 'avg_impact': avg_impact, 'max_impact':max_impact, 'avg_pvalue': avg_p_value}
 
 
     return {
@@ -362,7 +383,7 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
         """ Aggregates edges from a groupby """
         data = {'freq': 0, 'seen_in': list(), 'label': list(), 'trigger': list(),
                 'has_significance':False, 'percentage_significance': 0,
-                'avg_impact': 0., 'max_impact': 0.}
+                'avg_impact': 0., 'max_impact': 0., 'avg_pvalue': list()}
         for edge in edges:
             e = edge[2]
             data['freq'] += int(e['freq'])
@@ -372,6 +393,7 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
             data['seen_in'] += e['seen_in']
             data['has_significance'] |= e['has_significance']
             data['percentage_significance'] += e['num_w_significance']
+            data['avg_pvalue'] += e['p_values']
             for impact in e['impact_factors']:
                 data['avg_impact'] += impact
                 if impact > data['max_impact']:
@@ -380,6 +402,7 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
 
         data['percentage_significance'] /= len(data['seen_in'])
         data['avg_impact'] /=  len(data['seen_in'])
+        data['avg_pvalue'] = (sum(data['avg_pvalue']) / len(data['avg_pvalue'])) if len(data['avg_pvalue']) > 0 else 0.
         del data['seen_in']
         data['trigger'] = ', '.join(data['trigger'])
         data['label'] = ', '.join(data['label'])
@@ -403,6 +426,7 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
         nx['data']['percentage_significance'] = data['percentage_significance']
         nx['data']['avg_impact'] = data['avg_impact']
         nx['data']['max_impact'] = data['max_impact']
+        nx['data']['avg_pvalue'] = data['avg_pvalue']
 
         nx['data']['polarity'] = data['polarity']
         edges.append(nx)

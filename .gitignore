@@ -147,3 +147,4 @@ data/
 .DS_Store
 .gitignore
 .vscode/launch.json
+*.db

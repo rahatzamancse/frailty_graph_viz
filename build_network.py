@@ -71,8 +71,6 @@ def is_black_listed(s: str) -> bool:
 def fix_frailty_groundings(pre):
     """ Will apply ad-hoc fixes to the grounding ids"""
     # Will fix labels
-    if pre == "frailty:FR00001":
-        ipdb.set_trace()
     return pre.replace("frailty:FR00001", "mesh:D000073496")
 
 

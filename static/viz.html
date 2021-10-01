@@ -164,7 +164,7 @@
         border-radius: 25px;
     }
 
-      #freq-handle, #has-sig-handle, #avg-sig-handle, #avg-impact-handle, #max-impact-handle{
+      #freq-handle, #has-sig-handle, #avg-sig-handle, #avg-impact-handle, #max-impact-handle, #avg-pvalue-handle{
         width: 3em;
         height: 1.6em;
         top: 50%;
@@ -235,7 +235,15 @@
             <div id="max-impact-handle" class="ui-slider-handle"></div>
           </div>
       </span>
-          <button id="record_button" class="centered">Record weights</button>
+
+      <span class="coefficient">
+          <span class="title">1 - Avg p-value:</span>
+          <div id="avg-pvalue-slider" class="slider">
+            <div id="avg-pvalue-handle" class="ui-slider-handle"></div>
+          </div>
+      </span>
+
+      <button id="record_button" class="centered">Record weights</button>
       </div>
 
   </div>
@@ -395,7 +403,7 @@
                 max: 20
              });
 
-            var maxImpactHandle = $( "#max-impact-handle" );
+            const maxImpactHandle = $("#max-impact-handle");
             $( "#max-impact-slider" ).slider({
                 create: function () {
                     maxImpactHandle.text($(this).slider("value"));
@@ -407,6 +415,21 @@
                 },
                 step:0.1,
                 value: readSliderValue("max-impact"),
+                max: 20
+             });
+
+            const avgPval = $("#avg-pvalue-handle");
+            $( "#avg-pvalue-slider" ).slider({
+                create: function () {
+                    avgPval.text($(this).slider("value"));
+                },
+                slide: function (event, ui) {
+                    setSliderValue("avg-pvalue", ui.value)
+                    avgPval.text(ui.value);
+                    resize_edges();
+                },
+                step:0.1,
+                value: readSliderValue("avg-pvalue"),
                 max: 20
              });
         } );
