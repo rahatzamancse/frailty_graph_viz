@@ -1,13 +1,18 @@
+from pathlib import Path
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./score_storage.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:///{}"
 # SQLALCHEMY_DATABASE_URL = "postgresql://user:password@postgresserver/db"
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def construct_engine(db_path: Path):
+    url = SQLALCHEMY_DATABASE_URL.format(db_path.absolute())
+    engine = create_engine(
+        url, connect_args={"check_same_thread": False}
+    )
+
+    return engine
 
 Base = declarative_base()

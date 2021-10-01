@@ -12,26 +12,19 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from tqdm import tqdm
 from build_network import SignificanceRow # TODO move this class to a utils module
 import annotations
 from rankings import ImpactFactors
 
 from sql_app import crud, models, schemas
-from sql_app.database import SessionLocal, engine
+from sql_app.database import construct_engine
 from sql_app.schemas import RecordCreate, RecordMetadataCreate
 from utils import get_git_revision_hash, md5_hash
 import logging
 import models as md
 
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 logger = logging.getLogger("frailty_viz_main")
 
@@ -41,7 +34,22 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--graph-file', default='graph2.pickle')
 parser.add_argument('--impact-factors', default='journal_rankings.pickle')
 parser.add_argument('--port', default=8000, type=int)
+parser.add_argument('--records-db', default='records.db')
 args = parser.parse_args()
+
+# Create the database objects
+engine = construct_engine(Path(args.records_db))
+models.Base.metadata.create_all(bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+######################
 
 
 # Get the current directory from the script's location
@@ -50,6 +58,8 @@ logger.info("Hashing files ...")
 graph_hash = md5_hash(args.graph_file)
 rankings_hash = md5_hash(args.impact_factors)
 logger.info("Finished hashing files")
+
+# Create the database of recorded coefficients if it doesn't exsists
 
 
 AGGREGATION_FIELD = "polarity"
@@ -275,9 +285,9 @@ def record_weights(data: md.UserRecord, db: Session = Depends(get_db)):
 
     # Create the coefficients record
     records = list()
-    for d in data.coefficients:
+    for coef in data.coefficients:
         # variable = crud.get_or_create_variable(db, d.name)
-        record = RecordCreate(variable= d.name, value=d.value)
+        record = RecordCreate(variable= coef.name, value=coef.value)
         records.append(record)
 
     # Save  it to the DB
