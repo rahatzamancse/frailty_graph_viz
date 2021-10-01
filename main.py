@@ -281,7 +281,7 @@ def record_weights(data: md.UserRecord, db: Session = Depends(get_db)):
         records.append(record)
 
     # Save  it to the DB
-    crud.create_records(db, records, metadata=metadata, observation_id=str(uuid.uuid1()))
+    crud.create_records(db, records, metadata=metadata)
 
     return "Success"
 

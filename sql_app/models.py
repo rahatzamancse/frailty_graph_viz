@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Numeric, Float
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Numeric, Float, TIMESTAMP, func
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -20,6 +20,7 @@ class RecordMetadata(Base):
     graph_hash = Column(String)
     rankings_name = Column(String)
     rankings_hash = Column(String)
+    timestamp = Column(TIMESTAMP, default=func.now())
     extra = Column(String, nullable=True)
 
     records = relationship("Record", back_populates = "meta_data")
@@ -28,7 +29,6 @@ class Record(Base):
     __tablename__ = "records"
 
     id = Column(Integer, primary_key=True, index=True)
-    observation_id = Column(String)
     variable_id = Column(Integer, ForeignKey("variables.id"))
     value = Column(Float)
     metadata_id = Column(Integer, ForeignKey("record_metadata.id"))

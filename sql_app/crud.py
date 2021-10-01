@@ -25,7 +25,7 @@ def create_metadata(db: Session, md: schemas.RecordMetadataCreate):
     db.commit()
     return  db_md
 
-def create_records(db: Session, recs: List[schemas.RecordCreate], metadata: schemas.RecordMetadataCreate, observation_id: str):
+def create_records(db: Session, recs: List[schemas.RecordCreate], metadata: schemas.RecordMetadataCreate):
     db_md = models.RecordMetadata(**metadata.dict())
     created = list()
     for rec in recs:
@@ -37,8 +37,7 @@ def create_records(db: Session, recs: List[schemas.RecordCreate], metadata: sche
         if not var:
             var = models.Variable(name=rec.variable)
 
-        db_rec = models.Record(value=rec.value,
-                               observation_id=observation_id)
+        db_rec = models.Record(value=rec.value)
 
         db_rec.variable = var
         db_rec.meta_data = db_md
