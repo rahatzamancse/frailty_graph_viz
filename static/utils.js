@@ -49,3 +49,8 @@ function setSliderValue(name, val){
     localStorage.setItem(`${name}-weight`, val)
 }
 
+function renderFormula(){
+    let formulaContainer = document.getElementById("formula")
+    formulaContainer.innerText = arizona_weight_latex()
+    MathJax.typeset()
+}

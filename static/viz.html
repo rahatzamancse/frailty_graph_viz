@@ -14,7 +14,9 @@
     <script src="https://unpkg.com/klayjs@0.4.1/klay.js"></script>
     <script src="/static/cytoscape-klay.js"></script>
     <script src="utils.js"></script>
-    <script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async
+              src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
 
     </script>
 </head>
@@ -204,7 +206,9 @@
                                                                                                                             class="entity"/>
       <b>Bidirectional: </b><input type="checkbox" id="bidirectional"><input id="ask" type="button" value="Find" />
       <h2>Weighting <a href="#" id="toggle_weight" style="font-size: small;">[Show]</a></h2>
+
       <div id="weight_group" style="display: none">
+          <span id="formula"></span>
       <span class="coefficient">
           <div class="title">Frequency:</div>
           <div id="freq-slider" class="slider">
@@ -351,6 +355,7 @@
                     setSliderValue("freq", ui.value)
                     freqHandle.text(ui.value);
                     resize_edges();
+                    renderFormula();
                 },
 
                 step:0.1,
@@ -367,6 +372,7 @@
                     setSliderValue("has-sig", ui.value)
                     hasSigHandle.text(ui.value);
                     resize_edges();
+                    renderFormula();
                 },
                 step:0.1,
                 value: readSliderValue("has-sig"),
@@ -382,6 +388,7 @@
                     setSliderValue("avg-sig", ui.value)
                     avgSigHandle.text(ui.value);
                     resize_edges();
+                    renderFormula();
                 },
                 step:0.1,
                 value: readSliderValue("avg-sig"),
@@ -397,6 +404,7 @@
                     setSliderValue("avg-impact", ui.value)
                     avgImpactHandle.text(ui.value);
                     resize_edges();
+                    renderFormula();
                 },
                 step:0.1,
                 value: readSliderValue("avg-impact"),
@@ -412,6 +420,7 @@
                     setSliderValue("max-impact", ui.value)
                     maxImpactHandle.text(ui.value);
                     resize_edges();
+                    renderFormula();
                 },
                 step:0.1,
                 value: readSliderValue("max-impact"),
@@ -427,6 +436,7 @@
                     setSliderValue("avg-pvalue", ui.value)
                     avgPval.text(ui.value);
                     resize_edges();
+                    renderFormula();
                 },
                 step:0.1,
                 value: readSliderValue("avg-pvalue"),
@@ -650,6 +660,7 @@
             }
         })
 
+        renderFormula()
   </script>
 
 <div class="modal"><!-- Place at bottom of page --></div>

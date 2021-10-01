@@ -192,12 +192,6 @@
                 renderFormula()
             }
 
-            function renderFormula(){
-                let formulaContainer = document.getElementById("formula")
-                formulaContainer.innerText = arizona_weight_latex()
-                MathJax.typeset()
-            }
-
             function populateList() {
                $("body").addClass("loading");
                weight_result(data)
