@@ -111,13 +111,7 @@
 <body>
     <h4><a href="/static/viz.html">Enter query directly</a></h4>
     <h1>Overview of entities interacting with IL-6 (uniprot:P05231)</h1>
-    <label for="order">Order by:</label> <select name="order" id="order">
-        <option value="weight">Custom Weight</option>
-        <option value="freq">Frequency</option>
-        <option value="name">Name</option>
-        <option value="gid">Database I.D.</option>
-    </select>
-    <label>Filter by:</label> <input type="text" id="filter" onkeyup="filter(this)">
+
     <h2>Weighting <a href="#" id="toggle_weight" style="font-size: small;">[Show]</a></h2>
       <div id="weight_group" style="display: none">
           <span id="formula"></span>
@@ -189,15 +183,15 @@
 
         const cy = cytoscape({
           container: document.getElementById('cy'),
-            // zoom: 0.5,
             style: [
         {
             selector: 'node',
             style: {
                 shape: 'ellipse',
-                // size: "1em",
+                width: "1em",
+                height: "1em",
                 'background-color': 'yellow',
-                label: (ele) => { return ele.data()['label'] + ` (${ele.data()['id']})`},
+                label: (ele) => { return ele.data()['label'] + ` (${ele.data()['id']}) - W: ${ele.data()['weight'].toFixed(2)}`},
                 // 'font-size': '.3em'
             }
         },
@@ -235,11 +229,19 @@
             style: {
                 "background-color": "blue"
             }
+        },
+        {
+            selector: '.influenced',
+            style: {
+                "background-color": "red"
+            }
         }
 
         ],
-        elements: []
+            elements: []
         });
+
+        const rootId = "uniprot:P05231";
 
         $(function(){
             let data = Array();
@@ -255,20 +257,6 @@
                let influenced = data.influenced
                let influencers = data.influencers
                let reciprocals = data.reciprocals
-
-               const orderControl = $("#order")
-                const orderCriteria = orderControl.val()
-
-                if(orderCriteria === 'freq')
-                    elementIx = 2
-                else if(orderCriteria === "name")
-                    elementIx = 1
-                else if(orderCriteria === "weight")
-                    elementIx = 4
-                else
-                    elementIx = 0
-
-               const rootId = "uniprot:P05231";
 
                const root = {
                     "group": "nodes",
@@ -291,6 +279,7 @@
                                "data": {
                                    "id": id,
                                    "label": label,
+                                   "weight": weight,
                                    "link": `/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})&bidirect`
                                },
                                classes: classes
@@ -307,7 +296,7 @@
                                }
                            }
 
-                           return [node, edge]
+                           return [node]
 
 
                        }
@@ -319,15 +308,7 @@
                let reciprocalEdges = createGraphElements(reciprocals, ["reciprocal"])
 
 
-               let layoutInitialOpts = {
-                name: 'concentric',
-                concentric: function( node ){
-                  return node.degree();
-                },
-                levelWidth: function( nodes ){
-                  return 1;
-                }
-              }
+
 
             // This is a double click event
             let tappedBefore;
@@ -347,21 +328,32 @@
             });
             /////////////////////////////
 
+            let layoutInitialOpts = {
+                name: 'grid',
+                cols:10,
+                nodeDimensionsIncludeLabels: true,
+                sort: function(a, b){
+                    a_kind = a.classes()[0]
+                    b_kind = b.classes()[0]
+                    if(a_kind === b_kind)
+                        return a.data('weight') - b.data('weight')
+                    else{
+                        if(a_kind === "influencer")
+                            return 1
+                        else if(a_kind === "reciprocal" && b_kind === "influenced")
+                            return 1
+                        else
+                            return -1
+                    }
+                }
+              }
 
 
-            cy.json({"elements": [root].concat(influencedEdges).concat(influencingEdges).concat(reciprocalEdges)})
+            let elems = influencedEdges.concat(influencingEdges).concat(reciprocalEdges)
+
+            cy.json({"elements": elems})
             cy.layout(layoutInitialOpts).run();
             cy.fit(cy.elements())
-            cy.on('dbclick', 'node', function(evt){
-                let node = evt.target
-                if(node.id() !== rootId){
-                    const newPath = node.data()['link']
-                    window.location.href = newPath;
-                }
-            })
-            // cy.zoom(1)
-
-
 
                $("body").removeClass("loading");
            }
@@ -370,10 +362,16 @@
               result => {
                   data = result
                   populateList();
+
+                    // Bind a double click event to the nodes, to navigate to the specific view if desired
+                    cy.on('dbclick', 'node', function(evt){
+                        let node = evt.target
+                        if(node.id() !== rootId){
+                            window.location.href = node.data()['link'];
+                        }
+                    })
               }
             )
-
-            document.querySelector('#order').addEventListener('change', populateList);
 
 
             const showWeightControls = window.localStorage.getItem("show-weight")
@@ -404,9 +402,8 @@
                     slide: function (event, ui) {
                         setSliderValue("freq", ui.value)
                         freqHandle.text(ui.value);
-                        refresh();
                     },
-
+                    stop:refresh,
                     step:0.1,
                     value: readSliderValue("freq"),
                     max: 20
@@ -420,8 +417,8 @@
                     slide: function (event, ui) {
                         setSliderValue("has-sig", ui.value)
                         hasSigHandle.text(ui.value);
-                        refresh();
                     },
+                    stop:refresh,
                     step:0.1,
                     value: readSliderValue("has-sig"),
                     max: 20
@@ -435,9 +432,9 @@
                     slide: function (event, ui) {
                         setSliderValue("avg-sig", ui.value)
                         avgSigHandle.text(ui.value);
-                        refresh();
                     },
                     step:0.1,
+                    stop:refresh,
                     value: readSliderValue("avg-sig"),
                     max: 20
                  });
@@ -450,9 +447,9 @@
                     slide: function (event, ui) {
                         setSliderValue("avg-impact", ui.value)
                         avgImpactHandle.text(ui.value);
-                        refresh();
                     },
                     step:0.1,
+                    stop:refresh,
                     value: readSliderValue("avg-impact"),
                     max: 20
                  });
@@ -465,9 +462,9 @@
                     slide: function (event, ui) {
                         setSliderValue("max-impact", ui.value)
                         maxImpactHandle.text(ui.value);
-                        refresh();
                     },
                     step:0.1,
+                    stop:refresh,
                     value: readSliderValue("max-impact"),
                     max: 20
                  });
@@ -480,9 +477,9 @@
                         slide: function (event, ui) {
                             setSliderValue("avg-pvalue", ui.value)
                             avgPval.text(ui.value);
-                            refresh();
                         },
                         step:0.1,
+                        stop:refresh,
                         value: readSliderValue("avg-pvalue"),
                         max: 20
                  });
