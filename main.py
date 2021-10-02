@@ -174,6 +174,10 @@ def get_global_edge_data(edge):
 async def root():
     return RedirectResponse("/static/overview.html")
 
+@app.get("/ov")
+async def root():
+    return RedirectResponse("/static/overview_graph.html")
+
 
 async def star():
     return convert2cytoscapeJSON(graph.subgraph(list(graph.neighbors("uniprot:P05231")) + ["uniprot:P05231"]))
