@@ -7,7 +7,7 @@ import pickle
 import re
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import NamedTuple, Set
+from typing import NamedTuple, Set, Optional
 
 import networkx as nx
 import plac as plac
@@ -15,6 +15,9 @@ from tqdm import tqdm
 
 
 # Function definitions
+from rankings import ImpactFactors
+
+
 def read_uniprot(path):
     """ Parse the fasta file with uniprot data to generate a dictionary of descriptions """
 
@@ -119,9 +122,11 @@ class SignificanceRow(NamedTuple):
 @plac.pos('uniprot_path', 'Uniprot fasta file, for the participant descriptions', type=Path)
 @plac.pos('input_files_dir', 'Arizona files directory', type=Path)
 @plac.pos('output_file', 'Graph output file', type=Path)
+@plac.opt('index_factors_path', 'Pickle file that contains impact factors', type=Path)
 def main(uniprot_path='data/uniprot_sprot.fasta',
          input_files_dir='/home/enrique/data/arizona_associations_markup/',
-         output_file="graph.pickle"):
+         output_file="graph.pickle",
+         index_factors_path: Optional[Path] = None):
     """
     Reads
     """
@@ -139,6 +144,13 @@ def main(uniprot_path='data/uniprot_sprot.fasta',
     dataset_inputs = dict()
     # Store the significance extractions in this variable
     significance_extractions = defaultdict(list)
+
+    index_factors = None
+    # Load the index factors if they are specified
+    if index_factors_path:
+        index_factors = ImpactFactors(index_factors_path)
+
+
 
     # Fix the participant names here:
     for row in tqdm(all_rows, desc='Fixing participant\'s names'):
@@ -212,6 +224,12 @@ def main(uniprot_path='data/uniprot_sprot.fasta',
 
     # Build the edges from the rows in the data frame
     for row in tqdm(filtered_rows, desc='Building edges'):
+
+        # Skip this extraction if it comes from a paper with low index factor
+        if index_factors:
+            if row['SEEN IN'] and index_factors.get_impact(row['SEEN IN'].strip()) < 0.5:
+                continue
+
         # Ignore those that have adhoc entities, i.e. uaz prefixes
         if "uaz:" not in row['INPUT'] and "uaz:" not in row['OUTPUT'] and "uaz:" not in row['CONTROLLER']:
             try:

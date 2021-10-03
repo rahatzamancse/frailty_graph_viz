@@ -91,6 +91,7 @@ for (_, _, data) in graph.edges(data=True):
     polarity = infer_polarity(data)
     data['polarity'] = polarity
 
+
 print("Cleaning graph ...")
 graph.remove_edges_from(list(nx.selfloop_edges(graph)))
 uaz_nodes = [n for n in graph.nodes if n.startswith("uaz:")]
