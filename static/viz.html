@@ -520,7 +520,7 @@
                       data => {
                           evidence = data
                           evidence.forEach(item => {
-                              document.getElementById("evidence").innerHTML += "<li>" + item.replace(/PMC\d+/, "<a href=\"https://www.ncbi.nlm.nih.gov/pmc/articles/$&/\" target=\"_blank\">$&</a>") + "</li>";
+                              document.getElementById("evidence").innerHTML += "<li>" + item + "</li>";
                           });
                           $("body").removeClass("loading");
                           $("#evidence_pane").show()

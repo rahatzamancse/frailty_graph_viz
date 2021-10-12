@@ -16,22 +16,23 @@ class ImpactFactors:
             data = pickle.load(f)
 
         self._pmc_to_sjr = data['pmc_to_sjr']
-        self._journals = data['journals']
+        self._pmc_to_journal = data['journals']
         self._hindex = data['hindex']
         self._sjr = data['sjr']
 
-    def get_impact(self, pmcid:str, metric="sjr") -> float:
+    def get_impact(self, publication:str, metric="sjr") -> float:
         """ Returns an impact factor metric for a PMCID entry """
 
         metric = self.__data_for(metric)
 
         # Get the journal for the specific pmcid
-        if pmcid in self._journals:
-            journal = self._journals[pmcid]
+        if publication in self._pmc_to_journal:
+            journal = self._pmc_to_journal[publication]
             value = metric.get(journal, 0.) # Find the impact for the current journal. If missing, then return 0.
             return value
         else:
-            return 0. # No journal info, then no impact
+            score = metric.get(publication, 0.)
+            return score
 
 
 

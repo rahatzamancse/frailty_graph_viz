@@ -114,10 +114,9 @@ for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
     w_key = frozenset((s, d))
     sents = list(set(edge['evidence']))
     formatted_sents = list()
-    for pmcid, s in sents:
-        impact = impacts.get_impact(pmcid)
-        fimpact = "%.1f" % impact
-        formatted_sents.append((f'({fimpact}) {pmcid}: {s}', impact))
+    for link, impact, sent in sents:
+        fimpact = "%.2f" % impact
+        formatted_sents.append((f'({fimpact}) <a href="{link}" target="_blank">Source</a>: {sent}', impact))
 
     frequencies[w_key] += len(formatted_sents)
     evidence_sentences[key] += formatted_sents
@@ -144,7 +143,7 @@ def get_global_edge_data(edge):
     summary = {
         'has_significance':False,
         'num_w_significance':0,
-        'impact_factors': list(),
+        # 'impact_factors': data['impact_factors'],
         'p_values': list(),
     }
     for paper_id in seen_in:
@@ -163,10 +162,6 @@ def get_global_edge_data(edge):
                     logger.exception(ex)
                 else:
                     summary['p_values'].append(val)
-
-        # Fetch the impact factors
-        impact_factor = impacts.get_impact(paper_id)
-        summary['impact_factors'].append(impact_factor)
 
     return summary
 
@@ -202,7 +197,12 @@ async def interaction(source, destination, bidirectional: bool):
         subset.sort(key=lambda e: sum(v for k, v in subgraph.get_edge_data(*e).items() if k == 'freq'), reverse=True)
 
     # Add the significance data here
-    new_edges = [(*e, dict(**subgraph.get_edge_data(*e), **get_global_edge_data(e))) for e in subgraph.edges if e in edges and e not in discarded]
+    new_edges = list()
+    for e in edges:
+        if e not in discarded:
+            x = (*e, dict(**subgraph.get_edge_data(*e), **get_global_edge_data(e)))
+            new_edges.append(x)
+    # new_edges = [(*e, dict(**subgraph.get_edge_data(*e), **get_global_edge_data(e))) for e in subgraph.edges if e in edges and e not in discarded]
 
     # Group the new edges by their label
     aggregated_new_edges = dict()
@@ -342,12 +342,13 @@ async def anchor(term):
             edges = ((a, b, i) for i in graph[a][b])
 
         for x, y, z in edges:
-            d = get_global_edge_data((x, y, z))
-            has_sig |= d['has_significance']
-            avg_sig += d['num_w_significance']
-            impacts += d['impact_factors']
-            p_vals += d['p_values']
-            for impact in d['impact_factors']:
+            doc_data = get_global_edge_data((x, y, z))
+            edge_data = graph.get_edge_data(x, y, z)
+            has_sig |= doc_data['has_significance']
+            avg_sig += doc_data['num_w_significance']
+            impacts += edge_data['impact_factors']
+            p_vals += doc_data['p_values']
+            for impact in edge_data['impact_factors']:
                 if impact > max_impact:
                     max_impact = impact
 
