@@ -320,7 +320,7 @@ def record_weights(data: md.UserRecord, db: Session = Depends(get_db)):
 
 @app.get('/overview/{term}')
 async def anchor(term):
-    ''' Returns the neighors, classified by influenced on, by and reciprocal '''
+    """ Returns the neighors, classified by influenced on, by and reciprocal """
     successors = set(graph.neighbors(term))
     predecessors = set(graph.predecessors(term))
 

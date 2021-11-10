@@ -13,7 +13,7 @@
     <script src="utils.js"></script>
     <script>
         function filter(element) {
-            var value = $(element).val().toLowerCase();
+            const value = $(element).val().toLowerCase();
 
             $("ul > li").each(function() {
                 if ($(this).text().toLowerCase().search(value) > -1) {
@@ -28,8 +28,9 @@
 </head>
 <style>
     .container {
-        width: 33%;
+        width: 30%;
         float: left;
+        margin-right: 3%;
     }
     li {
         font-size: small;
@@ -145,42 +146,38 @@
     <div style="width: 100%">
         <div id="influenced" class="container">
             <h3>Influenced by:</h3>
-            <ul />
         </div>
         <div id="reciprocal" class="container">
             <h3>Reciprocal with:</h3>
-            <ul />
         </div>
         <div id="influencers" class="container">
             <h3>Influence:</h3>
-            <ul />
         </div>
 
     </div>
     <script>
 
-
         function weight_result(data){
-                let influenced = data.influenced
-                let influencers = data.influencers
-                let reciprocals = data.reciprocals
+            let influenced = data.influenced
+            let influencers = data.influencers
+            let reciprocals = data.reciprocals
 
-               function helper(elems){
-                    elems.forEach(elem => {
-                       elem[3]['freq'] = elem[2]
-                    })
+           function helper(elems){
+                elems.forEach(elem => {
+                   elem[3]['freq'] = elem[2]
+                })
 
-                    elems.forEach(elem => {
-                        const w = arizona_weight(elem[3])
-                        elem[4] = w
-                    })
-               }
-
-               helper(influenced)
-               helper(influencers)
-               helper(reciprocals)
-
+                elems.forEach(elem => {
+                    const w = arizona_weight(elem[3])
+                    elem[4] = w
+                })
            }
+
+           helper(influenced)
+           helper(influencers)
+           helper(reciprocals)
+
+       }
 
 
 
@@ -190,16 +187,17 @@
             function refresh(){
                 populateList()
                 renderFormula()
+                populateList()
             }
 
             function populateList() {
-               $("body").addClass("loading");
-               weight_result(data)
-               let influenced = data.influenced
-               let influencers = data.influencers
-               let reciprocals = data.reciprocals
+                $("body").addClass("loading");
+                weight_result(data)
+                let influenced = data.influenced
+                let influencers = data.influencers
+                let reciprocals = data.reciprocals
 
-               const orderControl = $("#order")
+                const orderControl = $("#order")
                 const orderCriteria = orderControl.val()
 
                 if(orderCriteria === 'freq')
@@ -211,49 +209,89 @@
                 else
                     elementIx = 0
 
-               influenced.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
-               reciprocals.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
-               influencers.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
+                influenced.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
+                reciprocals.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
+                influencers.sort((a, b) => a[elementIx] < b[elementIx] ? 1 : -1)
 
-                $("#influenced ul").empty()
-               influenced.forEach(
-                   elem => {
-                       const id = elem[0]
-                       const label = elem[1]
-                       const freq = elem[2]
-                       const weight = elem[4]
+                const categories = {
+                    "uniprot": "Proteins or Gene Products",
+                    "mesh": "Diseases",
+                    "go": "Biological Process",
+                    "fplx": "Proteins or Gene Products",
+                    "pubchem": "Chemicals",
+                    "interpro": "Proteins or Gene Products",
+                    "proonto": "Proteins or Gene Products",
+                    "chebi": "Chemicals",
+                    "pfam": "Proteins or Gene Products",
+                    "frailty": "Biological Process"
+                }
 
-                       $("#influenced ul").append(`<li><a href="/static/viz.html?src=IL6 (uniprot:P05231)&dst=${label} (${id})">${label} (${id})</a> - F: ${freq} - W: ${weight.toFixed(2)}</li>`)
-                   }
-               )
+                function createAccordion(groups, containerId) {
 
-                $("#influencers ul").empty()
-               influencers.forEach(
-                   elem => {
-                       const id = elem[0]
-                       const label = elem[1]
-                       const freq = elem[2]
-                       const weight = elem[4]
+                    const container = $(containerId)
+                    console.log(containerId)
+                    // Add a section for each group
+                    for(const group in groups) {
+                        const entries = groups[group]
+                        const category = categories[group] || group
+                        container.append(`<h3>${category}</h3>`)
+                        const d = $(document.createElement("div").appendChild(document.createElement("ul")))
 
-                       const w =
+                        for(const e of entries){
+                            d.append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${e.label} (${e.id})&bidirect">${e.label} (${e.id})</a> - F: ${e.freq} - W: ${e.weight.toFixed(2)}</li>`)
+                        }
+                        container.append(d)
+                    }
 
-                       $("#influencers ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})">${label} (${id})</a> - F: ${freq} - W: ${weight.toFixed(2)}</li>`)
-                   }
-               )
+                    // Make it accordion
+                    container.accordion({
+                        collapsible:true,
+                        heightStyle: "content",
+                    })
+                }
 
-                $("#reciprocal ul").empty()
-               reciprocals.forEach(
-                   elem => {
-                       const id = elem[0]
-                       const label = elem[1]
-                       const freq = elem[2]
-                       const weight = elem[4]
+                function populateSubList(containedId) {
+                    const lastChild = $(containedId).children().last()
+                    if(lastChild.is("span"))
+                        lastChild.remove()
+                    $(containedId).append($("<span>"))
+                    containedId += " span"
 
-                       $("#reciprocal ul").append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${label} (${id})&bidirect">${label} (${id})</a> - F: ${freq} - W: ${weight.toFixed(2)}</li>`)
-                   }
-               )
-               $("body").removeClass("loading");
-           }
+                    const entries = reciprocals.map(
+                        elem => {
+                            const id = elem[0]
+                            const label = elem[1]
+                            const freq = elem[2]
+                            const weight = elem[4]
+
+                            const entityCategory = getEntityCategory(id)
+
+                            const entry = {
+                                "id": id,
+                                "label": label,
+                                "cat": entityCategory,
+                                "freq": freq,
+                                "weight": weight
+                            }
+                            return entry
+
+                        }
+                    )
+
+                    const entriesByType = groupBy(entries, entry => categories[entry.cat] || entry.cat)
+
+                    createAccordion(entriesByType, containedId);
+                }
+
+
+                populateSubList("#influenced");
+
+                populateSubList("#influencers");
+
+                populateSubList("#reciprocal");
+
+                $("body").removeClass("loading");
+            }
 
             $.getJSON(`/overview/uniprot:P05231/`,
               result => {
@@ -262,7 +300,7 @@
               }
             )
 
-            document.querySelector('#order').addEventListener('change', populateList);
+            document.querySelector('#order').addEventListener('change', refresh);
 
 
             const showWeightControls = window.localStorage.getItem("show-weight")
