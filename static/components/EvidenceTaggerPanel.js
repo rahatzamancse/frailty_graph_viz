@@ -102,9 +102,18 @@ function NewEvidenceTag(props){
            <label>
                <input type="text"
                       value={props.tagName}
-                      onChange={ event => props.onChange(event.target.value)} />
+                      onChange={ event => props.onChange(event.target.value)}
+                      onKeyPress={
+                          evt => {
+                              if (evt.key === "Enter")
+                                  props.onClick()
+                          }
+                      }
+               />
            </label>
-           <button onClick={props.onClick} disabled={props.disabled}>Add new</button>
+           <button onClick={props.onClick} disabled={props.disabled}
+
+           >Add new</button>
        </li>
     )
 }
