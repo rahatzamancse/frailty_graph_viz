@@ -1,7 +1,9 @@
 div.annotator-panel {
     background-color: lightgray;
+    opacity: 95%;
     padding: .8em;
-    border-radius: 15px;
+    border-radius: 6px;
+    box-shadow: 5px 5px 3px grey;
     width:fit-content;
     height:fit-content;
     font-family: sans-serif;
@@ -26,4 +28,15 @@ div.annotator-panel {
 
 .annotator-panel label:hover{
     font-style: italic;
+}
+
+#tooltip{
+    background-color: cornsilk;
+    padding: .2em;
+    border-color: black;
+    border-width: 10px;
+    font-size: small;
+    margin-left: .3em;
+    margin-bottom: 10px;
+    display: none;
 }
