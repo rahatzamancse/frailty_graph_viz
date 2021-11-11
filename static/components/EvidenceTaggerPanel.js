@@ -1,12 +1,15 @@
+console.log("Imported")
+
 class EvidenceTaggerPanel extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             newTagName: "",
-            tags: ["Feedback Mechanism", "Incorrect sentence", "Duplicate"],
+            tags: ["Feedback Mechanism", "Incorrect extraction", "Duplicate"],
             checks: [true, false, true],
             addButtonDisabled: true
         }
+        console.log("Rendered")
     }
 
     validTagName(name){

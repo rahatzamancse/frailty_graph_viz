@@ -109,7 +109,7 @@
     #evidence_pane {
         width: 100%;
         min-height: 20vh;
-        /*z-index: 1;*/
+        z-index: 0;
         /*position: fixed;*/
         left: 0;
         bottom: 0;
@@ -124,6 +124,13 @@
        /* top:13%;*/
        /* overflow: scroll;*/
     }
+
+    .selected_evidence {
+        /*text-shadow:1px 1px 10px #fff, 1px 1px 10px #000000;*/
+        background-color: yellow;
+    }
+
+
 
     /* Start by setting display:none to make this hidden.
    Then we position it in relation to the viewport window
@@ -251,12 +258,29 @@
       </div>
 
   </div>
-
+  <span id="tooltip">Click to annotate</span>
+<div id="annotator" style="display:none"></div>
   <div id="cy"></div>
   <div id="evidence_pane">
        <h3>Evidence: <a href="#" id="close_evidence">[Close]</a></h3>
         <ul id="evidence"></ul>
   </div>
+
+
+
+<div class="modal"><!-- Place at bottom of page --></div>
+
+  <!-- Load React. -->
+    <!-- Note: when deploying, replace "development.js" with "production.min.js". -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <link rel="stylesheet" href="components/EvidenceTaggerPanel.css">
+
+    <script type="text/babel" src="components/EvidenceTaggerPanel.js">
+    </script>
+
+
   <script>
         // Configure the record button
         const recordButton = document.getElementById("record_button")
@@ -525,6 +549,16 @@
                           $("body").removeClass("loading");
                           $("#evidence_pane").show()
                           document.getElementById("evidence_pane").scrollIntoView({behavior: "smooth", block: "start", inline: "nearest"});
+                          document.querySelectorAll("#evidence li").forEach(
+                                item => {
+                                    item.onclick = () => {
+                                        showReact(item)
+                                        hideTooltip()
+                                    }
+                                    item.onmouseover =  showTooltip
+                                    item.onmouseleave = hideTooltip
+                                }
+                            );
                       }
           )
 
@@ -663,7 +697,69 @@
         renderFormula()
   </script>
 
-<div class="modal"><!-- Place at bottom of page --></div>
+  <script type="text/babel">
+
+    // Variable to hold the pointer's position at any given time
+    let mouseX;
+    let mouseY;
+
+    // Show the evidence tagger panel and send it a reference to its caller
+    function showReact(sender){
+        const r = document.getElementById("annotator")
+
+        r.style.position = "absolute"
+        r.style.left = `${mouseX}px`
+        r.style.top = `${mouseY}px`
+        r.style.marginTop = "1em"
+        r.style.display="block";
+
+        r.onmouseleave = () => hideReact(sender)
+        sender.classList.add("selected_evidence")
+    }
+
+    // Hide the tagger panel
+    function hideReact(sender){
+        const r = document.getElementById("annotator")
+        r.style.display="none";
+        sender.classList.remove("selected_evidence")
+    }
+
+
+    // Function to track the pointer's position
+    function trackPointerPosition(event) {
+        mouseX = event.pageX;
+        mouseY = event.pageY;
+    }
+
+    function showTooltip(){
+        const tooltip = document.getElementById("tooltip")
+        tooltip.style.display = "block"
+    }
+
+    function hideTooltip(){
+        const tooltip = document.getElementById("tooltip")
+        tooltip.style.display = "none"
+    }
+
+    // Sets the position of the tool tip to the pointer's current position
+    function moveTooltip(){
+        const tooltip = document.getElementById("tooltip");
+        tooltip.style.position = "absolute"
+        tooltip.style.left = `${mouseX}px`
+        tooltip.style.top = `${mouseY}px`
+    }
+
+    // Bind the tracker to this DOM
+    document.onmousemove = (e) =>{
+        trackPointerPosition(e);
+        moveTooltip();
+    };
+
+
+    const domContainer = document.querySelector('#annotator');
+    ReactDOM.render(React.createElement(EvidenceTaggerPanel), domContainer);
+</script>
+
 
 
 
