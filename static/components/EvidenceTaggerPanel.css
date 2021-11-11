@@ -1,0 +1,29 @@
+div.annotator-panel {
+    background-color: lightgray;
+    padding: .8em;
+    border-radius: 15px;
+    width:fit-content;
+    height:fit-content;
+    font-family: sans-serif;
+}
+
+.annotator-panel > h4 {
+    margin: 0;
+}
+
+.annotator-panel > ul > li > button {
+    margin-left: .3em;
+}
+
+.annotator-panel > ul {
+    list-style-type: none;
+    padding-left: 1em;
+    margin: 0;
+}
+.annotator-panel > ul > li {
+    margin-top: .5em;
+}
+
+.annotator-panel label:hover{
+    font-style: italic;
+}

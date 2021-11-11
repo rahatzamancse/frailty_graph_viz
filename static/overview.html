@@ -168,8 +168,7 @@
                 })
 
                 elems.forEach(elem => {
-                    const w = arizona_weight(elem[3])
-                    elem[4] = w
+                    elem[4] = arizona_weight(elem[3])
                 })
            }
 
@@ -187,7 +186,6 @@
             function refresh(){
                 populateList()
                 renderFormula()
-                populateList()
             }
 
             function populateList() {
@@ -199,6 +197,8 @@
 
                 const orderControl = $("#order")
                 const orderCriteria = orderControl.val()
+
+                let elementIx
 
                 if(orderCriteria === 'freq')
                     elementIx = 2
@@ -229,7 +229,6 @@
                 function createAccordion(groups, containerId) {
 
                     const container = $(containerId)
-                    console.log(containerId)
                     // Add a section for each group
                     for(const group in groups) {
                         const entries = groups[group]
