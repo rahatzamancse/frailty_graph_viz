@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Numeric, Float, TIMESTAMP, func
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Numeric, Float, TIMESTAMP, func, Table
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -35,3 +35,25 @@ class Record(Base):
 
     variable = relationship("Variable", back_populates = "instances")
     meta_data = relationship("RecordMetadata", back_populates = "records")
+
+evidence_annotations_table = Table('evidence_annotations', Base.metadata,
+    Column('evidence_id', ForeignKey('annotated_evidence.id')),
+    Column('label_id', ForeignKey('evidence_labels.id'))
+)
+
+class AnnotatedEvidence(Base):
+    __tablename__ = "annotated_evidence"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sentence = Column(String, index=True)
+
+    labels = relationship("EvidenceLabel", secondary = evidence_annotations_table)
+
+class EvidenceLabel(Base):
+    __tablename__ = "evidence_labels"
+
+    id = Column(Integer, primary_key=True, index=True)
+    label = Column(String, unique=True, index=True)
+
+    evidence = relationship("AnnotatedEvidence", secondary = evidence_annotations_table)
+

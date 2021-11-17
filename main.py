@@ -116,7 +116,8 @@ for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
     formatted_sents = list()
     for link, impact, sent in sents:
         fimpact = "%.2f" % impact
-        formatted_sents.append((f'({fimpact}) <a href="{link}" target="_blank">Source</a>: {sent}', impact))
+        ev = md.EvidenceItem(sentence=sent, impact=impact, list_item=f'({fimpact}) <a href="{link}" target="_blank">Source</a>: {sent}')
+        formatted_sents.append(ev)
 
     frequencies[w_key] += len(formatted_sents)
     evidence_sentences[key] += formatted_sents
@@ -280,10 +281,27 @@ async def neighbors(elem):
     return convert2cytoscapeJSON(new_g)
 
 
+def get_evidence_labels(item:md.EvidenceItem) -> Mapping[str, bool]:
+    return {'Label 1':True, 'Duplicate':False}
+
+@app.post('/label')
+async def label_evidence(labels:md.EvidenceLabels):
+    logger.info("Ping")
+
+    return "Pong"
+
+
 @app.get('/evidence/{source}/{destination}/{trigger}')
 async def evidence(source, destination, trigger):
-    sents = evidence_sentences[(source, destination, trigger)]
-    return [s for s, _ in sorted(sents, key=lambda x:x[1], reverse=True)][:500]
+    # Fetch the evidence from the cache
+    evidence_items = evidence_sentences[(source, destination, trigger)]
+    # Fetch the stored labels from the DB
+    for item in evidence_items:
+        labels = get_evidence_labels(item)
+        item.labels = labels
+
+    # Return the data, let pydantic handle serialization and the client do the sorting
+    return evidence_items
 
 
 @app.get('/entities')

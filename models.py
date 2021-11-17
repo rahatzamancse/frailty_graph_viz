@@ -1,5 +1,5 @@
 """ PyDantic model for the weights observation record"""
-from typing import List
+from typing import List, Optional, Mapping
 
 from pydantic import BaseModel
 
@@ -13,3 +13,13 @@ class UserRecord(BaseModel):
     query_str: str
     coefficients: List[Coefficient]
 
+
+class EvidenceItem(BaseModel):
+    sentence: str
+    list_item: str
+    impact: str
+    labels: Optional[Mapping[str, bool]]
+
+class EvidenceLabels(BaseModel):
+    sentence: str
+    labels: Mapping[str, bool]

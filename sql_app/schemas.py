@@ -54,3 +54,19 @@ class RecordMetadata(RecordMetadataBase):
 
     class Config:
         orm_mode = True
+
+class EvidenceLabel(BaseModel):
+    id: int
+    label: str
+
+    class Config:
+        orm_mode = True
+
+
+class AnnotatedEvidence(BaseModel):
+    id: int
+    sentence: str
+    labels: List[EvidenceLabel]
+
+    class Config:
+        orm_mode = True

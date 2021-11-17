@@ -543,8 +543,14 @@
                   $.getJSON(`/evidence/${edge.source().id()}/${edge.target().id()}/${edge.data()['polarity']}`,
                       data => {
                           evidence = data
+                          evidence.sort((a, b) => parseFloat(b.impact) - parseFloat(a.impact))
                           evidence.forEach(item => {
-                              document.getElementById("evidence").innerHTML += "<li>" + item + "</li>";
+                              const li = document.createElement("li")
+                              li.innerHTML = item.list_item;
+                              li.sentence = item.sentence
+                              li.labels = item.labels
+                              // document.getElementById("evidence").innerHTML += "<li>" + item.list_item + "</li>";
+                              document.getElementById("evidence").appendChild(li);
                           });
                           $("body").removeClass("loading");
                           $("#evidence_pane").show()
@@ -703,9 +709,55 @@
     let mouseX;
     let mouseY;
 
+    function checkLabel(props){
+        let source = props.source
+        source.labels = props.labels
+        const body = JSON.stringify({
+                sentence: props.sentence,
+                labels: props.labels
+            })
+        console.log(body)
+        // Send it to the backend
+        fetch('/label/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: body
+        }).then(
+            data => {
+                console.log(data);
+            }
+        )
+    }
+
+    function newTagAdded(props){
+        let source = props.source
+        const newTagName = props.tagName
+        // Add the new tag without checkmark to the other evidences
+        const otherEvidence = document.querySelectorAll("ul#evidence > li")
+        otherEvidence.forEach(li => li.labels[newTagName] = false)
+        // Set the check mark on the source element
+        source.labels[newTagName] = true
+    }
+
     // Show the evidence tagger panel and send it a reference to its caller
     function showReact(sender){
+
+        // Assume sender has sentence and labels properties in prototype
+        const sentence = sender.sentence
+        const labels = sender.labels
+
         const r = document.getElementById("annotator")
+
+        ReactDOM.render(React.createElement(EvidenceTaggerPanel,
+            {
+                sentence: sentence,
+                labels: labels,
+                listItem: sender,
+                handleCheck: checkLabel,
+                handleNewTag: newTagAdded
+            }), r);
 
         r.style.position = "absolute"
         r.style.left = `${mouseX}px`
@@ -720,7 +772,8 @@
     // Hide the tagger panel
     function hideReact(sender){
         const r = document.getElementById("annotator")
-        r.style.display="none";
+        // r.style.display="none";
+        ReactDOM.unmountComponentAtNode(r);
         sender.classList.remove("selected_evidence")
     }
 
@@ -754,10 +807,6 @@
         trackPointerPosition(e);
         moveTooltip();
     };
-
-
-    const domContainer = document.querySelector('#annotator');
-    ReactDOM.render(React.createElement(EvidenceTaggerPanel), domContainer);
 </script>
 
 

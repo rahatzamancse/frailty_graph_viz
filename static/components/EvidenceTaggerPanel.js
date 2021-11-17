@@ -1,15 +1,12 @@
-console.log("Imported")
-
 class EvidenceTaggerPanel extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             newTagName: "",
-            tags: ["Feedback Mechanism", "Incorrect extraction", "Duplicate"],
-            checks: [true, false, true],
+            tags: Object.keys(props.labels),
+            checks: Object.values(props.labels),
             addButtonDisabled: true
         }
-        console.log("Rendered")
     }
 
     validTagName(name){
@@ -40,7 +37,7 @@ class EvidenceTaggerPanel extends React.Component {
             tags.push(newTag)
             let checks = this.state.checks.slice()
             checks.push(true)
-            // TODO add logic to call the back end
+            this.props.handleNewTag({sentence: this.props.sentence, tagName:newTag, source: this.props.listItem})
             this.setState({tags: tags, newTagName: "", addButtonDisabled: true, checks: checks})
         }
 
@@ -51,7 +48,10 @@ class EvidenceTaggerPanel extends React.Component {
         let checks = this.state.checks.slice()
         // Toggle the appropriate check mark
         checks[ix] = !checks[ix]
-        // TODO: Write here the code to store this with fast api
+        const checkHandler = this.props.handleCheck;
+        let newLabels = {};
+        checks.forEach((value, ix) => newLabels[this.state.tags[ix]] = value);
+        checkHandler({sentence:this.props.sentence, labels:newLabels, source:this.props.listItem});
         // Update the state
         this.setState({checks:checks})
     }
