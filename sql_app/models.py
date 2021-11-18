@@ -47,7 +47,7 @@ class AnnotatedEvidence(Base):
     id = Column(Integer, primary_key=True, index=True)
     sentence = Column(String, index=True)
 
-    labels = relationship("EvidenceLabel", secondary = evidence_annotations_table)
+    labels = relationship("EvidenceLabel", secondary = evidence_annotations_table, back_populates='evidence')
 
 class EvidenceLabel(Base):
     __tablename__ = "evidence_labels"
@@ -55,5 +55,5 @@ class EvidenceLabel(Base):
     id = Column(Integer, primary_key=True, index=True)
     label = Column(String, unique=True, index=True)
 
-    evidence = relationship("AnnotatedEvidence", secondary = evidence_annotations_table)
+    evidence = relationship("AnnotatedEvidence", secondary = evidence_annotations_table, back_populates='labels')
 
