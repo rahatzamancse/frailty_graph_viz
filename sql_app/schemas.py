@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 from sql_app import models
 
+# PyDantic models to mirror SqlAlchemy models
 
 class RecordBase(BaseModel):
 
@@ -56,7 +57,6 @@ class RecordMetadata(RecordMetadataBase):
         orm_mode = True
 
 class EvidenceLabel(BaseModel):
-    id: int
     label: str
 
     class Config:
@@ -64,7 +64,6 @@ class EvidenceLabel(BaseModel):
 
 
 class AnnotatedEvidence(BaseModel):
-    id: int
     sentence: str
     labels: List[EvidenceLabel]
 

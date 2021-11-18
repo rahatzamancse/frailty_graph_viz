@@ -21,6 +21,10 @@ class EvidenceTaggerPanel extends React.Component {
         return false
     }
 
+    // handlerHover = () => {
+    //     this.props.hand
+    // }
+
     handleNewTagChange = (newTagName) => {
         // If the tag name is invalid, disable the button
         const addButtonDisabled = !this.validTagName(newTagName.trim())
@@ -39,6 +43,11 @@ class EvidenceTaggerPanel extends React.Component {
             checks.push(true)
             this.props.handleNewTag({sentence: this.props.sentence, tagName:newTag, source: this.props.listItem})
             this.setState({tags: tags, newTagName: "", addButtonDisabled: true, checks: checks})
+            // Trigger the checks
+            let newLabels = {};
+            checks.forEach((value, ix) => newLabels[tags[ix]] = value);
+            this.props.handleCheck({sentence:this.props.sentence, labels:newLabels, source:this.props.listItem});
+            // console.log("Beep")
         }
 
     }
@@ -71,7 +80,7 @@ class EvidenceTaggerPanel extends React.Component {
         }
 
         return (
-          <div className="annotator-panel">
+          <div className="annotator-panel" onMouseEnter={ this.props.handleMouseEnter}>
               <h4>Tag evidence as:</h4>
               <ul>
                   {/* Render all the tag elements */}

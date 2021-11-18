@@ -708,6 +708,7 @@
     // Variable to hold the pointer's position at any given time
     let mouseX;
     let mouseY;
+    let timer;
 
     function checkLabel(props){
         let source = props.source
@@ -716,7 +717,6 @@
                 sentence: props.sentence,
                 labels: props.labels
             })
-        console.log(body)
         // Send it to the backend
         fetch('/label/', {
             method: 'POST',
@@ -724,11 +724,7 @@
                 'Content-Type': 'application/json',
             },
             body: body
-        }).then(
-            data => {
-                console.log(data);
-            }
-        )
+        })
     }
 
     function newTagAdded(props){
@@ -743,6 +739,9 @@
 
     // Show the evidence tagger panel and send it a reference to its caller
     function showReact(sender){
+        // Un mount any existing component
+        let prev = document.getElementById("annotator")
+        ReactDOM.unmountComponentAtNode(prev);
 
         // Assume sender has sentence and labels properties in prototype
         const sentence = sender.sentence
@@ -756,27 +755,37 @@
                 labels: labels,
                 listItem: sender,
                 handleCheck: checkLabel,
-                handleNewTag: newTagAdded
+                handleNewTag: newTagAdded,
+                handleMouseEnter: cancelHideReact
             }), r);
 
         r.style.position = "absolute"
         r.style.left = `${mouseX}px`
         r.style.top = `${mouseY}px`
-        r.style.marginTop = "1em"
+        r.style.marginTop = "-3em"
         r.style.display="block";
 
         r.onmouseleave = () => hideReact(sender)
+        // Clear the selected evidence class from other lingering elements
+        document.querySelectorAll(".selected_evidence").forEach(
+            (elem) => elem.classList.remove("selected_evidence")
+        )
         sender.classList.add("selected_evidence")
     }
 
     // Hide the tagger panel
     function hideReact(sender){
-        const r = document.getElementById("annotator")
-        // r.style.display="none";
-        ReactDOM.unmountComponentAtNode(r);
-        sender.classList.remove("selected_evidence")
+        timer = setTimeout(() => {
+            const r = document.getElementById("annotator")
+            // r.style.display="none";
+            ReactDOM.unmountComponentAtNode(r);
+            sender.classList.remove("selected_evidence")
+        }, 1500)
     }
 
+    function cancelHideReact(sender){
+        clearTimeout(timer)
+    }
 
     // Function to track the pointer's position
     function trackPointerPosition(event) {

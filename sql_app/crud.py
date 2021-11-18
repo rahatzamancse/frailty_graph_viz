@@ -46,3 +46,57 @@ def create_records(db: Session, recs: List[schemas.RecordCreate], metadata: sche
     db.commit()
 
     return created
+
+def get_evidence_labels(db: Session, sentence: str):
+    """ Get a map with all the labels and flags """
+
+    # Get the list of labels and build the ma
+    db_labels = db.query(models.EvidenceLabel).all()
+
+    labels = {l.label:False for l in db_labels}
+
+    # Fetch the record for the current sentence
+    sent = db.query(models.AnnotatedEvidence).filter_by(sentence=sentence).first()
+
+    # Mark the appropriate labels
+    if sent:
+        for l in sent.labels:
+            labels[l.label] = True
+
+    return labels
+
+
+def annotate_evidence_sentence(db: Session, evidence_item: schemas.AnnotatedEvidence):
+    """ Annotate an evidence sentence """
+
+    # First, fetch the evidence sentence record
+    sent = db.query(models.AnnotatedEvidence).filter_by(sentence=evidence_item.sentence).first()
+
+    # If there is no record yet, create it
+    if not sent:
+        sent = models.AnnotatedEvidence(sentence = evidence_item.sentence)
+
+    # Now fetch the labels
+    db_labels = set()
+    for label in evidence_item.labels:
+        label = label.label
+        db_label = db.query(models.EvidenceLabel).filter_by(label = label).first()
+        if not db_label:
+            db_label = models.EvidenceLabel(label = label)
+        db_labels.add(db_label)
+
+        # Add it to the evidence sentence record if not yet there
+        if db_label not in sent.labels:
+            sent.labels.append(db_label)
+
+    # Remove the labels that no longer apply
+    for old_label in sent.labels:
+        if old_label not in db_labels:
+            sent.labels.remove(old_label)
+
+    # Update and commit
+    db.add(sent)
+    db.commit()
+
+    return sent
+

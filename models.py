@@ -3,6 +3,8 @@ from typing import List, Optional, Mapping
 
 from pydantic import BaseModel
 
+# These models are data structures for the internal API, not meant to model DB
+
 
 class Coefficient(BaseModel):
     name: str
@@ -23,3 +25,4 @@ class EvidenceItem(BaseModel):
 class EvidenceLabels(BaseModel):
     sentence: str
     labels: Mapping[str, bool]
+

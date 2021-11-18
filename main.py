@@ -281,23 +281,30 @@ async def neighbors(elem):
     return convert2cytoscapeJSON(new_g)
 
 
-def get_evidence_labels(item:md.EvidenceItem) -> Mapping[str, bool]:
-    return {'Label 1':True, 'Duplicate':False}
+def get_evidence_labels(item:md.EvidenceItem, db: Session = Depends(get_db)) -> Mapping[str, bool]:
+    return crud.get_evidence_labels(db, item.sentence)
 
 @app.post('/label')
-async def label_evidence(labels:md.EvidenceLabels):
-    logger.info("Ping")
+async def label_evidence(evidence_labels:md.EvidenceLabels, db: Session = Depends(get_db)):
 
-    return "Pong"
+    data = schemas.AnnotatedEvidence(
+        sentence=evidence_labels.sentence,
+        labels=[schemas.EvidenceLabel(label=name)
+                for name, value in evidence_labels.labels.items()
+                if value])
+
+    crud.annotate_evidence_sentence(db, data)
+
+    return "Success"
 
 
 @app.get('/evidence/{source}/{destination}/{trigger}')
-async def evidence(source, destination, trigger):
+async def evidence(source, destination, trigger, db: Session = Depends(get_db)):
     # Fetch the evidence from the cache
     evidence_items = evidence_sentences[(source, destination, trigger)]
     # Fetch the stored labels from the DB
     for item in evidence_items:
-        labels = get_evidence_labels(item)
+        labels = crud.get_evidence_labels(db, item.sentence)
         item.labels = labels
 
     # Return the data, let pydantic handle serialization and the client do the sorting
