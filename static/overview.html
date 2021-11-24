@@ -230,10 +230,13 @@
 
                     const container = $(containerId)
                     // Add a section for each group
-                    for(const group in groups) {
+                    const keys = Object.keys(groups)
+                    console.log(categories)
+                    keys.sort()
+                    for(const group of keys) {
                         const entries = groups[group]
                         const category = categories[group] || group
-                        container.append(`<h3>${category}</h3>`)
+                        container.append(`<h3>${category} - ${entries.length}</h3>`)
                         const d = $(document.createElement("div").appendChild(document.createElement("ul")))
 
                         for(const e of entries){
@@ -249,14 +252,14 @@
                     })
                 }
 
-                function populateSubList(containedId) {
+                function populateSubList(containedId, entries) {
                     const lastChild = $(containedId).children().last()
                     if(lastChild.is("span"))
                         lastChild.remove()
                     $(containedId).append($("<span>"))
                     containedId += " span"
 
-                    const entries = reciprocals.map(
+                    entries = entries.map(
                         elem => {
                             const id = elem[0]
                             const label = elem[1]
@@ -283,11 +286,11 @@
                 }
 
 
-                populateSubList("#influenced");
+                populateSubList("#influenced", influenced);
 
-                populateSubList("#influencers");
+                populateSubList("#influencers", influencers);
 
-                populateSubList("#reciprocal");
+                populateSubList("#reciprocal", reciprocals);
 
                 $("body").removeClass("loading");
             }
