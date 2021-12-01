@@ -113,11 +113,11 @@ for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
     key = (s, d, polarity)
     w_key = frozenset((s, d))
     sents = list(set(edge['evidence']))
-    formatted_sents = list()
+    formatted_sents = set()
     for link, impact, sent in sents:
         fimpact = "%.2f" % impact
         ev = md.EvidenceItem(sentence=sent, impact=impact, list_item=f'({fimpact}) <a href="{link}" target="_blank">Source</a>: {sent}')
-        formatted_sents.append(ev)
+        formatted_sents.add(ev)
 
     frequencies[w_key] += len(formatted_sents)
     evidence_sentences[key] += formatted_sents

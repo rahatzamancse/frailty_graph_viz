@@ -22,7 +22,6 @@ class XDDMetaData(NamedTuple):
     journal: str
     link: str
     doi: Optional[str]
-    pmcid: Optional[str]
 
 
 def read_uniprot(path):
@@ -211,7 +210,7 @@ def resolve_document(seen_in: str, bibilography: Mapping[str, XDDMetaData], doi2
 @plac.pos('input_files_dirs', 'Arizona files directory', type=Path)
 def main(index_factors_path: Optional[Path] = None,
          bibliography_path: Optional[Path] = None,
-         output_file=Path("graph_xdd.pickle"),
+         output_file=Path("graph_temp.pickle"),
          uniprot_path=Path('data/uniprot_sprot.fasta'),
          pmcid_map_path=Path('data/PMC-ids.csv'),
          *input_files_dirs

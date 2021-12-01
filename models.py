@@ -22,6 +22,9 @@ class EvidenceItem(BaseModel):
     impact: str
     labels: Optional[Mapping[str, bool]]
 
+    def __hash__(self):
+        return hash((self.sentence, self.list_item, self.impact))
+
 class EvidenceLabels(BaseModel):
     sentence: str
     labels: Mapping[str, bool]
