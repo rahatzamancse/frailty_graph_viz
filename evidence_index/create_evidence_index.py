@@ -1,5 +1,4 @@
 """ Creates an elastic search index from the evidence in a networkx graph """
-import itertools
 import pickle
 from io import StringIO
 from pathlib import Path
@@ -10,10 +9,10 @@ import logging
 import elasticsearch
 from elasticsearch import helpers
 
-from build_network import SignificanceRow
-
 import plac
-from pydantic import BaseModel
+
+from evidence_index import Evidence
+
 
 class EvidenceParser(HTMLParser):
     """ Use this class to strip markup and get the attributes of the tags as properties of the instance """
@@ -59,20 +58,6 @@ class EvidenceParser(HTMLParser):
             return "neg"
         else:
             return "neutral"
-
-
-
-
-class Evidence(BaseModel):
-    source: str
-    destination: Optional[str]
-    event_type: str
-    raw_sent: str
-    markup: str
-    directed: bool
-    polarity: str
-    hyperlink: str
-    frequency: int
 
 
 def parse_markup(markup:str) -> Tuple[str, str, bool, str]:
