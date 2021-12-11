@@ -5,10 +5,11 @@ import pickle
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import cast, List, Mapping
+from typing import cast, List, Mapping, Optional
 
 import networkx as nx
 import uvicorn
+from elasticsearch import Elasticsearch
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -17,6 +18,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from tqdm import tqdm
 from build_network import SignificanceRow # TODO move this class to a utils module
 import annotations
+from evidence_index.client import EvidenceIndexClient
 from rankings import ImpactFactors
 
 from sql_app import crud, models, schemas
@@ -43,13 +45,22 @@ engine = construct_engine(Path(args.records_db))
 models.Base.metadata.create_all(bind=engine)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Dependency
+# Declare the evidence index client
+_es: Optional[EvidenceIndexClient] = None
+
+# Dependencies
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+def get_es_client():
+    global _es
+    if not _es:
+        _es = EvidenceIndexClient('frailty_001')
+    return _es
 ######################
 
 
@@ -123,7 +134,10 @@ for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
     evidence_sentences[key] += formatted_sents
     del edge['evidence']
 
-app = FastAPI()
+
+# Build the ES client
+
+app = FastAPI(title="Frailty Visualization REST API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -391,6 +405,25 @@ async def anchor(term):
                                    'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
         'influencers': list(sorted(((r, graph.nodes[r]['label'], frequencies[frozenset((term, r))], get_weight_terms(r, term)) for r in influencers if
                                     'label' in graph.nodes[r]), key=lambda x: x[1].lower())),
+    }
+
+
+@app.get('/ir/query/{query}',
+         summary= "Queries the evidence index for the top evicence entences with respect to the query parameter"
+         )
+async def retrieve(query: str, start: int = 0, size: int = 10, es: EvidenceIndexClient = Depends(get_es_client)):
+    """
+        Runs the ***query*** string and returns the number of results specified by size.
+        The returned object contains the total number of hits and the slice of results specified by ***start*** and ***size***.
+        Pagination is supported by controlling the results using the query arguments ***start*** and ***size***
+    """
+    
+    total, results = await es.query('raw_sent', query, start, size)
+    
+
+    return {
+        "total_hits": total,
+        "data": results
     }
 
 
