@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Index Searcher</title>
+    <!-- <script src='cytoscape.js'></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.18.0/cytoscape.min.js"></script>
+     <script src="https://unpkg.com/dagre@0.7.4/dist/dagre.js"></script>
+    <script src="/static/cytoscape-dagre.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/elkjs@0.7.0/lib/elk.bundled.js"></script>
+    <script src="/static/cytoscape-elk.js"></script>
+    <script src="https://unpkg.com/klayjs@0.4.1/klay.js"></script>
+    <script src="/static/cytoscape-klay.js"></script>
+    <script src="utils.js"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+</head>
+<body>
+  <div id="viewport"></div>
+  <!-- Load React. -->
+  <!-- Note: when deploying, replace "development.js" with "production.min.js". -->
+  <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <link rel="stylesheet" href="components/EvidenceTaggerPanel.css">
+
+  <script type="text/babel" src="components/IndexInterface.js">
+  </script>
+
+
+  <script type="text/babel">
+    const r = document.getElementById("viewport")
+    ReactDOM.render(React.createElement(IndexInterface), r);
+  </script>
+</body>
+</html>
