@@ -20,6 +20,8 @@ class EvidenceItem(BaseModel):
     sentence: str
     list_item: str
     impact: str
+    hyperlink: str
+    markup: str
     labels: Optional[Mapping[str, bool]]
 
     def __hash__(self):

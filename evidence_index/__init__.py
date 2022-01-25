@@ -11,5 +11,6 @@ class Evidence(BaseModel):
     markup: str
     directed: bool
     polarity: str
+    impact: Optional[float]
     hyperlink: str
     frequency: int

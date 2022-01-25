@@ -13,6 +13,7 @@ import plac
 
 from evidence_index import Evidence
 
+from build_network import SignificanceRow
 
 class EvidenceParser(HTMLParser):
     """ Use this class to strip markup and get the attributes of the tags as properties of the instance """
@@ -68,6 +69,7 @@ def parse_markup(markup:str) -> Tuple[str, str, bool, str]:
 
 def extract_evidence(data_path: Path) -> List[Evidence]:
     """ Reads the evidence from the graph into pydantic objects """
+
     with data_path.open('rb') as f:
         graph = pickle.load(f)['graph']
 
@@ -75,12 +77,13 @@ def extract_evidence(data_path: Path) -> List[Evidence]:
     errors = 0
     for src, dst, data in tqdm(graph.edges(data=True), desc="Extrtacting evidence"):
         for evidence in data['evidence']:
+            impact_factor = data['impact_factors'][0] if 'impact_factors' in data else None
             try:
                 raw_sent, event_type, directed, polarity = parse_markup(evidence[2])
                 evidences.append(
                     Evidence(source=src, destination=dst, frequency=data['freq'],
                              raw_sent= raw_sent, event_type=event_type, directed=directed,
-                             polarity= polarity,
+                             polarity= polarity, impact=impact_factor,
                              markup=evidence[2], hyperlink=evidence[0])
                 )
             except Exception:
@@ -111,7 +114,8 @@ def bulk_index(documents: Iterable[Evidence], index_host:str, index_name:str):
                       "directed": {"type": "keyword"},
                       "polarity": {"type": "keyword"},
                       "hyperlink": {"type": "keyword"},
-                      "frequency": {"type": "integer"}
+                      "frequency": {"type": "integer"},
+                      "impact": {"type": "float"}
                     }
                 }
             }
@@ -138,8 +142,8 @@ def bulk_index(documents: Iterable[Evidence], index_host:str, index_name:str):
 @plac.opt("index_host", help="Path to the pickle that holds the graph", type=str)
 @plac.pos("data_path", help="Path to the pickle that holds the graph", type=str)
 def main(data_path: Path, index_name:str, index_host:str = "localhost"):
-    doocuments = extract_evidence(data_path)
-    bulk_index(doocuments, index_host, index_name)
+    documents = extract_evidence(data_path)
+    bulk_index(documents, index_host, index_name)
 
 
 if __name__ == "__main__":
