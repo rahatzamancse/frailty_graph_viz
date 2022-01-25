@@ -10,6 +10,7 @@ import EvidenceIndex from './EvidenceIndex';
 import Overview from './Overview';
 import NetworkViz from './NetworkViz';
 import ScrollToTop from './components/ScrollToTop';
+import config from "./config.json"
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
@@ -18,6 +19,8 @@ import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
 // ========================================
 const rootElement = document.getElementById('root');
 
+const { apiUrl } = config
+
 ReactDOM.render(
 	<BrowserRouter>
 		<Routes>
@@ -25,7 +28,7 @@ ReactDOM.render(
 				<Route index element={
 					<>
 						<Overview 
-							apiUrl="http://localhost:1600"
+							apiUrl={ apiUrl }
 							entityId="uniprot:P05231"
 							entityName="IL-6" />
 						
@@ -35,12 +38,12 @@ ReactDOM.render(
 				<Route path="viz" element={
 					<>
 						<NetworkViz
-							apiUrl="http://localhost:1600" />
+							apiUrl={ apiUrl } />
 						<ScrollToTop />
 					</>} />
 				<Route path="evidence-index" element={
 					<>
-						<EvidenceIndex apiUrl="http://localhost:1600" defaultResults={ 100 } />
+						<EvidenceIndex apiUrl={ apiUrl } defaultResults={ 100 } />
 						<ScrollToTop />
 					</>
 				} />

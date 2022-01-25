@@ -3,7 +3,7 @@ import EntityColumn from './components/overview/EntityColumn';
 import { getOverviewData } from "./utils/api"
 import customWeight from './utils/custom_weight';
 import { getEntityCategory, groupBy } from './utils/utils';
-import { Container, Row, Col, Form } from 'react-bootstrap'
+import {Container, Row, Col, Form, Spinner} from 'react-bootstrap'
 import WeightPanel from './components/weight/WeightPanel';
 
 function filterItems(items, shouldContain){
@@ -70,6 +70,7 @@ function groupByEntityType(items){
 
 export default function Overview({apiUrl, entityId, entityName}){
 
+	const [isLoading, setLoading] = useState(true);
 	let [reciprocals, setReciprocals] = useState([]);
 	let [influenced, setInfluenced] = useState([]);
 	let [influencers, setInfluencers] = useState([]);
@@ -118,6 +119,7 @@ export default function Overview({apiUrl, entityId, entityName}){
 				setReciprocals(array2obj(data.reciprocals));
 				setInfluenced(array2obj(data.influenced));
 				setInfluencers(array2obj(data.influencers));
+				setLoading(false);
 			}
 		)
 	}, []); // Second argument necessary to make sure the effect is only called once
@@ -146,6 +148,7 @@ export default function Overview({apiUrl, entityId, entityName}){
 
 	return (
 		<>
+			{isLoading && <Spinner animation="border" variant="danger" className='loading'/>}
 			<h1>Overview of {entityName}</h1>
 			<br />
 			<Form>
