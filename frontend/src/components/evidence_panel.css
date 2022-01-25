@@ -1,0 +1,29 @@
+.evidence_pane {
+	/* width: 100%; */
+	min-height: 20vh;
+	z-index: 0;
+	/*position: fixed;*/
+	left: 0;
+	bottom: 0;
+	padding: 1em;
+	margin: 0;
+	background-color:rgba(207,207,196, 0.5);
+	border-radius: 10px;
+	margin-right: 1em;
+	margin: .8em;
+	box-shadow: #929292 0px 0px 10px;
+	/*height: 87%;*/
+	/*position:fixed;*/
+   /*left:0px;*/
+   /* top:13%;*/
+   /* overflow: scroll;*/
+}
+
+.selected {
+	background-color: yellow;
+}
+
+.injected_link{
+	color: black;
+	text-decoration: none;
+}

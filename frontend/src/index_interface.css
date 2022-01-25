@@ -1,0 +1,179 @@
+body{
+	background-color:#fafafa;
+}
+.container {
+  /*display: flex;*/
+  /*flex-direction: column;*/
+	position: absolute;
+	left: 0;
+	top: 0;
+	z-index: 1;
+	background-color:rgba(207,207,196, 0.5);
+	padding: 0 1em 1em;
+	border-radius: 25px;
+}
+
+/*.Strong {*/
+/*    color:Blue;*/
+/*}*/
+/*.Weak{*/
+/*    color: Orange;*/
+/*}*/
+/*.Negations{*/
+/*    color: Red;*/
+/*}*/
+
+/*.Positive{*/
+/*    color: Green;*/
+/*    font-weight: bold;*/
+/*}*/
+
+/*.Negative{*/
+/*    color: Red;*/
+/*    font-weight: bold;*/
+/*}*/
+
+/*.Neutral{*/
+/*    font-weight: bold;*/
+/*}*/
+
+.event {
+	background-color: #D1D1CD;
+	padding: 0 .2em 0 .2em;
+	border-radius: 3px;
+}
+
+.Positive_association {
+	background-color: rgba(119, 221, 119, 0.25);
+}
+
+.Positive_activation{
+	background-color: rgba(119, 221, 119, 0.25);
+}
+
+.Negative_association {
+	background-color: rgba(255, 65, 55, 0.25);
+}
+
+.Negative_activation{
+	background-color: rgba(255, 65, 55, 0.25);
+}
+
+.event > .argument.trigger {
+	font-weight: bold;
+	text-decoration: none;
+	font-style: normal;
+}
+
+.event > .argument  {
+	font-style: italic;
+	text-decoration: underline;
+}
+
+#cy {
+	height: 100vh;
+	width: 100%;
+	z-index: 0;
+	/*background-color: lightgrey;*/
+	/*width: 100%;*/
+	/*height: 5in;*/
+	/*position:relative;*/
+	/*background-color: pink;*/
+	/*   left:0px;*/
+	/*   top:0px;*/
+}
+#evidence_pane {
+	width: 100%;
+	min-height: 20vh;
+	z-index: 0;
+	/*position: fixed;*/
+	left: 0;
+	bottom: 0;
+	display: none;
+	padding: 1em;
+	margin: 0;
+	background-color:rgba(207,207,196, 0.5);
+	border-radius: 25px;
+	/*height: 87%;*/
+	/*position:fixed;*/
+   /*left:0px;*/
+   /* top:13%;*/
+   /* overflow: scroll;*/
+}
+
+.selected_evidence {
+	/*text-shadow:1px 1px 10px #fff, 1px 1px 10px #000000;*/
+	background-color: yellow;
+}
+
+
+
+/* Start by setting display:none to make this hidden.
+Then we position it in relation to the viewport window
+with position:fixed. Width, height, top and left speak
+for themselves. Background we set to 80% white with
+our animation centered, and no-repeating */
+.modal {
+	display:    none;
+	position:   fixed;
+	z-index:    1000;
+	top:        0;
+	left:       0;
+	height:     100%;
+	width:      100%;
+	background: rgba( 255, 255, 255, .8 )
+				url('http://i.stack.imgur.com/FhHRx.gif')
+				50% 50%
+				no-repeat;
+}
+
+/* When the body has the loading class, we turn
+   the scrollbar off with overflow:hidden */
+body.loading .modal {
+	overflow: hidden;
+}
+
+/* Anytime the body has the loading class, our
+   modal element will be visible */
+body.loading .modal {
+	display: block;
+}
+
+#weighting {
+	position: absolute;
+	left: 900px;
+	top: 0;
+	z-index: 1;
+	background-color:rgba(207,207,196, 0.5);
+	padding: 0 1em 1em;
+	border-radius: 25px;
+}
+
+  #freq-handle, #has-sig-handle, #avg-sig-handle, #avg-impact-handle, #max-impact-handle, #avg-pvalue-handle{
+	width: 3em;
+	height: 1.6em;
+	top: 50%;
+	margin-top: -.8em;
+	text-align: center;
+	line-height: 1.6em;
+  }
+
+  .slider{
+	  width: 80%;
+  }
+
+  .coefficient{
+	  display: flex;
+	  flex-direction: row;
+	  margin-top: 1em;
+  }
+
+  .coefficient .title{
+	  margin-right: 1em;
+	  width: 20%;
+  }
+
+  .centered{
+	  display: flex;
+	  margin: 1em auto auto;
+  }

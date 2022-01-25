@@ -1,0 +1,21 @@
+.weight_panel{
+	background-color: white;
+	border-radius: 10px 10px 10px 10px;
+	overflow: hidden;
+	box-shadow: #929292 0px 0px 10px;
+	/* padding: 1em; */
+	margin: .8em;
+}
+
+.weight_panel h2, .weight_panel h3{
+	padding: .5em;
+	font-size: 1.2em;
+	font-weight: bold;
+	margin-bottom: 0;
+	color: black;
+	background-color: #929292;
+}
+
+.weight_panel > div{
+	padding: .8em;
+}
