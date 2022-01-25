@@ -38,6 +38,7 @@ parser.add_argument('--graph-file', default='graph2.pickle')
 parser.add_argument('--impact-factors', default='journal_rankings.pickle')
 parser.add_argument('--port', default=8000, type=int)
 parser.add_argument('--records-db', default='records.db')
+parser.add_argument('--es-index', default='frailty_002')
 args = parser.parse_args()
 
 # Create the database objects
@@ -59,7 +60,7 @@ def get_db():
 def get_es_client():
     global _es
     if not _es:
-        _es = EvidenceIndexClient('frailty_001')
+        _es = EvidenceIndexClient(args.es_index)
     return _es
 ######################
 
@@ -127,7 +128,7 @@ for s, d, ix in tqdm(graph.edges, desc="Caching evidence"):
     formatted_sents = set()
     for link, impact, sent in sents:
         fimpact = "%.2f" % impact
-        ev = md.EvidenceItem(sentence=sent, impact=impact, list_item=f'({fimpact}) <a href="{link}" target="_blank">Source</a>: {sent}')
+        ev = md.EvidenceItem(sentence=sent, impact=impact, hyperlink=link, list_item=f'({fimpact}) <a href="{link}" target="_blank">Source</a>: {sent}', markup=sent)
         formatted_sents.add(ev)
 
     frequencies[w_key] += len(formatted_sents)
@@ -141,7 +142,7 @@ app = FastAPI(title="Frailty Visualization REST API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=".+",
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
