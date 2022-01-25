@@ -1,3 +1,3 @@
 {
-  "apiUrl": "http://river.cs.arizona.edu:1600"
+  "apiUrl": "http://localhost:1600/api"
 }

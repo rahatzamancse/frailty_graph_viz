@@ -20,6 +20,7 @@ import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
 const rootElement = document.getElementById('root');
 
 const { apiUrl } = config
+console.log(apiUrl)
 
 ReactDOM.render(
 	<BrowserRouter>

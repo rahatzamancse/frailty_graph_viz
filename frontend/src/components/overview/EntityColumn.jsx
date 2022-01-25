@@ -3,6 +3,7 @@ import "./EntityColumn.css"
 import "../../Chevron.css"
 import React from "react";
 import { useState } from "react";
+import {Link} from "react-router-dom";
 
 export default function EntityColumn({ title, data, sorter, grouper, anchor }){
 
@@ -35,7 +36,10 @@ export default function EntityColumn({ title, data, sorter, grouper, anchor }){
 							const {id, name, freq, weight} = item;
 							return (
 								<li key={id} className="entity_column_item">
-									<a href={`/viz?src=${anchor}&dst=${id}&bidirect`}>{`${name} (${id})`}</a> - F: {freq} - W: {weight.toFixed(2)}
+									<Link to={{
+										pathname: "viz",
+										search: `?src=${anchor}&dst=${id}&bidirect`
+									}}>{`${name} (${id})`}</Link> - F: {freq} - W: {weight.toFixed(2)}
 								</li>
 							);
 					});

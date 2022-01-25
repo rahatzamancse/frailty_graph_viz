@@ -12,7 +12,7 @@ import uvicorn
 from elasticsearch import Elasticsearch
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, sessionmaker
 from tqdm import tqdm
@@ -148,7 +148,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 
 def get_global_edge_data(edge):
@@ -182,20 +182,17 @@ def get_global_edge_data(edge):
     return summary
 
 
-@app.get("/")
-async def root():
-    return RedirectResponse("/static/overview.html")
-
-@app.get("/ov")
-async def root():
-    return RedirectResponse("/static/overview_graph.html")
 
 
 async def star():
     return convert2cytoscapeJSON(graph.subgraph(list(graph.neighbors("uniprot:P05231")) + ["uniprot:P05231"]))
 
 
-@app.get("/interaction/{source}/{destination}/{bidirectional}")
+# Create a router for the API
+from  fastapi import APIRouter
+api_router = APIRouter(prefix="/api")
+
+@api_router.get("/interaction/{source}/{destination}/{bidirectional}")
 async def interaction(source, destination, bidirectional: bool):
     # Find the shortest path between source and destination
     path = nx.shortest_path(graph, source, destination)
@@ -268,7 +265,7 @@ async def interaction(source, destination, bidirectional: bool):
     return convert2cytoscapeJSON(new_g)
 
 
-@app.get("/neighbors/{elem}")
+@api_router.get("/neighbors/{elem}")
 async def neighbors(elem):
     subgraph = graph.subgraph(list(graph.neighbors(elem)) + list(graph.predecessors(elem)) + [elem])
 
@@ -299,7 +296,7 @@ async def neighbors(elem):
 def get_evidence_labels(item:md.EvidenceItem, db: Session = Depends(get_db)) -> Mapping[str, bool]:
     return crud.get_evidence_labels(db, item.sentence)
 
-@app.post('/label')
+@api_router.post('/label')
 async def label_evidence(evidence_labels:md.EvidenceLabels, db: Session = Depends(get_db)):
 
     data = schemas.AnnotatedEvidence(
@@ -313,7 +310,7 @@ async def label_evidence(evidence_labels:md.EvidenceLabels, db: Session = Depend
     return "Success"
 
 
-@app.get('/evidence/{source}/{destination}/{trigger}')
+@api_router.get('/evidence/{source}/{destination}/{trigger}')
 async def evidence(source, destination, trigger, db: Session = Depends(get_db)):
     # Fetch the evidence from the cache
     evidence_items = evidence_sentences[(source, destination, trigger)]
@@ -326,13 +323,13 @@ async def evidence(source, destination, trigger, db: Session = Depends(get_db)):
     return evidence_items
 
 
-@app.get('/entities')
+@api_router.get('/entities')
 async def graph_entities(term=''):
     term = term.lower()
     candidates = [e for e in entities if term in e.lower()]
     return candidates
 
-@app.put('/record_weights/')
+@api_router.put('/record_weights/')
 def record_weights(data: md.UserRecord, db: Session = Depends(get_db)):
 
     metadata = RecordMetadataCreate(
@@ -358,7 +355,7 @@ def record_weights(data: md.UserRecord, db: Session = Depends(get_db)):
 
     return "Success"
 
-@app.get('/overview/{term}')
+@api_router.get('/overview/{term}')
 async def anchor(term):
     """ Returns the neighors, classified by influenced on, by and reciprocal """
     successors = set(graph.neighbors(term))
@@ -409,7 +406,7 @@ async def anchor(term):
     }
 
 
-@app.get('/ir/query/{query}',
+@api_router.get('/ir/query/{query}',
          summary= "Queries the evidence index for the top evicence entences with respect to the query parameter"
          )
 async def retrieve(query: str, start: int = 0, size: int = 10, es: EvidenceIndexClient = Depends(get_es_client)):
@@ -426,6 +423,17 @@ async def retrieve(query: str, start: int = 0, size: int = 10, es: EvidenceIndex
         "total_hits": total,
         "data": results
     }
+
+app.include_router(api_router)
+@app.get("/viz")
+async  def hack():
+    with open("frontend/build/index.html") as f:
+        contents = f.read()
+    return HTMLResponse(content=contents, status_code=200)
+
+app.mount("/old", StaticFiles(directory="static", html=True), name="old_frontend")
+app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
+
 
 
 def convert2cytoscapeJSON(G, label_field="polarity"):

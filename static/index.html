@@ -91,7 +91,7 @@
     }
 </style>
 <body>
-    <h4><a href="/static/viz.html">Enter query directly</a></h4>
+    <h4><a href="viz.html">Enter query directly</a></h4>
     <h1>Overview of entities interacting with IL-6 (uniprot:P05231)</h1>
     <label for="order">Order by:</label> <select name="order" id="order">
         <option value="weight">Custom Weight</option>
@@ -239,7 +239,7 @@
                         const d = $(document.createElement("div").appendChild(document.createElement("ul")))
 
                         for(const e of entries){
-                            d.append(`<li><a href="/static/viz.html?dst=IL6 (uniprot:P05231)&src=${e.label} (${e.id})&bidirect">${e.label} (${e.id})</a> - F: ${e.freq} - W: ${e.weight.toFixed(2)}</li>`)
+                            d.append(`<li><a href="viz.html?dst=IL6 (uniprot:P05231)&src=${e.label} (${e.id})&bidirect">${e.label} (${e.id})</a> - F: ${e.freq} - W: ${e.weight.toFixed(2)}</li>`)
                         }
                         container.append(d)
                     }
@@ -294,7 +294,7 @@
                 $("body").removeClass("loading");
             }
 
-            $.getJSON(`/overview/uniprot:P05231/`,
+            $.getJSON(`/api/overview/uniprot:P05231`,
               result => {
                   data = result
                   populateList();
