@@ -22,21 +22,8 @@ export default function EvidencePanel({ apiUrl, items, header }) {
 	let [focusSentence, setFocusSentence] = React.useState()
 	let [showTaggerPanel, setShowTaggerPanel] = React.useState(false)
 	let [taggerPanelStyle, setTaggerPanelStyle] = React.useState({})
-	let [hideTaggerPanelTimer, setHideTaggerPanelTimer] = React.useState()
 	let [highlightedSentence, setHighlightedSentence] = React.useState()
 
-
-	let setUpHideTaggerPanelTimer = () => {
-		let timer = setTimeout(() => {
-			setShowTaggerPanel(false)
-			setHighlightedSentence(null);
-		}, 2500)
-		// Clear any previous timer
-		if(hideTaggerPanelTimer)
-			clearTimeout(hideTaggerPanelTimer)
-		setHideTaggerPanelTimer(timer);
-		
-	};
 
 	let saveLabelChange =
 		({sentence, tagName, checked}) => {
@@ -61,6 +48,8 @@ export default function EvidencePanel({ apiUrl, items, header }) {
 			highlighted={highlightedSentence === ix}
 			onClick={
 				async (event) => {
+					setShowTaggerPanel(false)
+					setHighlightedSentence(null)
 					// Set the focus sentence to the clicked item's sentence
 					const focusSentence = i.markup
 					setFocusSentence(focusSentence);
@@ -77,7 +66,6 @@ export default function EvidencePanel({ apiUrl, items, header }) {
 					setTaggerPanelStyle(taggerPanelStyle)
 					// Highlight the current item
 					setHighlightedSentence(ix);
-					// setUpHideTaggerPanelTimer(); // Start the time to hide the pannel if necessary
 				}
 			}
 		/>)})
@@ -91,16 +79,6 @@ export default function EvidencePanel({ apiUrl, items, header }) {
 			labels={ labels }
 			handleCheck={ saveLabelChange }
 			handleNewTag={ saveLabelChange }
-			// handleMouseEnter={
-			// 	() => {
-			// 		if(hideTaggerPanelTimer) {
-			// 			clearTimeout(hideTaggerPanelTimer)
-			// 		}
-			// 	}
-			// }
-			// handleMouseLeave={
-			// 	setUpHideTaggerPanelTimer
-			// }
 			style={taggerPanelStyle}
 			handleClose={ () => {
 				setShowTaggerPanel(false)
