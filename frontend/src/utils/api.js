@@ -39,3 +39,38 @@ export function saveCoefficients(apiUrl, interaction, coefficients) {
 		});
 
 }
+
+// Return all the possible evidence labels in the annotations database
+export function fetchEvidenceLabels(apiUrl, evidence){
+	let promise
+	if(evidence) {
+		promise = fetch(apiUrl + '/evidence-labels', {
+			method: 'PUT',
+			body: JSON.stringify({sentence: evidence}),
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		})
+	}
+	else
+		promise = fetch(apiUrl + '/evidence-labels')
+
+	return promise.then(response => response.json())
+}
+
+// Save labels in the back end for an evidence sentence
+export function assignEvidenceLabels(apiUrl, sentence, labels){
+
+	const body = JSON.stringify({
+			sentence: sentence,
+			labels: labels
+		})
+	// Send it to the backend
+	fetch(apiUrl + '/label', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		body: body
+	})
+}

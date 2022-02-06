@@ -27,6 +27,9 @@ class EvidenceItem(BaseModel):
     def __hash__(self):
         return hash((self.sentence, self.list_item, self.impact))
 
+class EvidenceSentence(BaseModel):
+    sentence: str
+
 class EvidenceLabels(BaseModel):
     sentence: str
     labels: Mapping[str, bool]

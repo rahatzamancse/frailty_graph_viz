@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional, Union, Sequence, Mapping
 
 from sqlalchemy.orm import Session
 
@@ -47,7 +47,7 @@ def create_records(db: Session, recs: List[schemas.RecordCreate], metadata: sche
 
     return created
 
-def get_evidence_labels(db: Session, sentence: str):
+def get_evidence_labels(db: Session, sentence: Optional[str]) -> Mapping[str, bool]:
     """ Get a map with all the labels and flags """
 
     # Get the list of labels and build the ma
@@ -55,14 +55,19 @@ def get_evidence_labels(db: Session, sentence: str):
 
     labels = {l.label:False for l in db_labels}
 
-    # Fetch the record for the current sentence
-    sent = db.query(models.AnnotatedEvidence).filter_by(sentence=sentence).first()
+    # If a sentence is specified, return the labels for it
+    if sentence:
+        # Fetch the record for the current sentence
+        sent = db.query(models.AnnotatedEvidence).filter_by(sentence=sentence).first()
 
-    # Mark the appropriate labels
-    if sent:
-        for l in sent.labels:
-            labels[l.label] = True
+        # Mark the appropriate labels
+        if sent:
+            for l in sent.labels:
+                labels[l.label] = True
 
+        return labels
+
+    # Otherwise, return all the labels unmarked
     return labels
 
 

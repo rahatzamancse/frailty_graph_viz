@@ -1,24 +1,9 @@
-import React from "react";
+import React, {useEffect} from "react";
 import EvidenceTaggerPanel from "./EvidenceTaggerPanel";
 import EvidenceItem from "./evidence_panel/EvidenceItem";
+import { fetchEvidenceLabels, assignEvidenceLabels } from "../utils/api";
 import "./evidence_panel.css";
 
-function checkLabel(props){
-	let source = props.source
-	source.labels = props.labels
-	const body = JSON.stringify({
-			sentence: props.sentence,
-			labels: props.labels
-		})
-	// Send it to the backend
-	fetch('/label/', {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		body: body
-	})
-}
 
 function newTagAdded(props){
 	let source = props.source
@@ -31,7 +16,7 @@ function newTagAdded(props){
 }
 
 
-export default function EvidencePanel(props) {
+export default function EvidencePanel({ apiUrl, items, header }) {
 
 	let [labels, setLabels] = React.useState({})
 	let [focusSentence, setFocusSentence] = React.useState()
@@ -39,6 +24,7 @@ export default function EvidencePanel(props) {
 	let [taggerPanelStyle, setTaggerPanelStyle] = React.useState({})
 	let [hideTaggerPanelTimer, setHideTaggerPanelTimer] = React.useState()
 	let [highlightedSentence, setHighlightedSentence] = React.useState()
+
 
 	let setUpHideTaggerPanelTimer = () => {
 		let timer = setTimeout(() => {
@@ -52,7 +38,15 @@ export default function EvidencePanel(props) {
 		
 	};
 
-	const items = props.items.map((i, ix) => {
+	let saveLabelChange =
+		({sentence, tagName, checked}) => {
+			// Update the labels in the state
+			labels[tagName] = checked;
+			// Update the back end
+			assignEvidenceLabels(apiUrl, sentence, labels)
+		}
+
+	items = items.map((i, ix) => {
 
 		// Build the link to the network view
 		const urlPath = `/viz?src=${i.source}&dst=${i.destination}&bidirect`
@@ -66,11 +60,13 @@ export default function EvidencePanel(props) {
 			impact={i.impact}
 			highlighted={highlightedSentence === ix}
 			onClick={
-				(event) => {
+				async (event) => {
 					// Set the focus sentence to the clicked item's sentence
 					const focusSentence = i.markup
 					setFocusSentence(focusSentence);
-					// TODO retrieve the labels from the backend for this focus sentence
+					// Retrieve the labels from the backend for this focus sentence
+					const labels = await fetchEvidenceLabels(apiUrl, focusSentence)
+					setLabels(labels)
 					// Update the position of the tagger panel based on the location of the click
 					const taggerPanelStyle = {
 						position: "absolute",
@@ -92,25 +88,9 @@ export default function EvidencePanel(props) {
 	const taggerPanel = showTaggerPanel ? 
 		<EvidenceTaggerPanel 
 			sentence={focusSentence} 
-			labels={labels}
-			handleCheck={
-				({sentence, tagName, checked}) => {
-					// Update the labels in the state
-					console.log(tagName)
-					labels[tagName] = checked;
-					// Update the back end
-					console.log(sentence, tagName, checked)
-				}
-			}
-			handleNewTag={
-				({sentence, tagName}) => {
-					// Add the new tag to the labels object
-					labels[tagName] = true
-					setLabels(labels)
-					// Update the backend
-					console.log(sentence, tagName, true)
-				}
-			}
+			labels={ labels }
+			handleCheck={ saveLabelChange }
+			handleNewTag={ saveLabelChange }
 			handleMouseEnter={
 				() => {
 					if(hideTaggerPanelTimer) {
@@ -129,7 +109,7 @@ export default function EvidencePanel(props) {
 			
 			{taggerPanel}
 			<div className="evidence_pane">
-			{ props.header }
+			{ header }
 				<ul>
 					{items}
 				</ul>

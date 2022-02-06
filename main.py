@@ -309,6 +309,12 @@ async def label_evidence(evidence_labels:md.EvidenceLabels, db: Session = Depend
 
     return "Success"
 
+@api_router.put('/evidence-labels')
+async def evidence_labels(evidence:md.EvidenceSentence, db: Session =  Depends(get_db)):
+    """ Returns all the existing labels in the annotations in the database """
+
+    return crud.get_evidence_labels(db, evidence.sentence)
+
 
 @api_router.get('/evidence/{source}/{destination}/{trigger}')
 async def evidence(source, destination, trigger, db: Session = Depends(get_db)):
