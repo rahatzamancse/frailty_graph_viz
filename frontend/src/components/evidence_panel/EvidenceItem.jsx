@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import "../evidence_panel.css";
-
+import tag from "../../assets/tag.png"
 
 
 function injectVizPathLinks(elem){
@@ -32,7 +32,7 @@ function injectVizPathLinks(elem){
 	}
 }
 
-export default function EvidenceItem(props) {
+export default function EvidenceItem({ hyperlink, highlighted, impact, markup, onClick, vizPath }) {
 
 	// This is a HACK, but there is no easy way around this right now
 	const itemRef = useRef();
@@ -45,16 +45,31 @@ export default function EvidenceItem(props) {
 
 
     const pattern =  /PMC\d+/;
-    const matches = props.hyperlink.match(pattern);
+    const matches = hyperlink.match(pattern);
 
     const linkText = matches ? matches[0] : "Source";
-	
-	
 
     return (
-        <li className={props.highlighted?"selected":""}>
-            {props.impact !== null?`(${props.impact.toFixed(2)})`:""} <a href={props.hyperlink} target="_blank">{linkText}</a>: {' '}
-			<span ref={itemRef} data-vizpath={props.vizPath} dangerouslySetInnerHTML={{__html: props.markup}} onClick={props.onClick} />
+        <li className={highlighted?"selected":""}>
+            {impact !== null?`(${impact.toFixed(2)})`:""} <a href={hyperlink} target="_blank">{linkText}</a>: {' '}
+			<span ref={itemRef} data-vizpath={vizPath} dangerouslySetInnerHTML={{__html: markup}} />
+			<img
+				src={tag}
+				alt="Tag this evidence sentence"
+				title="Tag this evidence sentence"
+				style={
+					{
+						height: "1em",
+						transform: "rotate(45deg)",
+						position: "relative",
+						left: ".2em",
+						bottom: ".2em",
+						cursor: "pointer",
+						zIndex: "0"
+					}
+				}
+				onClick={onClick}
+			/>
         </li>
     )
 }

@@ -153,7 +153,6 @@ class EvidenceIndex extends React.Component {
                 <EvidencePanel
                     apiUrl={ this.props.apiUrl }
                     items={ this.state.evidence }
-                    showTaggerPanel={ true }
                     />
                 
             </div>

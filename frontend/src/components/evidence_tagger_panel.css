@@ -7,6 +7,7 @@ div.annotator-panel {
     width:fit-content;
     height:fit-content;
     font-family: sans-serif;
+    z-index: 1;
 }
 
 .annotator-panel > h4 {

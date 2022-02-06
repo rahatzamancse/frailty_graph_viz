@@ -1,5 +1,6 @@
 import React from 'react';
 import "./evidence_tagger_panel.css";
+import {Button} from "react-bootstrap";
 
 class EvidenceTaggerPanel extends React.Component {
     constructor(props) {
@@ -64,7 +65,7 @@ class EvidenceTaggerPanel extends React.Component {
         this.setState({checks:checks})
     }
 
-    render() {
+    render = () => {
         // Instantiate the entries
         const tagElems = Array()
         for(let ix=0;ix < this.state.tags.length; ++ix) {
@@ -80,7 +81,12 @@ class EvidenceTaggerPanel extends React.Component {
 
         return (
           <div className="annotator-panel" onMouseEnter={ this.props.handleMouseEnter} onMouseLeave={ this.props.handleMouseLeave } style={this.props.style}>
-              <h4>Tag evidence as:</h4>
+              <h4>Tag evidence as: <Button
+                  size="sm"
+                  variant={"danger"}
+                  onClick={ this.props.handleClose }
+              >
+                  Close</Button></h4>
               <ul>
                   {/* Render all the tag elements */}
                   {tagElems}
@@ -101,7 +107,7 @@ function EvidenceTag(props){
               <input  type="checkbox" checked={props.checked}
                  onChange={ props.onChange }
               />
-              {props.tagName}
+              { ' ' + props.tagName}
           </label>
         </li>
     );
@@ -122,9 +128,9 @@ function NewEvidenceTag(props){
                       }
                />
            </label>
-           <button onClick={props.onClick} disabled={props.disabled}
+           <Button size="sm" onClick={props.onClick} disabled={props.disabled}
 
-           >Add new</button>
+           >Add new</Button>
        </li>
     )
 }

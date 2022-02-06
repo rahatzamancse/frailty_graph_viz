@@ -77,7 +77,7 @@ export default function EvidencePanel({ apiUrl, items, header }) {
 					setTaggerPanelStyle(taggerPanelStyle)
 					// Highlight the current item
 					setHighlightedSentence(ix);
-					setUpHideTaggerPanelTimer(); // Start the time to hide the pannel if necessary
+					// setUpHideTaggerPanelTimer(); // Start the time to hide the pannel if necessary
 				}
 			}
 		/>)})
@@ -91,17 +91,21 @@ export default function EvidencePanel({ apiUrl, items, header }) {
 			labels={ labels }
 			handleCheck={ saveLabelChange }
 			handleNewTag={ saveLabelChange }
-			handleMouseEnter={
-				() => {
-					if(hideTaggerPanelTimer) {
-						clearTimeout(hideTaggerPanelTimer)
-					}
-				}
-			}
-			handleMouseLeave={
-				setUpHideTaggerPanelTimer
-			}
+			// handleMouseEnter={
+			// 	() => {
+			// 		if(hideTaggerPanelTimer) {
+			// 			clearTimeout(hideTaggerPanelTimer)
+			// 		}
+			// 	}
+			// }
+			// handleMouseLeave={
+			// 	setUpHideTaggerPanelTimer
+			// }
 			style={taggerPanelStyle}
+			handleClose={ () => {
+				setShowTaggerPanel(false)
+				setHighlightedSentence(null)
+			} }
 		/>  : <></>;
 
 	return (

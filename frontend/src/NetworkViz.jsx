@@ -295,7 +295,6 @@ export default function NetworkViz({ apiUrl }){
 			{ isEvidenceOpen && 
 			 <EvidencePanel
 				 apiUrl={ apiUrl }
-				 showTaggerPanel = { true }
 				 items={evidenceItems} header={
 				<h3 ref={evidence}>Evidence: 
 					{' '} <Button variant="secondary" size="sm" onClick={() => { setIsEvidenceOpen(false); }}>Close</Button>
