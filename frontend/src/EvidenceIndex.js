@@ -154,8 +154,6 @@ class EvidenceIndex extends React.Component {
                     apiUrl={ this.props.apiUrl }
                     items={ this.state.evidence }
                     showTaggerPanel={ true }
-                    focusSentence={ this.state.focusSentence }
-                    focusLabels = { this.state.focusLabels }
                     />
                 
             </div>
