@@ -44,10 +44,10 @@ class QueryBox extends React.Component {
                         </FloatingLabel>
                     </Col>
                     <Col xs="auto">
-                        <FloatingLabel controlId="floatingNum" label={`Max results (default ${this.props.defaultResults})`}>
+                        <FloatingLabel controlId="floatingNum" label={`Max results`}>
                             <Form.Control
-                                min="10" 
-                                max="1000" 
+                                min="1"
+                                max="10000"
                                 type="number" 
                                 onChange={this.maxResultsChanged} 
                                 onKeyPress={this.keyPressed} 
