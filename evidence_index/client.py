@@ -38,3 +38,28 @@ class EvidenceIndexClient:
             ret.append(ev)
 
         return total_hits, ret
+
+    async def interaction_types(self):
+        es = self._client
+        body = {
+            "size": 0,
+            "aggs": {
+                "langs": {
+                    "terms": {"field": "event_type", "size": 500}
+                }
+            }
+        }
+
+        ret = list()
+        resp = await es.search(body = body, index=self._index)
+        total_hits = resp['hits']['total']['value']
+
+        for res in resp['aggregations']['langs']['buckets']:
+            ret.append(res['key'])
+
+        return total_hits, ret
+
+
+    async def json_query(self, body):
+        es = self._client
+        return await es.search(body = body, index=self._index)

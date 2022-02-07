@@ -14,6 +14,7 @@ import config from "./config.json"
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
+import StructuredSearch from "./StructuredSearch";
 
   
 // ========================================
@@ -48,6 +49,12 @@ ReactDOM.render(
 						<ScrollToTop />
 					</>
 				} />
+				<Route path="structured-search" element={
+					<>
+						<StructuredSearch apiUrl={ apiUrl } />
+						<ScrollToTop />
+					</>
+				}/>
 				<Route
 					path="*"
 					element={

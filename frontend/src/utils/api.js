@@ -74,3 +74,20 @@ export function assignEvidenceLabels(apiUrl, sentence, labels){
 		body: body
 	})
 }
+
+// Return all the entities listed on the KG
+export function fetchEntities(apiUrl){
+	return fetch(apiUrl + "/all_entities")
+		.then(response => response.json())
+}
+
+// Returns all the entities indexed on elasticsearch
+export function fetchInteractionTypes(apiUrl){
+	return fetch(apiUrl + "/interaction_types")
+		.then(response => response.json())
+}
+
+export function structuredSearch(apiUrl, controller, controlled, interaction){
+	return fetch(apiUrl + "/ir/structured_search")
+		.then(response => response.json())
+}

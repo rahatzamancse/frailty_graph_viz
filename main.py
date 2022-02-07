@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from tqdm import tqdm
 from build_network import SignificanceRow # TODO move this class to a utils module
 import annotations
+from evidence_index import Evidence
 from evidence_index.client import EvidenceIndexClient
 from rankings import ImpactFactors
 
@@ -111,6 +112,7 @@ graph.remove_nodes_from(uaz_nodes)
 
 # Compute the graph entities
 entities = {f"{graph.nodes[n]['label']} ({n})" for n in graph.nodes if 'label' in graph.nodes[n]}
+structured_entities = [{"label": graph.nodes[n]['label'], "id": n} for n in {nn for nn in graph.nodes if 'label' in graph.nodes[nn]}]
 # Cache the evidence
 print("Building evidence")
 evidence_sentences = defaultdict(list)
@@ -335,6 +337,10 @@ async def graph_entities(term=''):
     candidates = [e for e in entities if term in e.lower()]
     return candidates
 
+@api_router.get('/all_entities')
+async def all_graph_entities():
+    return structured_entities
+
 @api_router.put('/record_weights/')
 def record_weights(data: md.UserRecord, db: Session = Depends(get_db)):
 
@@ -429,6 +435,55 @@ async def retrieve(query: str, start: int = 0, size: int = 10, es: EvidenceIndex
         "total_hits": total,
         "data": results
     }
+
+@api_router.get('/interaction_types')
+async def interaction_types(es: EvidenceIndexClient = Depends(get_es_client)):
+    total, interactions = await es.interaction_types()
+    return interactions
+
+@api_router.get('/ir/structured_search')
+async def structured_search(es: EvidenceIndexClient = Depends(get_es_client)):
+    body = {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "source": {
+                      "value": "uniprot:Q9LW57"
+                    }
+                  }
+                },
+                {
+                  "term": {
+                    "destination": {
+                      "value": "pfam:PF03317"
+                    }
+                  }
+                },
+                {
+                  "term": {
+                    "event_type": {
+                      "value": "Positive_activation"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+
+    es_response = await es.json_query(body)
+
+    ret = list()
+    total_hits = es_response['hits']['total']['value']
+    for res in es_response['hits']['hits']:
+        data = res['_source']
+        ev = Evidence(**data)
+        ret.append(ev)
+
+    return total_hits, ret
+
 
 app.include_router(api_router)
 @app.get("/viz")
