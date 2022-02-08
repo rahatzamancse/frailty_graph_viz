@@ -441,8 +441,8 @@ async def interaction_types(es: EvidenceIndexClient = Depends(get_es_client)):
     total, interactions = await es.interaction_types()
     return interactions
 
-@api_router.get('/ir/structured_search')
-async def structured_search(es: EvidenceIndexClient = Depends(get_es_client)):
+@api_router.get('/ir/structured_search/{controller}/{controlled}')
+async def structured_search(controller:str, controlled:str, interaction:Optional[str] = None, es: EvidenceIndexClient = Depends(get_es_client)):
     body = {
           "query": {
             "bool": {
@@ -450,28 +450,32 @@ async def structured_search(es: EvidenceIndexClient = Depends(get_es_client)):
                 {
                   "term": {
                     "source": {
-                      "value": "uniprot:Q9LW57"
+                      "value": controller
                     }
                   }
                 },
                 {
                   "term": {
                     "destination": {
-                      "value": "pfam:PF03317"
+                      "value": controlled
                     }
                   }
                 },
-                {
-                  "term": {
-                    "event_type": {
-                      "value": "Positive_activation"
-                    }
-                  }
-                }
+
               ]
             }
-          }
+          },
+          "size": 1_000
         }
+
+    if interaction:
+        body["query"]["bool"]["must"].append({
+                  "term": {
+                    "event_type": {
+                      "value": interaction
+                    }
+                  }
+                })
 
     es_response = await es.json_query(body)
 

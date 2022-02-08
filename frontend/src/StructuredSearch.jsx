@@ -91,8 +91,11 @@ export default function StructuredSearch({ apiUrl }){
                         top: "2em"
                     }}
                     onClick={ async () => {
-                        const [_, e_matches] = await structuredSearch(apiUrl, chosenController, chosenControlled, chosenInteraction)
-                        const [__, s_matches] = await structuredSearch(apiUrl, chosenController, chosenControlled)
+                        const [_, e_matches] = await structuredSearch(apiUrl, chosenController[0].id, chosenControlled[0].id, chosenInteraction)
+                        let [__, s_matches] = await structuredSearch(apiUrl, chosenController[0].id, chosenControlled[0].id)
+                        // Filter out the soft matches not containes in the exact matches
+                        const filter = new Set(e_matches.map((e) => e.markup))
+                        s_matches = s_matches.filter((s) => !filter.has(s.markup))
                         setExactMatches(e_matches)
                         setSoftMatches(s_matches)
                     }}
@@ -102,7 +105,7 @@ export default function StructuredSearch({ apiUrl }){
             <br />
             <Accordion defaultActiveKey="exact">
                 <Accordion.Item eventKey="exact">
-                    <Accordion.Header>Exact Matches</Accordion.Header>
+                    <Accordion.Header>Exact Matches ({exactMatches.length})</Accordion.Header>
                     <Accordion.Body>
                         <EvidencePanel
                             apiUrl={apiUrl}
@@ -111,7 +114,7 @@ export default function StructuredSearch({ apiUrl }){
                     </Accordion.Body>
                 </Accordion.Item>
                 <Accordion.Item eventKey="soft">
-                    <Accordion.Header>Soft Matches</Accordion.Header>
+                    <Accordion.Header>Similar Matches ({softMatches.length})</Accordion.Header>
                     <Accordion.Body>
                         <EvidencePanel
                             apiUrl={apiUrl}

@@ -88,6 +88,10 @@ export function fetchInteractionTypes(apiUrl){
 }
 
 export function structuredSearch(apiUrl, controller, controlled, interaction){
-	return fetch(apiUrl + "/ir/structured_search")
+	let path = `/ir/structured_search/${controller}/${controlled}`
+	if(interaction)
+		path += `?interaction=${interaction}`
+
+	return fetch(apiUrl + path)
 		.then(response => response.json())
 }
