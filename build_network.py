@@ -208,9 +208,9 @@ def resolve_document(seen_in: str, bibilography: Mapping[str, XDDMetaData], doi2
 @plac.opt('pmcid_map_path', 'PMCID to DOI and others file', type=Path)
 @plac.opt('output_file', 'Graph output file', type=Path)
 @plac.pos('input_files_dirs', 'Arizona files directory', type=Path)
-def main(index_factors_path: Optional[Path] = None,
-         bibliography_path: Optional[Path] = None,
-         output_file=Path("graph_temp.pickle"),
+def main(index_factors_path: Optional[Path],
+         bibliography_path: Optional[Path],
+         output_file:Path,
          uniprot_path=Path('data/uniprot_sprot.fasta'),
          pmcid_map_path=Path('data/PMC-ids.csv'),
          *input_files_dirs
@@ -413,6 +413,8 @@ def main(index_factors_path: Optional[Path] = None,
                 G.add_nodes_from([(key.controller, {'label': top_descriptions[key.controller]})])
             if key.input not in G.nodes:
                 G.add_nodes_from([(key.input, {'label': top_descriptions[key.input]})])
+            if key.output not in G.nodes:
+                G.add_nodes_from([(key.output, {'label': top_descriptions[key.output]})])
 
             if type(key.trigger) == str:
                 trigger = key.trigger
