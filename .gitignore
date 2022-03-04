@@ -148,3 +148,4 @@ data/
 .gitignore
 .vscode/launch.json
 *.db
+/frontend/build/
