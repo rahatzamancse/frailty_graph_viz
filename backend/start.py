@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from build_network import SignificanceRow          # Required by pickle
 from .api import api_router
+from .viz_api import api_router as viz_api_router
 from backend.cli_parser import args
 
 logger = logging.getLogger("frailty_viz_main")
@@ -34,6 +35,7 @@ async def hack():
 
 app.include_router(api_router)
 # TODO Mount Rahat's router here
+app.include_router(viz_api_router)
 
 # Deprecated
 # app.mount("/old", StaticFiles(directory="static", html=True), name="old_frontend")
