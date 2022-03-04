@@ -18,7 +18,7 @@ export default function App() {
           <NavLink to="/" style={isActiveNavLink}>Interactions Overview</NavLink> |{" "}
           {/* <NavLink to="/viz" style={isActiveNavLink}>Network View</NavLink> | {" "} */}
           <NavLink to="/evidence-index" style={isActiveNavLink}>Search Evidence</NavLink> | {" "}
-          <NavLink to="/structured-search" style={isActiveNavLink}>Structured Evdience Search</NavLink>
+          <NavLink to="/structured-search" style={isActiveNavLink}>Structured Evidence Search</NavLink>
         </nav>
     </div>
 	  <br />
