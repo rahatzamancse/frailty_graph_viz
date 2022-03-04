@@ -34,13 +34,13 @@ let dummyData = {
 
 
 
-const EntityAutoComplete = ({ fromEntityAutoComplete }) => {
+const EntityAutoComplete = ({ fromEntityAutoComplete, apiUrl }) => {
     let [dataState, setDataState] = React.useState(dummyData);
 
     const handleChange = (event) => {
         if (event.target.value.length === 0) return;
 
-        fetch(`http://127.0.0.1:1600/viz_api/searchnode/${event.target.value}/5`).then(response => response.json()).then(suggestions => {
+        fetch(`${apiUrl}/searchnode/${event.target.value}/5`).then(response => response.json()).then(suggestions => {
             suggestions = suggestions['matches'];
             const tasksList = dataState.columns["column-2"].taskIds.map(taskId => dataState.tasks.find(task => task.id === taskId));
             const allTasks = tasksList.concat(suggestions);

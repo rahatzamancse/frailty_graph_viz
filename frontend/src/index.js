@@ -21,7 +21,7 @@ import MainGraph from "./components/blob_viz/MainGraph";
 // ========================================
 const rootElement = document.getElementById('root');
 
-const { apiUrl } = config
+const { apiUrl, vizApiUrl } = config
 console.log(apiUrl)
 
 ReactDOM.render(
@@ -58,7 +58,7 @@ ReactDOM.render(
 				}/>
 				<Route path="blob-viz" element={
 					<>
-						<MainGraph />
+						<MainGraph apiUrl={ vizApiUrl } />
 						<ScrollToTop />
 					</>
 				} />

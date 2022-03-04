@@ -16,7 +16,7 @@ export default function App() {
       <h1>Explore Frailty Literature</h1>
       <nav>
           <NavLink to="/" style={isActiveNavLink}>Interactions Overview</NavLink> |{" "}
-          <NavLink to="/blob-viz" style={isActiveNavLink}>Graphic OverView</NavLink> | {" "}
+          <NavLink to="/blob-viz" style={isActiveNavLink}>Graphic Overview</NavLink> | {" "}
           {/* <NavLink to="/viz" style={isActiveNavLink}>Network View</NavLink> | {" "} */}
           <NavLink to="/evidence-index" style={isActiveNavLink}>Search Evidence</NavLink> | {" "}
           <NavLink to="/structured-search" style={isActiveNavLink}>Structured Evidence Search</NavLink>

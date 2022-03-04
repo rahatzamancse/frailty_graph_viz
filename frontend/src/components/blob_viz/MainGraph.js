@@ -68,7 +68,7 @@ const normalizeDistance = (x, xMin, xMax, minDist, maxDist) => {
 
 const calculateCategoryCenters = (cats, r) => [...Array(cats).keys()].map(i => [width/2 + Math.round(r * Math.cos(2*Math.PI*i/cats)), height/2 + Math.round(r * Math.sin(2*Math.PI*i/cats))]);
 
-const MainGraph = () => {
+const MainGraph = ({apiUrl}) => {
     console.log("Module Loading");
 
     const simulation = d3.forceSimulation();
@@ -182,7 +182,7 @@ const MainGraph = () => {
             .append('path')
             .attr('class', d => 'hull_' + (d.category));
 
-        fetch('http://127.0.0.1:1600/viz_api/getbestsubgraph', {
+        fetch(`${apiUrl}/getbestsubgraph`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -252,7 +252,9 @@ const MainGraph = () => {
                             .on('click', (e) => {
                                 const line = d3.select(e.target.parentNode).classed('hovered', true);
                                 const lineData = line.data();
-                                window.open(`http://river.cs.arizona.edu:1600/viz?src=${lineData[0].source.id.replace('_', ':')}&dst=${lineData[0].target.id.replace('_', ':')}&bidirect`, "_self")
+                                const url = `/viz?src=${lineData[0].source.id.replaceAll('_', ':')}&dst=${lineData[0].target.id.replaceAll('_', ':')}&bidirect`
+                                console.log(url)
+                                // window.open(url, "_self")
                             });
 
                         // Reinitialize force
@@ -320,7 +322,7 @@ const MainGraph = () => {
 
                             })
                             .on("click", (e) => {
-                                window.open(`http://river.cs.arizona.edu:1600/viz?src=uniprot:P05231&dst=go:GO:0006954&bidirect`, '_self');
+                                window.open(`/viz?src=uniprot:P05231&dst=go:GO:0006954&bidirect`, '_self');
 
                             })
                         nodeGroup
@@ -540,7 +542,7 @@ const MainGraph = () => {
                     <div className="collapse" id="entity-collapse">
                         <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
                             <li>
-                                <EntityAutoComplete fromEntityAutoComplete={updateNodeSuggestions} />
+                                <EntityAutoComplete fromEntityAutoComplete={updateNodeSuggestions} apiUrl={apiUrl} />
                             </li>
                             <li>
                                 <label htmlFor="cluster1count" className="form-label">Protein Entity Count</label>
