@@ -6,9 +6,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from build_network import SignificanceRow # Required by pickle
-
+from build_network import SignificanceRow          # Required by pickle
 from .api import api_router
 from backend.cli_parser import args
 
@@ -26,7 +24,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # Deprecated
 @app.get("/viz")
 async def hack():
@@ -36,12 +33,12 @@ async def hack():
 
 
 app.include_router(api_router)
-
-# Deprecated
-app.mount("/old", StaticFiles(directory="static", html=True), name="old_frontend")
-
-app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
 # TODO Mount Rahat's router here
 
+# Deprecated
+# app.mount("/old", StaticFiles(directory="static", html=True), name="old_frontend")
+# app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
+
+
 if __name__ == '__main__':
-    uvicorn.run(app, host="0.0.0.0", port=args.port, debug=False)
+    uvicorn.run(app, host=args.address, port=args.port, debug=False)
