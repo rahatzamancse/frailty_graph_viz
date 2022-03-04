@@ -2,6 +2,10 @@ import React from 'react';
 import * as d3 from "d3";
 import smoothHull from '../../utils/convexHull';
 
+import Collapse from 'react-bootstrap';
+import Button from 'react-bootstrap';
+
+
 import "../styles/MainGraph.scss";
 import EntityAutoComplete from './entityAutoComplete';
 
@@ -425,9 +429,9 @@ const MainGraph = () => {
             // Legends
             const colors = [
                 { id: "Protein", color: "#d282beff" },
-                { id: "Chemical", color: "#a6d9efff" },
+                { id: "Diseases", color: "#a6d9efff" },
                 { id: "Biological Process", color: "#ffa770ff" },
-                { id: "Diseases", color: "#e5f684ff" },
+                { id: "Chemical", color: "#e5f684ff" },
             ];
 
             const svgColorLegends = d3.select('g.categorylegends');
@@ -519,6 +523,17 @@ const MainGraph = () => {
             </span>
             <ul className="list-unstyled ps-0">
                 <li className="mb-1">
+                    {/* <Button
+                        onClick={() => this.setState({ open: !open })}
+                        aria-controls="example-collapse-text"
+                        aria-expanded={open}
+                    >
+                        Entity
+                    </Button>
+                    <Collapse in={this.state.open}>
+                        <div id="example-collapse-text">
+                        </div>
+                    </Collapse> */}
                     <button className="btn btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#entity-collapse" aria-expanded="false">
                         Entity
                     </button>

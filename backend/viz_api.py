@@ -10,8 +10,6 @@ import pickle
 import networkx as nx
 
 # Data loading and preprocessing
-# with open('../data/graph_rahat.pickle', 'rb') as f:
-#     data = pickle.load(f)
 from backend.dependencies import get_graph
 
 data = get_graph()
