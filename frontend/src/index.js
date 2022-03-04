@@ -15,6 +15,7 @@ import config from "./config.json"
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-bootstrap-range-slider/dist/react-bootstrap-range-slider.css';
 import StructuredSearch from "./StructuredSearch";
+import MainGraph from "./components/blob_viz/MainGraph";
 
   
 // ========================================
@@ -55,6 +56,13 @@ ReactDOM.render(
 						<ScrollToTop />
 					</>
 				}/>
+				<Route path="blob-viz" element={
+					<>
+						<MainGraph />
+						<ScrollToTop />
+					</>
+				} />
+
 				<Route
 					path="*"
 					element={

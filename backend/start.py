@@ -34,7 +34,6 @@ async def hack():
 
 
 app.include_router(api_router)
-# TODO Mount Rahat's router here
 app.include_router(viz_api_router)
 
 # Deprecated
