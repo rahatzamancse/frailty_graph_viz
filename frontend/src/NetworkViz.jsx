@@ -103,6 +103,8 @@ export default function NetworkViz({ apiUrl }){
 
 	const [expandedNodes, setExpandedNodes] = useState({});
 
+	const [spacingFactor, setSpacingFactor] = useState(10);
+
 	const cyRef = useRef(null);
 	const evidence = useRef(null);
 
@@ -201,9 +203,7 @@ export default function NetworkViz({ apiUrl }){
 						let elements = JSON.parse(data)
 						cyRef.current.add(elements)
 						expandedNodes[node] = elements
-						cyRef.current.layout(layoutInitialOpts).run();
-						// cyRef.current.fit(cyRef.current.elements())
-						// cyRef.current.zoom(1)
+						setSpacingFactor(0);
 						setIsLoading(false);
 					}
                 )
@@ -238,22 +238,11 @@ export default function NetworkViz({ apiUrl }){
 			evidence.current.scrollIntoView();
 	});
 
-	let layout = {
+
+	let layoutOptions = {
 		name:"klay",
+		spacingFactor: spacingFactor,
 		fit: true
-		// spacingFactor: 10,
-		// klay:{
-		//     spacing: 300
-		// }
-	}
-
-	let layoutInitialOpts = {
-		name:"klay",
-		spacingFactor: 10,
-		fit: true,
-		klay:{
-
-		}
 	}
 
 	return (
@@ -288,7 +277,7 @@ export default function NetworkViz({ apiUrl }){
 						boxShadow: "#929292 0px 0px 10px"
 					}}
 					cy={(c) => { cyRef.current = c }}
-					elements={elements} layout={layoutInitialOpts} zoom={1} stylesheet={stylesheet(weightCoefficients)}
+					elements={elements} layout={layoutOptions} zoom={1} stylesheet={stylesheet(weightCoefficients)}
 				/>
 				{/* </Col>
 			</Row> */}
