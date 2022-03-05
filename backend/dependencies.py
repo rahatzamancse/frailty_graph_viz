@@ -13,10 +13,10 @@ from tqdm import tqdm
 from backend.cli_parser import args
 from evidence_index.client import EvidenceIndexClient
 from build_network import SignificanceRow
-from models import EvidenceItem
+from .models import EvidenceItem
 from rankings import ImpactFactors
-from sql_app import models
-from sql_app.database import construct_engine
+from .sql_app import models
+from .sql_app.database import construct_engine
 from .utils import get_git_revision_hash, md5_hash
 
 logger = logging.getLogger("frailty-viz-dependencies")

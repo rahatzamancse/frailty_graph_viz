@@ -2,7 +2,7 @@ from typing import List, Optional, Any
 
 from pydantic import BaseModel
 
-from sql_app import models
+from . import models
 
 # PyDantic models to mirror SqlAlchemy models
 

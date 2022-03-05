@@ -10,9 +10,9 @@ from sqlalchemy.orm import Session
 from backend.utils import convert2cytoscapeJSON, get_global_edge_data
 from evidence_index import Evidence
 from evidence_index.client import EvidenceIndexClient
-from sql_app import schemas, crud
-import models as md
-from sql_app.schemas import RecordCreate, RecordMetadataCreate
+from . import models as md
+from .sql_app import schemas, crud
+from .sql_app.schemas import RecordCreate, RecordMetadataCreate
 import itertools as it
 
 from .dependencies import get_db, get_evidence, get_entities, get_structured_entities, get_commit_hash, get_graph_hash, \

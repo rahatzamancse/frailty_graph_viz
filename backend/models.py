@@ -3,6 +3,7 @@ from typing import List, Optional, Mapping
 
 from pydantic import BaseModel
 
+
 # These models are data structures for the internal API, not meant to model DB
 
 
@@ -27,10 +28,19 @@ class EvidenceItem(BaseModel):
     def __hash__(self):
         return hash((self.sentence, self.list_item, self.impact))
 
+
 class EvidenceSentence(BaseModel):
     sentence: str
+
 
 class EvidenceLabels(BaseModel):
     sentence: str
     labels: Mapping[str, bool]
 
+
+class CategoryCount(BaseModel):
+    categorycount: dict[int, int]
+
+
+class NodesList(BaseModel):
+    nodes: list[str]

@@ -2,9 +2,10 @@ from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///{}"
+
+
 # SQLALCHEMY_DATABASE_URL = "postgresql://user:password@postgresserver/db"
 
 def construct_engine(db_path: Path):
@@ -14,5 +15,6 @@ def construct_engine(db_path: Path):
     )
 
     return engine
+
 
 Base = declarative_base()

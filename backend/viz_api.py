@@ -1,18 +1,18 @@
-from fastapi import FastAPI, APIRouter
-from starlette.responses import RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
-from pydantic import BaseModel
+from functools import lru_cache
+from typing import NamedTuple
+
+from fastapi import APIRouter, Depends
+from networkx import DiGraph
 
 import difflib
 
-import pickle
 import networkx as nx
 
 # Data loading and preprocessing
-from backend.dependencies import get_graph
+from .dependencies import get_graph
 
-data = get_graph()
+# Auxiliary data and data structures
+from .models import CategoryCount, NodesList
 
 categories = {
     "uniprot": "Proteins or Gene Products",
@@ -43,80 +43,75 @@ def get_category_number_from_id(node_id):
     return category_encoding_rev[get_category_name_from_id(node_id)]
 
 
-# Creating no-self-loop and singly-graph variants
-G_no_selfloop = data.copy()
-# G_no_selfloop.remove_edges_from(nx.selfloop_edges(G_no_selfloop))
-G_se = nx.DiGraph()
-G_se.add_nodes_from(G_no_selfloop.nodes.data())
-edges = {
-    (u, v): 0 for u, v, i in G_no_selfloop.edges
-}
-for i, (u, v, d) in enumerate(G_no_selfloop.edges.data()):
-    if 'freq' in d:
-        edges[(u, v)] += d['freq']
-    else:
-        edges[(u, v)] += 1
-for k, v in edges.items():
-    G_se.add_edge(k[0], k[1], freq=v)
+class PreprocessedVizData(NamedTuple):
+    max_frequency: int
+    graph_se: DiGraph
+    reversed_graph: DiGraph
 
-max_freq = max([d[2]['freq'] for d in G_se.edges.data()])
 
-chars = {
-    ':': '_',
-    '-': '_'
-}
-mapping = {}
-for node in G_se.nodes:
-    new_node = node
-    for k, v in chars.items():
-        if k in new_node:
-            new_node = v.join(node.split(k))
-            mapping[node] = new_node
+@lru_cache()
+def get_blob_graph() -> PreprocessedVizData:
+    """ Dependency injector for the data of the blob viz API """
 
-G_se = nx.relabel_nodes(G_se, mapping)
-# Reverse graph: To calculate incident edges of X
-G_se_rev = G_se.reverse()
+    data = get_graph()
 
-# Pre calculating the nodes
-nodes = []
-for node in list(data.nodes.data()):
-    if 'label' not in node[1]:
-        node[1]['label'] = node[0]
-    nodes.append({
-        'id': node[0].strip(),
-        'label': node[1]['label'].strip(),
-        'category': categories[node[0].split(':')[0]]
-    })
+    # Creating no-self-loop and singly-graph variants
+    G_no_selfloop = data.copy()
+    # G_no_selfloop.remove_edges_from(nx.selfloop_edges(G_no_selfloop))
+    G_se = nx.DiGraph()
+    G_se.add_nodes_from(G_no_selfloop.nodes.data())
+    edges = {
+        (u, v): 0 for u, v, i in G_no_selfloop.edges
+    }
+    for i, (u, v, d) in enumerate(G_no_selfloop.edges.data()):
+        if 'freq' in d:
+            edges[(u, v)] += d['freq']
+        else:
+            edges[(u, v)] += 1
+    for k, v in edges.items():
+        G_se.add_edge(k[0], k[1], freq=v)
 
-# Flask APP
-# app = FastAPI()
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+    max_freq = max([d[2]['freq'] for d in G_se.edges.data()])
 
+    chars = {
+        ':': '_',
+        '-': '_'
+    }
+    mapping = {}
+    for node in G_se.nodes:
+        new_node = node
+        for k, v in chars.items():
+            if k in new_node:
+                new_node = v.join(node.split(k))
+                mapping[node] = new_node
+
+    G_se = nx.relabel_nodes(G_se, mapping)
+    # Reverse graph: To calculate incident edges of X
+    G_se_rev = G_se.reverse()
+
+    # Pre-calculating the nodes
+    nodes = []
+    for node in list(data.nodes.data()):
+        if 'label' not in node[1]:
+            node[1]['label'] = node[0]
+        nodes.append({
+            'id': node[0].strip(),
+            'label': node[1]['label'].strip(),
+            'category': categories[node[0].split(':')[0]]
+        })
+
+    return PreprocessedVizData(max_freq, G_se, G_se_rev)
+
+
+# Router, to be exposed by the API entry point
 api_router = APIRouter(prefix="/viz_api")
 
 
-class NodesList(BaseModel):
-    nodes: list[str]
-
-
-@api_router.get("/")
-async def hello_world():
-    return RedirectResponse(url='/docs')
-
-
-class CategoryCount(BaseModel):
-    categorycount: dict[int, int]
-
-
+# Endpoints of the blob viz api
 @api_router.post('/getbestsubgraph')
-async def getbestsubgraph(nodes: NodesList, category_count: CategoryCount):
-    '''
+async def get_best_subgraph(nodes: NodesList, category_count: CategoryCount,
+                            data: PreprocessedVizData = Depends(get_blob_graph)):
+    """
     Request type
     {
         "nodes": {
@@ -133,7 +128,10 @@ async def getbestsubgraph(nodes: NodesList, category_count: CategoryCount):
             }
         }
     }
-    '''
+    """
+
+    max_freq, G_se, G_se_rev = data
+
     nodes = nodes.nodes
     category_count = category_count.categorycount
 
@@ -202,8 +200,11 @@ async def getbestsubgraph(nodes: NodesList, category_count: CategoryCount):
 
 
 @api_router.get("/searchnode/{node_text}/{n}")
-async def searchnode(node_text: str, n: int):
+async def search_node(node_text: str, n: int, data: PreprocessedVizData = Depends(get_blob_graph)):
     # https://stackoverflow.com/questions/10018679/python-find-closest-string-from-a-list-to-another-string
+
+    _, G_se, G_se_rev = data
+
     search_space = set(list(G_se.nodes) + list(map(lambda x: x[1]["label"].strip(
     ), filter(lambda x: "label" in x[1], G_se.nodes.data()))))
     results = difflib.get_close_matches(node_text, search_space, n=n)
@@ -223,7 +224,3 @@ async def searchnode(node_text: str, n: int):
     return {
         "matches": ret
     }
-
-
-# if __name__ == "__main__":
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
