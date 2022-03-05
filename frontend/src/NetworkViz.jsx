@@ -230,6 +230,8 @@ export default function NetworkViz({ apiUrl }){
             tappedBefore = tappedNow;
           }
         });
+
+
 	}, []);
 
 	useEffect(() => {
@@ -242,7 +244,10 @@ export default function NetworkViz({ apiUrl }){
 	let layoutOptions = {
 		name:"klay",
 		spacingFactor: spacingFactor,
-		fit: true
+		fit: true,
+		klay: {
+
+		}
 	}
 
 	return (
