@@ -34,19 +34,19 @@ export default function BlobViz({ apiUrl }) {
             <WeightPanel
 				sliderValues={weightCoefficients}
 				setSliderValues={saveAndSetWeightValues}
-				footer={
-					<Row>
-						<Col style={{textAlign: "center"}}>
-							<Button
-							 onClick={
-								 () => {
-
-									saveCoefficients(apiUrl, window.location.search, weightCoefficients)
-								 }
-							 }>Record weights</Button>
-						</Col>
-					</Row>
-				}
+				// footer={
+				// 	<Row>
+				// 		<Col style={{textAlign: "center"}}>
+				// 			<Button
+				// 			 onClick={
+				// 				 () => {
+				//
+				// 					saveCoefficients(apiUrl, window.location.search, weightCoefficients)
+				// 				 }
+				// 			 }>Record weights</Button>
+				// 		</Col>
+				// 	</Row>
+				// }
 			/>
             <MainGraph apiUrl={ apiUrl } />
         </>

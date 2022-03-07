@@ -19,7 +19,9 @@ const dummyData = {
     }}
 };
 
-const width = 900, height = 900;
+// const width = 900, height = 900;
+const height = 900;//document.getElementById('maingraph').clientHeight;
+const width = 900;//document.getElementById('maingraph').clientWidth;
 
 // values for all forces
 // https://www.youtube.com/watch?v=JAe7Oscsp98
@@ -543,6 +545,7 @@ const MainGraph = ({apiUrl}) => {
 
 }
 
+// TODO: Rahat, I am drilling the props here. Perhaps you can refactor better according to your vision for this component
 function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions }){
     const [entityOpen, setEntityOpen] = useState(false);
     const [visualOpen, setVisualOpen] = useState(false);
