@@ -665,7 +665,7 @@ function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions }){
                             className="btn btn-toggle align-items-center rounded collapsed"
                             onClick={() => setOthersOpen(!othersOpen)}
                             aria-controls="example-collapse-text"
-                            aria-expanded={graphParamsOpen}
+                            aria-expanded={othersOpen}
                         >
                             Others
                         </Button>
