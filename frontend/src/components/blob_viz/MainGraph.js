@@ -68,33 +68,7 @@ const normalizeDistance = (x, xMin, xMax, minDist, maxDist) => {
 
 const calculateCategoryCenters = (cats, r) => [...Array(cats).keys()].map(i => [width/2 + Math.round(r * Math.cos(2*Math.PI*i/cats)), height/2 + Math.round(r * Math.sin(2*Math.PI*i/cats))]);
 
-const MainGraph = ({apiUrl}) => {
-
-    const [entityOpen, setEntityOpen] = useState(false);
-    const [visualOpen, setVisualOpen] = useState(false);
-    const [graphParamsOpen, setGraphParamsOpen] = useState(false);
-    const [othersOpen, setOthersOpen] = useState(false);
-
-    console.log("Module Loading");
-
-    const simulation = d3.forceSimulation();
-
-    simulation.stop()
-        .force("link", d3.forceLink())
-        .force("charge", d3.forceManyBody())
-        .force("collide", d3.forceCollide())
-        .force("center", d3.forceCenter())
-        .force("forceX", d3.forceX())
-        .force("forceY", d3.forceY())
-        .force("r", d3.forceRadial(
-            d =>  forceProperties.radial.categoryRadius[d['category']-1],
-            width/2,
-            height/2 
-        ));
-
-
-    let maxDist = 100;
-    const updateForces = () => {
+const updateForces = ({  simulation, maxDist }) => {
         // get each force by name and update the properties
         simulation.force("center")
             // @ts-ignore
@@ -138,6 +112,31 @@ const MainGraph = ({apiUrl}) => {
         // restarts the simulation (important if simulation has already slowed down)
         simulation.alpha(1).alphaMin(-1).restart();
     }
+
+const MainGraph = ({apiUrl}) => {
+
+
+
+    console.log("Module Loading");
+
+    const simulation = d3.forceSimulation();
+
+    simulation.stop()
+        .force("link", d3.forceLink())
+        .force("charge", d3.forceManyBody())
+        .force("collide", d3.forceCollide())
+        .force("center", d3.forceCenter())
+        .force("forceX", d3.forceX())
+        .force("forceY", d3.forceY())
+        .force("r", d3.forceRadial(
+            d =>  forceProperties.radial.categoryRadius[d['category']-1],
+            width/2,
+            height/2 
+        ));
+
+
+    let maxDist = 100;
+
 
     const svgRef = React.useRef();
     // const [selectedNode, setSelectedNode] = React.useState(dummyData);
@@ -368,7 +367,7 @@ const MainGraph = ({apiUrl}) => {
                 .id(d => d.id)
                 .links(subgraph.links);
 
-            updateForces();
+            updateForces({simulation, maxDist});
 
 
             simulation.on("tick", () => {
@@ -520,162 +519,161 @@ const MainGraph = ({apiUrl}) => {
     
     // React.useEffect(d3UpdateFunc);
 
-    return <main className="main-ui">
-        <div className="sidebar flex-shrink-0 p-3 bg-white">
-            <h4>Entropy</h4>
-            <div className="progress mb-5">
-                <div id="alpha_value" className="progress-bar" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+    return (
+        <main className="main-ui">
+            <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} />
+            <div className="mainview">
+                <div className="mainview-drawings">
+                    <svg ref={svgRef} id="maingraph" className="maingraph" height={height} width={width} >
+                        <g className="everything">
+                            <g className="hullgroup"></g>
+                            <g className="linkgroup"></g>
+                            <g className="nodegroup"></g>
+                        </g>
+                        <g className="legendgroup">
+                            <g className="categorylegends" transform={`translate(${width - 200},25)`}></g>
+                            <g className="sizelegends" transform={`translate(${width - 200},160)`}></g>
+                        </g>
+                    </svg>
+                </div>
             </div>
-            <span className="d-flex align-items-center pb-3 mb-3 link-dark text-decoration-none border-bottom">
-                <span className="fs-5 fw-semibold">Controls</span>
-            </span>
-            <ul className="list-unstyled ps-0">
-                <li className="mb-1">
-                    {/*<Button
-                        className="btn btn-toggle align-items-center rounded collapsed"
-                        onClick={() => setOpen(!open)}
-                        aria-controls="example-collapse-text"
-                        aria-expanded={open}
-                    >
-                        Entities
-                    </Button>
-                    <Collapse in={open}>
-                        <div id="example-collapse-text">
-                            Jeje!
-                        </div>
-                    </Collapse>
-                    <br /> */}
-                    <Button
-                        className="btn btn-toggle align-items-center rounded collapsed"
-                        onClick={() => setEntityOpen(!entityOpen)}
-                        aria-controls="example-collapse-text"
-                        aria-expanded={entityOpen}
-                    >
-                        Entity
-                    </Button>
-                    <Collapse in={entityOpen}>
-                        <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                            <li>
-                                <EntityAutoComplete fromEntityAutoComplete={updateNodeSuggestions} apiUrl={apiUrl} />
-                            </li>
-                            <li>
-                                <label htmlFor="cluster1count" className="form-label">Protein Entity Count</label>
-                                <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster1count" defaultValue="5" />
-                            </li>
-                            <li>
-                                <label htmlFor="cluster2count" className="form-label">Disease Entity Count</label>
-                                <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster2count" defaultValue="5" />
-                            </li>
-                            <li>
-                                <label htmlFor="cluster3count" className="form-label">Chemical Entity Count</label>
-                                <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster3count" defaultValue="5" />
-                            </li>
-                            <li>
-                                <label htmlFor="cluster4count" className="form-label">Disease Entity Count</label>
-                                <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster4count" defaultValue="5" />
-                            </li>
-                        </ul>
-                    </Collapse>
-                </li>
-                <li className="mb-1">
-                    <Button
-                        className="btn btn-toggle align-items-center rounded collapsed"
-                        onClick={() => setVisualOpen(!visualOpen)}
-                        aria-controls="example-collapse-text"
-                        aria-expanded={visualOpen}
-                    >
-                        Visual
-                    </Button>
-                    <Collapse in={visualOpen}>
-                        <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                            <li>
-                                <label htmlFor="interclusterEdgeOpacity" className="form-label">Inter Category Link Opacity</label>
-                                <input type="range" className="form-range" min="0" max="1" step="0.01" id="interclusterEdgeOpacity" defaultValue="0.1" />
-                            </li>
-                            <li>
-                                <label htmlFor="intraclusterEdgeOpacity" className="form-label">Between Category Link Opacity</label>
-                                <input type="range" className="form-range" min="0" max="1" step="0.01" id="intraclusterEdgeOpacity" defaultValue="0.1" />
-                            </li>
-                            <li>
-                                <label htmlFor="nodeLabelOpacity" className="form-label">Entity Label Opacity</label>
-                                <input type="range" className="form-range" min="0" max="1" step="0.01" id="nodeLabelOpacity" defaultValue="0.1" />
-                            </li>
-                        </ul>
-                    </Collapse>
-                </li>
-                <li className="mb-1">
-                    <Button
-                        className="btn btn-toggle align-items-center rounded collapsed"
-                        onClick={() => setGraphParamsOpen(!graphParamsOpen)}
-                        aria-controls="example-collapse-text"
-                        aria-expanded={graphParamsOpen}
-                    >
-                        Graph Parameters
-                    </Button>
-                    <Collapse in={graphParamsOpen}>
-                        <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                            <li>
-                                <div className="form-check form-switch m-3">
-                                    <input type="checkbox" className="form-check-input" id="simulationenabled" defaultChecked={true} onChange={e => {
-                                        if (e.target.checked) simulation.alpha(1).restart();
-                                        else simulation.stop();
+        </main>
+    )
+
+
+}
+
+function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions }){
+    const [entityOpen, setEntityOpen] = useState(false);
+    const [visualOpen, setVisualOpen] = useState(false);
+    const [graphParamsOpen, setGraphParamsOpen] = useState(false);
+    const [othersOpen, setOthersOpen] = useState(false);
+
+
+
+    return <div className="sidebar flex-shrink-0 p-3 bg-white">
+                <h4>Entropy</h4>
+                <div className="progress mb-5">
+                    <div id="alpha_value" className="progress-bar" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <span className="d-flex align-items-center pb-3 mb-3 link-dark text-decoration-none border-bottom">
+                    <span className="fs-5 fw-semibold">Controls</span>
+                </span>
+                <ul className="list-unstyled ps-0">
+                    <li className="mb-1">
+                        <Button
+                            className="btn btn-toggle align-items-center rounded collapsed"
+                            onClick={() => setEntityOpen(!entityOpen)}
+                            aria-controls="example-collapse-text"
+                            aria-expanded={entityOpen}
+                        >
+                            Entity
+                        </Button>
+                        <Collapse in={entityOpen}>
+                            <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                                <li>
+                                    <EntityAutoComplete fromEntityAutoComplete={updateNodeSuggestions} apiUrl={apiUrl} />
+                                </li>
+                                <li>
+                                    <label htmlFor="cluster1count" className="form-label">Protein Entity Count</label>
+                                    <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster1count" defaultValue="5" />
+                                </li>
+                                <li>
+                                    <label htmlFor="cluster2count" className="form-label">Disease Entity Count</label>
+                                    <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster2count" defaultValue="5" />
+                                </li>
+                                <li>
+                                    <label htmlFor="cluster3count" className="form-label">Chemical Entity Count</label>
+                                    <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster3count" defaultValue="5" />
+                                </li>
+                                <li>
+                                    <label htmlFor="cluster4count" className="form-label">Disease Entity Count</label>
+                                    <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster4count" defaultValue="5" />
+                                </li>
+                            </ul>
+                        </Collapse>
+                    </li>
+                    <li className="mb-1">
+                        <Button
+                            className="btn btn-toggle align-items-center rounded collapsed"
+                            onClick={() => setVisualOpen(!visualOpen)}
+                            aria-controls="example-collapse-text"
+                            aria-expanded={visualOpen}
+                        >
+                            Visual
+                        </Button>
+                        <Collapse in={visualOpen}>
+                            <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                                <li>
+                                    <label htmlFor="interclusterEdgeOpacity" className="form-label">Inter Category Link Opacity</label>
+                                    <input type="range" className="form-range" min="0" max="1" step="0.01" id="interclusterEdgeOpacity" defaultValue="0.1" />
+                                </li>
+                                <li>
+                                    <label htmlFor="intraclusterEdgeOpacity" className="form-label">Between Category Link Opacity</label>
+                                    <input type="range" className="form-range" min="0" max="1" step="0.01" id="intraclusterEdgeOpacity" defaultValue="0.1" />
+                                </li>
+                                <li>
+                                    <label htmlFor="nodeLabelOpacity" className="form-label">Entity Label Opacity</label>
+                                    <input type="range" className="form-range" min="0" max="1" step="0.01" id="nodeLabelOpacity" defaultValue="0.1" />
+                                </li>
+                            </ul>
+                        </Collapse>
+                    </li>
+                    <li className="mb-1">
+                        <Button
+                            className="btn btn-toggle align-items-center rounded collapsed"
+                            onClick={() => setGraphParamsOpen(!graphParamsOpen)}
+                            aria-controls="example-collapse-text"
+                            aria-expanded={graphParamsOpen}
+                        >
+                            Graph Parameters
+                        </Button>
+                        <Collapse in={graphParamsOpen}>
+                            <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                                <li>
+                                    <div className="form-check form-switch m-3">
+                                        <input type="checkbox" className="form-check-input" id="simulationenabled" defaultChecked={true} onChange={e => {
+                                            if (e.target.checked) simulation.alpha(1).restart();
+                                            else simulation.stop();
+                                        }} />
+                                        <label className="form-check-label" htmlFor="simulationenabled"><b>Simulation</b></label>
+                                    </div>
+                                </li>
+                                <li>
+                                    <label htmlFor="graphparamsepfactor" className="form-label">Separation Factor</label>
+                                    <input type="range" className="form-range" min="0" max="1" step="0.01" id="graphparamsepfactor" defaultValue="0.1" onChange={e => {
+                                        forceProperties.separation.strength = parseFloat(e.target.value);
+                                        updateForces({simulation, maxDist});
                                     }} />
-                                    <label className="form-check-label" htmlFor="simulationenabled"><b>Simulation</b></label>
-                                </div>
-                            </li>
-                            <li>
-                                <label htmlFor="graphparamsepfactor" className="form-label">Separation Factor</label>
-                                <input type="range" className="form-range" min="0" max="1" step="0.01" id="graphparamsepfactor" defaultValue="0.1" onChange={e => {
-                                    forceProperties.separation.strength = parseFloat(e.target.value);
-                                    updateForces();
-                                }} />
-                            </li>
-                            <li>
-                                <label htmlFor="linkstrength" className="form-label">Link Strength</label>
-                                <input type="range" className="form-range" min="0" max="1" step="0.01" id="linkstrength" defaultValue="0.9" onChange={e => {
-                                    forceProperties.link.strength = parseFloat(e.target.value);
-                                    updateForces();
-                                }} />
-                            </li>
-                        </ul>
-                    </Collapse>
-                </li>
-                <li className="border-top my-3"></li>
-                <li className="mb-1">
-                    <Button
-                        className="btn btn-toggle align-items-center rounded collapsed"
-                        onClick={() => setOthersOpen(!othersOpen)}
-                        aria-controls="example-collapse-text"
-                        aria-expanded={graphParamsOpen}
-                    >
-                        Others
-                    </Button>
-                    <Collapse in={othersOpen}>
-                        <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                            <li><span className="link-dark rounded">Others</span></li>
-                        </ul>
-                    </Collapse>
-                </li>
-            </ul>
-        </div>
-        <div className="mainview">
-            <div className="mainview-drawings">
-                <svg ref={svgRef} id="maingraph" className="maingraph" height={height} width={width} >
-                    <g className="everything">
-                        <g className="hullgroup"></g>
-                        <g className="linkgroup"></g>
-                        <g className="nodegroup"></g>
-                    </g>
-                    <g className="legendgroup">
-                        <g className="categorylegends" transform={`translate(${width - 200},25)`}></g>
-                        <g className="sizelegends" transform={`translate(${width - 200},160)`}></g>
-                    </g>
-                </svg>
+                                </li>
+                                <li>
+                                    <label htmlFor="linkstrength" className="form-label">Link Strength</label>
+                                    <input type="range" className="form-range" min="0" max="1" step="0.01" id="linkstrength" defaultValue="0.9" onChange={e => {
+                                        forceProperties.link.strength = parseFloat(e.target.value);
+                                        updateForces({simulation, maxDist});
+                                    }} />
+                                </li>
+                            </ul>
+                        </Collapse>
+                    </li>
+                    <li className="border-top my-3"></li>
+                    <li className="mb-1">
+                        <Button
+                            className="btn btn-toggle align-items-center rounded collapsed"
+                            onClick={() => setOthersOpen(!othersOpen)}
+                            aria-controls="example-collapse-text"
+                            aria-expanded={graphParamsOpen}
+                        >
+                            Others
+                        </Button>
+                        <Collapse in={othersOpen}>
+                            <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                                <li><span className="link-dark rounded">Others</span></li>
+                            </ul>
+                        </Collapse>
+                    </li>
+                </ul>
             </div>
-        </div>
-    </main>
-
-
 }
 
 export default MainGraph;
