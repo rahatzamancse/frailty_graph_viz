@@ -1,9 +1,9 @@
-import React from 'react';
+import React, {useState} from 'react';
 import * as d3 from "d3";
 import smoothHull from '../../utils/convexHull';
 
-import Collapse from 'react-bootstrap';
-import Button from 'react-bootstrap';
+import {Collapse} from 'react-bootstrap';
+import {Button} from 'react-bootstrap';
 
 
 import "../styles/MainGraph.scss";
@@ -69,6 +69,12 @@ const normalizeDistance = (x, xMin, xMax, minDist, maxDist) => {
 const calculateCategoryCenters = (cats, r) => [...Array(cats).keys()].map(i => [width/2 + Math.round(r * Math.cos(2*Math.PI*i/cats)), height/2 + Math.round(r * Math.sin(2*Math.PI*i/cats))]);
 
 const MainGraph = ({apiUrl}) => {
+
+    const [entityOpen, setEntityOpen] = useState(false);
+    const [visualOpen, setVisualOpen] = useState(false);
+    const [graphParamsOpen, setGraphParamsOpen] = useState(false);
+    const [othersOpen, setOthersOpen] = useState(false);
+
     console.log("Module Loading");
 
     const simulation = d3.forceSimulation();
@@ -525,21 +531,29 @@ const MainGraph = ({apiUrl}) => {
             </span>
             <ul className="list-unstyled ps-0">
                 <li className="mb-1">
-                    {/* <Button
-                        onClick={() => this.setState({ open: !open })}
+                    {/*<Button
+                        className="btn btn-toggle align-items-center rounded collapsed"
+                        onClick={() => setOpen(!open)}
                         aria-controls="example-collapse-text"
                         aria-expanded={open}
                     >
+                        Entities
+                    </Button>
+                    <Collapse in={open}>
+                        <div id="example-collapse-text">
+                            Jeje!
+                        </div>
+                    </Collapse>
+                    <br /> */}
+                    <Button
+                        className="btn btn-toggle align-items-center rounded collapsed"
+                        onClick={() => setEntityOpen(!entityOpen)}
+                        aria-controls="example-collapse-text"
+                        aria-expanded={entityOpen}
+                    >
                         Entity
                     </Button>
-                    <Collapse in={this.state.open}>
-                        <div id="example-collapse-text">
-                        </div>
-                    </Collapse> */}
-                    <button className="btn btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#entity-collapse" aria-expanded="false">
-                        Entity
-                    </button>
-                    <div className="collapse" id="entity-collapse">
+                    <Collapse in={entityOpen}>
                         <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
                             <li>
                                 <EntityAutoComplete fromEntityAutoComplete={updateNodeSuggestions} apiUrl={apiUrl} />
@@ -561,13 +575,18 @@ const MainGraph = ({apiUrl}) => {
                                 <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster4count" defaultValue="5" />
                             </li>
                         </ul>
-                    </div>
+                    </Collapse>
                 </li>
                 <li className="mb-1">
-                    <button className="btn btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#visual-collapse" aria-expanded="false">
+                    <Button
+                        className="btn btn-toggle align-items-center rounded collapsed"
+                        onClick={() => setVisualOpen(!visualOpen)}
+                        aria-controls="example-collapse-text"
+                        aria-expanded={visualOpen}
+                    >
                         Visual
-                    </button>
-                    <div className="collapse" id="visual-collapse">
+                    </Button>
+                    <Collapse in={visualOpen}>
                         <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
                             <li>
                                 <label htmlFor="interclusterEdgeOpacity" className="form-label">Inter Category Link Opacity</label>
@@ -582,13 +601,18 @@ const MainGraph = ({apiUrl}) => {
                                 <input type="range" className="form-range" min="0" max="1" step="0.01" id="nodeLabelOpacity" defaultValue="0.1" />
                             </li>
                         </ul>
-                    </div>
+                    </Collapse>
                 </li>
                 <li className="mb-1">
-                    <button className="btn btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#dashboard-collapse" aria-expanded="false">
+                    <Button
+                        className="btn btn-toggle align-items-center rounded collapsed"
+                        onClick={() => setGraphParamsOpen(!graphParamsOpen)}
+                        aria-controls="example-collapse-text"
+                        aria-expanded={graphParamsOpen}
+                    >
                         Graph Parameters
-                    </button>
-                    <div className="collapse" id="dashboard-collapse">
+                    </Button>
+                    <Collapse in={graphParamsOpen}>
                         <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
                             <li>
                                 <div className="form-check form-switch m-3">
@@ -614,18 +638,23 @@ const MainGraph = ({apiUrl}) => {
                                 }} />
                             </li>
                         </ul>
-                    </div>
+                    </Collapse>
                 </li>
                 <li className="border-top my-3"></li>
                 <li className="mb-1">
-                    <button className="btn btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#account-collapse" aria-expanded="false">
+                    <Button
+                        className="btn btn-toggle align-items-center rounded collapsed"
+                        onClick={() => setOthersOpen(!othersOpen)}
+                        aria-controls="example-collapse-text"
+                        aria-expanded={graphParamsOpen}
+                    >
                         Others
-                    </button>
-                    <div className="collapse" id="account-collapse">
+                    </Button>
+                    <Collapse in={othersOpen}>
                         <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
                             <li><span className="link-dark rounded">Others</span></li>
                         </ul>
-                    </div>
+                    </Collapse>
                 </li>
             </ul>
         </div>
