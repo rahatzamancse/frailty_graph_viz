@@ -77,6 +77,12 @@ g.pinned circle {
   background-color: white;
 }
 
+.main-ui{
+  margin: .8em;
+  border-radius: 10px 10px 10px 10px;
+  box-shadow: #929292 0px 0px 10px;
+}
+
 // Sidebar
 main.main-ui {
     display: flex;
