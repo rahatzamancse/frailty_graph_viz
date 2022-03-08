@@ -444,7 +444,8 @@ const MainGraph = ({apiUrl}) => {
                 { id: "Chemical", color: "#e5f684ff" },
             ];
 
-            const svgColorLegends = d3.select('g.categorylegends');
+            const svgColorLegends = d3.select('g.categorylegends')
+                .attr('transform', `translate(${width - 200},25)`);
             const legendSquareSize = 20;
             svgColorLegends.selectAll('rect')
                 .data(colors)
@@ -467,7 +468,8 @@ const MainGraph = ({apiUrl}) => {
                 .attr("text-anchor", "left")
                 .style("alignment-baseline", "middle");
 
-            const svgSizeLegends = d3.select('g.sizelegends');
+            const svgSizeLegends = d3.select('g.sizelegends')
+                .attr('transform', `translate(${width - 200},160)`);
             const sizeLegendItemsCount = 3;
 
             const linspace = (start, stop, num, endpoint = true) => {

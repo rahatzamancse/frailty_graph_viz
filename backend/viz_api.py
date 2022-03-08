@@ -53,7 +53,6 @@ class PreprocessedVizData(NamedTuple):
 def get_blob_graph() -> PreprocessedVizData:
     """ Dependency injector for the data of the blob viz API """
 
-    print("get_bob_graph")
     # Creating no-self-loop and singly-graph variants
     G_no_selfloop = get_graph()
     # G_no_selfloop.remove_edges_from(nx.selfloop_edges(G_no_selfloop))
