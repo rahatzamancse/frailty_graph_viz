@@ -19,9 +19,9 @@ const dummyData = {
     }}
 };
 
-// const width = 900, height = 900;
-const height = 900;//document.getElementById('maingraph').clientHeight;
-const width = 900;//document.getElementById('maingraph').clientWidth;
+// These are the initially assumed height. After rendering the html, these height and width will be updated.
+let height = 900;
+let width = 900;
 
 // values for all forces
 // https://www.youtube.com/watch?v=JAe7Oscsp98
@@ -116,9 +116,6 @@ const updateForces = ({  simulation, maxDist }) => {
     }
 
 const MainGraph = ({apiUrl}) => {
-
-
-
     console.log("Module Loading");
 
     const simulation = d3.forceSimulation();
@@ -170,6 +167,7 @@ const MainGraph = ({apiUrl}) => {
     };
 
     const d3UpdateFunc = () => {
+        // This is not actually an effect, but it works like an effect as it is run after component is mounted and rendered.
         console.log("effect called");
         if (selectedNode.nodes.nodes.length === 0) { 
             setSelectedNode(dummyData);
@@ -197,6 +195,9 @@ const MainGraph = ({apiUrl}) => {
             body: JSON.stringify(selectedNode)
         }).then(response => response.json())
         .then(newSubgraph => {
+            height = Math.max(parseInt(svgRoot.style("height")), 900);
+            width = Math.max(parseInt(svgRoot.style("width")), 900);
+
             const newNodes = [];
             const newLinks = [];
             for(let i in newSubgraph.nodes) {
@@ -525,8 +526,21 @@ const MainGraph = ({apiUrl}) => {
         <main className="main-ui">
             <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} />
             <div className="mainview">
-                <div className="mainview-drawings">
-                    <svg ref={svgRef} id="maingraph" className="maingraph" height={height} width={width} >
+                <div className="mainview-drawings" style={{
+                    display: "inline-block",
+                    position: "relative",
+                    width: "100%",
+                    height: "100%",
+                    paddingBottom: "100%",
+                    verticalAlign: "top",
+                    overflow: "hidden"
+                }}>
+                    <svg ref={svgRef}  id="maingraph" className="maingraph" style={{
+                        display: "inline-block",
+                        position: "absolute",
+                        top: "0",
+                        left: "0"
+                    }}>
                         <g className="everything">
                             <g className="hullgroup"></g>
                             <g className="linkgroup"></g>

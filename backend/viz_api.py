@@ -53,10 +53,9 @@ class PreprocessedVizData(NamedTuple):
 def get_blob_graph() -> PreprocessedVizData:
     """ Dependency injector for the data of the blob viz API """
 
-    data = get_graph()
-
+    print("get_bob_graph")
     # Creating no-self-loop and singly-graph variants
-    G_no_selfloop = data.copy()
+    G_no_selfloop = get_graph()
     # G_no_selfloop.remove_edges_from(nx.selfloop_edges(G_no_selfloop))
     G_se = nx.DiGraph()
     G_se.add_nodes_from(G_no_selfloop.nodes.data())
@@ -89,17 +88,6 @@ def get_blob_graph() -> PreprocessedVizData:
     # Reverse graph: To calculate incident edges of X
     G_se_rev = G_se.reverse()
 
-    # Pre-calculating the nodes
-    nodes = []
-    for node in list(data.nodes.data()):
-        if 'label' not in node[1]:
-            node[1]['label'] = node[0]
-        nodes.append({
-            'id': node[0].strip(),
-            'label': node[1]['label'].strip(),
-            'category': categories[node[0].split(':')[0]]
-        })
-
     return PreprocessedVizData(max_freq, G_se, G_se_rev)
 
 
@@ -116,7 +104,7 @@ async def get_best_subgraph(nodes: NodesList, category_count: CategoryCount,
     {
         "nodes": {
             "nodes": [
-            "uniprot:Q92504", "uniprot:Q0CJ54"
+            "uniprot_Q92504", "uniprot_Q0CJ54"
             ]
         },
         "category_count": {
