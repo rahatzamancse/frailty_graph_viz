@@ -26,11 +26,11 @@ app.add_middleware(
 )
 
 # Deprecated
-@app.get("/viz")
-async def hack():
-    with open("frontend/build/index.html") as f:
-        contents = f.read()
-    return HTMLResponse(content=contents, status_code=200)
+# @app.get("/viz")
+# async def hack():
+#     with open("frontend/build/index.html") as f:
+#         contents = f.read()
+#     return HTMLResponse(content=contents, status_code=200)
 
 
 app.include_router(api_router)
