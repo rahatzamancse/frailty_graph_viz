@@ -1,4 +1,4 @@
-import { Typeahead, Highlighter } from 'react-bootstrap-typeahead';
+import {Typeahead, Highlighter, Token} from 'react-bootstrap-typeahead';
 import {Row, Form, Col, Button, Accordion} from "react-bootstrap";
 import {useState, Fragment, useEffect} from "react";
 import EvidencePanel from "./components/EvidencePanel";
@@ -9,10 +9,11 @@ function EntityTypeahead({ items, onChange }){
 
   return <Typeahead
             id="basic-typeahead-single"
-            labelKey={ (option) => `${option.label} ${option.id}`}
+            labelKey={ (option) => `${option.label} (id ${option.id})`}
             onChange={onChange}
             options={items}
             placeholder="Choose an entity..."
+            // multiple
             renderMenuItemChildren={
               (option, { text }, index) => {
                 return <>
@@ -31,6 +32,18 @@ function EntityTypeahead({ items, onChange }){
                 </>
               }
             }
+
+            // renderToken={
+            //     (option, { onRemove }, index) =>
+            //         <Token
+            //           key={index}
+            //           onRemove={onRemove}
+            //           option={option}>
+            //           {/*{`${option.label} (id: ${option.id})`}*/}
+            //             Test
+            //         </Token>
+            //
+            // }
         />
 }
 
