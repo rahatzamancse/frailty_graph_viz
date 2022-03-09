@@ -3,6 +3,7 @@ import {Row, Form, Col, Button, Accordion} from "react-bootstrap";
 import {useState, Fragment, useEffect} from "react";
 import EvidencePanel from "./components/EvidencePanel";
 import {fetchEntities, fetchInteractionTypes, structuredSearch} from "./utils/api";
+import { groupBy } from "./utils/utils";
 
 function EntityTypeahead({ items, onChange }){
 
@@ -43,6 +44,8 @@ export default function StructuredSearch({ apiUrl }){
     const [chosenControlled, setChosenControlled]  = useState()
     const [chosenInteraction, setChosenInteraction]  = useState()
 
+    const [groupedMatches, setGroupedMatches] = useState({});
+
 
 
     // Fetch the data after rendering
@@ -55,6 +58,32 @@ export default function StructuredSearch({ apiUrl }){
         setInteractionTypes(interactions)
     },  [])
 
+    const sortedGroups = Object.keys(groupedMatches).sort().reverse()
+
+    const accordionPanels = sortedGroups.map(
+        (group) => {
+            const elems = groupedMatches[group];
+            return (
+                <Accordion.Item eventKey={group} key={group}>
+                    <Accordion.Header>{
+                        group.split('_')
+                        .map(
+                            ([initial, ...rest]) =>
+                                [initial.toUpperCase(), ...rest].join("")).join(" ")
+                    } ({elems.length})</Accordion.Header>
+                    <Accordion.Body>
+                        <EvidencePanel
+                            apiUrl={apiUrl}
+                            items={elems}
+                        />
+                    </Accordion.Body>
+                </Accordion.Item>
+            )
+        }
+
+    )
+
+
 
     return (
         <>
@@ -65,19 +94,7 @@ export default function StructuredSearch({ apiUrl }){
                   <EntityTypeahead items={controllers} onChange={setChosenController} />
                 </Form.Group>
               </Col>
-              <Col>
-              <Form.Group>
-                <Form.Label>Interaction Type</Form.Label>
-                <Typeahead
-                  id="basic-typeahead-single"
-                  labelKey="name"
-                  onChange={setChosenInteraction}
-                  options={interactionTypes}
-                  placeholder="Choose an interaction..."
-                  // selected={singleSelections}
-                />
-              </Form.Group>
-              </Col>
+
               <Col>
               <Form.Group>
                 <Form.Label>Controlled Entity</Form.Label>
@@ -91,37 +108,18 @@ export default function StructuredSearch({ apiUrl }){
                         top: "2em"
                     }}
                     onClick={ async () => {
-                        const [_, e_matches] = await structuredSearch(apiUrl, chosenController[0].id, chosenControlled[0].id, chosenInteraction)
                         let [__, s_matches] = await structuredSearch(apiUrl, chosenController[0].id, chosenControlled[0].id)
-                        // Filter out the soft matches not containes in the exact matches
-                        const filter = new Set(e_matches.map((e) => e.markup))
-                        s_matches = s_matches.filter((s) => !filter.has(s.markup))
-                        setExactMatches(e_matches)
-                        setSoftMatches(s_matches)
+
+                        const results = groupBy(s_matches, (m) => m.event_type)
+                        setGroupedMatches(results)
+                        // setSoftMatches(s_matches)
                     }}
                 >Search</Button>
               </Col>
             </Row>
             <br />
             <Accordion defaultActiveKey="exact">
-                <Accordion.Item eventKey="exact">
-                    <Accordion.Header>Exact Matches ({exactMatches.length})</Accordion.Header>
-                    <Accordion.Body>
-                        <EvidencePanel
-                            apiUrl={apiUrl}
-                            items={exactMatches}
-                        />
-                    </Accordion.Body>
-                </Accordion.Item>
-                <Accordion.Item eventKey="soft">
-                    <Accordion.Header>Similar Matches ({softMatches.length})</Accordion.Header>
-                    <Accordion.Body>
-                        <EvidencePanel
-                            apiUrl={apiUrl}
-                            items={softMatches}
-                        />
-                    </Accordion.Body>
-                </Accordion.Item>
+                { accordionPanels }
             </Accordion>
 
         </>
