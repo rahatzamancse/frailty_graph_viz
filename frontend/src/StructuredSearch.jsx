@@ -2,7 +2,7 @@ import { Typeahead, Highlighter } from 'react-bootstrap-typeahead';
 import {Row, Form, Col, Button, Accordion} from "react-bootstrap";
 import {useState, Fragment, useEffect} from "react";
 import EvidencePanel from "./components/EvidencePanel";
-import {fetchEntities, fetchInteractionTypes, structuredSearch} from "./utils/api";
+import {fetchEntities, fetchInteractionTypes, fetchNeighbots, structuredSearch} from "./utils/api";
 import { groupBy } from "./utils/utils";
 
 function EntityTypeahead({ items, onChange }){
@@ -37,12 +37,9 @@ function EntityTypeahead({ items, onChange }){
 export default function StructuredSearch({ apiUrl }){
     const [controllers, setControllers] = useState([])
     const [controlleds, setControlleds] = useState([])
-    const [interactionTypes, setInteractionTypes] = useState([])
-    const [exactMatches, setExactMatches] = useState([])
-    const [softMatches, setSoftMatches] = useState([])
     const [chosenController, setChosenController]  = useState()
     const [chosenControlled, setChosenControlled]  = useState()
-    const [chosenInteraction, setChosenInteraction]  = useState()
+    const [allEntities, setAllEntities] = useState([]);
 
     const [groupedMatches, setGroupedMatches] = useState({});
 
@@ -50,12 +47,11 @@ export default function StructuredSearch({ apiUrl }){
 
     // Fetch the data after rendering
     useEffect(async () => {
-        const entities = await fetchEntities(apiUrl)
-        const interactions = await fetchInteractionTypes(apiUrl)
+        const entities = await fetchEntities(apiUrl);
 
-        setControllers(entities)
-        setControlleds(entities)
-        setInteractionTypes(interactions)
+        setControllers(entities);
+        setControlleds(entities);
+        setAllEntities(entities);
     },  [])
 
     const sortedGroups = Object.keys(groupedMatches).sort().reverse()
@@ -83,6 +79,26 @@ export default function StructuredSearch({ apiUrl }){
 
     )
 
+    // Helper higher-order function to restrict the choices in the reciprocal entity box to those who have recults
+    const adjustParticipants =
+        (setChosenParticipant, setReciprocals) => function(choice){
+          if(choice.length > 0) {
+              // Piggyback on this api call from the NetworkViz page
+              fetchNeighbots(apiUrl, choice[0]['id'])
+              .then((data) => {
+                  let reciprocals = JSON.parse(data);
+                  // Remove all those virtual elements that represent edges
+                  reciprocals = reciprocals.map((e) => e["data"]).filter((e) => !("source" in e));
+                  // Set the component state
+                  setChosenParticipant(choice)
+                  setReciprocals(reciprocals)
+              })
+          }
+          else{
+              setReciprocals(allEntities);
+              setChosenParticipant(null);
+          }
+      }
 
 
     return (
@@ -91,14 +107,16 @@ export default function StructuredSearch({ apiUrl }){
               <Col>
                 <Form.Group>
                   <Form.Label>Controller Entity</Form.Label>
-                  <EntityTypeahead items={controllers} onChange={setChosenController} />
+                  <EntityTypeahead items={controllers} onChange={
+                      adjustParticipants(setChosenController, setControlleds)
+                  } />
                 </Form.Group>
               </Col>
 
               <Col>
               <Form.Group>
                 <Form.Label>Controlled Entity</Form.Label>
-                <EntityTypeahead items={controlleds} onChange={setChosenControlled} />
+                <EntityTypeahead items={controlleds} onChange={adjustParticipants(setChosenControlled, setControllers)} />
               </Form.Group>
               </Col>
               <Col>
@@ -110,9 +128,8 @@ export default function StructuredSearch({ apiUrl }){
                     onClick={ async () => {
                         let [__, s_matches] = await structuredSearch(apiUrl, chosenController[0].id, chosenControlled[0].id)
 
-                        const results = groupBy(s_matches, (m) => m.event_type)
+                        const results = groupBy(s_matches, (m) => m["event_type"])
                         setGroupedMatches(results)
-                        // setSoftMatches(s_matches)
                     }}
                 >Search</Button>
               </Col>
@@ -125,8 +142,3 @@ export default function StructuredSearch({ apiUrl }){
         </>
     );
 }
-
-const entities = [
-  { label: 'IL-6', id: "uniprot:1000", type:"Gene product" },
-  { label: 'IL-7', id: "uniprot:1001", type:"Disease" },
-];
