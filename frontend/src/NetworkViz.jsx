@@ -110,11 +110,6 @@ export default function NetworkViz({ apiUrl }){
 
 	const query = useQuery();
 
-	// Define a function to update the weight values on the state AND save them to local storage
-	function saveAndSetWeightValues(newWeightValues){
-		localStorage.setItem('networkWeightValues', JSON.stringify(newWeightValues));
-		setWeightCoefficients(newWeightValues);
-	}
 
 	const  pattern = /^.+ \(([^\(\)]+)\)$/
 	let source = query.get("src")
@@ -254,24 +249,13 @@ export default function NetworkViz({ apiUrl }){
 		<>
 			{isLoading && <Spinner animation="border" variant="danger" className='loading'/>}
 			<WeightPanel 
-				sliderValues={weightCoefficients}
-				setSliderValues={saveAndSetWeightValues}
-				footer={
-					<Row>
-						<Col style={{textAlign: "center"}}>
-							<Button 
-							 onClick={
-								 () => {
-									 
-									saveCoefficients(apiUrl, window.location.search, weightCoefficients)
-								 }
-							 }>Record weights</Button>
-						</Col>
-					</Row>
-				}
+				updateWeightValues={setWeightCoefficients}
+				useButton={true}
+				buttonText={"Record weights"}
+				btnCallback={(values) => {
+					saveCoefficients(apiUrl, window.location.search, values);
+				}}
 			/>
-			{/* <Row>
-				<Col> */}
 				<CytoscapeComponent 
 					style={{
 						height:"90vh",

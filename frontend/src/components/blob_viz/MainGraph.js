@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import * as d3 from "d3";
 import smoothHull from '../../utils/convexHull';
 
-import { Collapse } from 'react-bootstrap';
+import { Col, Collapse, Row } from 'react-bootstrap';
 import { Button } from 'react-bootstrap';
 
 
 import "../styles/MainGraph.scss";
 import EntityAutoComplete from './entityAutoComplete';
+import WeightPanel from '../weight/WeightPanel';
 
 const dummyData = {
     'nodes': { nodes: ["uniprot_P05231"] },
@@ -120,7 +121,8 @@ const updateForces = ({ simulation, maxDist }) => {
     simulation.alpha(1).alphaMin(-1).restart();
 }
 
-const MainGraph = ({ apiUrl }) => {
+// @ts-ignore
+const MainGraph = React.memo(({ apiUrl }) => {
     console.log("Module Loading");
 
     const simulation = d3.forceSimulation();
@@ -543,44 +545,52 @@ const MainGraph = ({ apiUrl }) => {
 
     // React.useEffect(d3UpdateFunc);
 
+    const weightUpdated = (weights) => {
+        console.table(weights);
+    }
+
     return (
-        <main className="main-ui">
-            <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} />
-            <div className="mainview">
-                <div className="mainview-drawings" style={{
-                    display: "inline-block",
-                    position: "relative",
-                    width: "100%",
-                    height: "100%",
-                    paddingBottom: "50%",
-                    verticalAlign: "top",
-                    overflow: "hidden"
-                }}>
-                    <svg ref={svgRef} id="maingraph" className="maingraph" style={{
+        <>
+            <WeightPanel
+                updateWeightValues={weightUpdated}
+                useButton={false}
+                buttonText={"Update Weight"}
+			/>
+            <main className="main-ui">
+                <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} />
+                <div className="mainview">
+                    <div className="mainview-drawings" style={{
                         display: "inline-block",
-                        position: "absolute",
-                        top: "0",
-                        left: "0"
+                        position: "relative",
+                        width: "100%",
+                        height: "100%",
+                        paddingBottom: "50%",
+                        verticalAlign: "top",
+                        overflow: "hidden"
                     }}>
-                        <g className="everything">
-                            <g className="hullgroup"></g>
-                            <g className="linkgroup"></g>
-                            <g className="nodegroup"></g>
-                        </g>
-                        <g className="legendgroup">
-                            <g className="categorylegends" transform={`translate(${width - 200},25)`}></g>
-                            <g className="sizelegends" transform={`translate(${width - 200},160)`}></g>
-                        </g>
-                    </svg>
+                        <svg ref={svgRef} id="maingraph" className="maingraph" style={{
+                            display: "inline-block",
+                            position: "absolute",
+                            top: "0",
+                            left: "0"
+                        }}>
+                            <g className="everything">
+                                <g className="hullgroup"></g>
+                                <g className="linkgroup"></g>
+                                <g className="nodegroup"></g>
+                            </g>
+                            <g className="legendgroup">
+                                <g className="categorylegends" transform={`translate(${width - 200},25)`}></g>
+                                <g className="sizelegends" transform={`translate(${width - 200},160)`}></g>
+                            </g>
+                        </svg>
+                    </div>
                 </div>
-            </div>
-        </main>
+            </main>
+        </>
     )
+})
 
-
-}
-
-// TODO: Rahat, I am drilling the props here. Perhaps you can refactor better according to your vision for this component
 function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions }) {
     const [entityOpen, setEntityOpen] = useState(false);
     const [visualOpen, setVisualOpen] = useState(false);
