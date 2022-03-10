@@ -552,7 +552,7 @@ const MainGraph = ({ apiUrl }) => {
                     position: "relative",
                     width: "100%",
                     height: "100%",
-                    paddingBottom: "100%",
+                    paddingBottom: "50%",
                     verticalAlign: "top",
                     overflow: "hidden"
                 }}>
