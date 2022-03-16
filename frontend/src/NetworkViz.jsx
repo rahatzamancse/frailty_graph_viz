@@ -137,8 +137,7 @@ export default function NetworkViz({ apiUrl }){
 	useEffect(() => {
 		// Initial fetch of the data
 		getInteraction(apiUrl, source, destination, bidirectional).then(
-			json => {
-				const elements = JSON.parse(json);
+			elements => {
 				setElements(elements);
 				setIsLoading(false);
 			}
@@ -199,8 +198,7 @@ export default function NetworkViz({ apiUrl }){
             if(!(node in expandedNodes)) {
                 setIsLoading(true);
                 fetchNeighbots(apiUrl, node).then(
-					data => {
-						let elements = JSON.parse(data)
+					elements => {
 						cyRef.current.add(elements)
 						expandedNodes[node] = elements
 						setSpacingFactor(0);

@@ -152,4 +152,4 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
     # cluster_edges.sort(key=lambda e: e['data']['freq'])
     # Add the edges to the result
     final += (edges + cluster_edges)
-    return json.dumps(final)
+    return final
