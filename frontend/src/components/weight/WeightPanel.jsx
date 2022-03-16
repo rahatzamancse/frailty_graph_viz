@@ -1,6 +1,6 @@
 import SliderComponent from './SliderComponent';
 import LatexFormula from './LatexFormula';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import "./WeightPanel.css";
 import { Button, Col, Row } from 'react-bootstrap';
 
@@ -19,7 +19,7 @@ const getLocalStorageOrDefaultValues = () => {
 	};
 }
 
-export default function WeightPanel({ updateWeightValues, useButton = false, buttonText = "Record weights", btnCallback = (values) => {}}) {
+export default function WeightPanel({ updateWeightValues, useButton = false, buttonText = "Record weights", btnCallback = (values) => {}, initialUpdateCall=false }) {
 	const [isExpanded, setExpanded] = useState(false);
 	const [sliderValues, setSliderValues] = useState(getLocalStorageOrDefaultValues());
 
@@ -35,6 +35,12 @@ export default function WeightPanel({ updateWeightValues, useButton = false, but
 		newValues[name] = parseFloat(value);
 		saveAndSetWeightValues(newValues);
 	}
+
+	useEffect(() => {
+		if(initialUpdateCall) {
+			updateWeightValues(sliderValues);
+		}
+	})
 
 	return (
 		<div className='weight_panel'>

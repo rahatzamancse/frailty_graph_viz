@@ -11,7 +11,7 @@ import EntityAutoComplete from './entityAutoComplete';
 import WeightPanel from '../weight/WeightPanel';
 
 const dummyData = {
-    'nodes': { nodes: ["uniprot_P05231"] },
+    'nodes': { nodes: ["uniprot:P05231"] },
     category_count: {
         categorycount: {
             "1": 5,
@@ -143,7 +143,6 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
     let maxDist = 100;
 
-
     const svgRef = React.useRef();
     // const [selectedNode, setSelectedNode] = React.useState(dummyData);
     let selectedNode = dummyData;
@@ -172,6 +171,43 @@ const MainGraph = React.memo(({ apiUrl }) => {
     const subgraph = {
         nodes: [], links: []
     };
+
+    const nodeRadiusScale = d3.scaleLinear().range([1, 10]);
+    const nodeWeightParams = {}
+    const weightUpdated = () => {
+        if(Object.keys(nodeWeightParams).length === 0) return;
+        fetch(`${apiUrl}/noderadius`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                nodes: {
+                    nodes: subgraph.nodes.map(d => d.id)
+                },
+                weights: {
+                    weights: nodeWeightParams
+                }
+            })
+        }).then(response => response.json())
+        .then(nodeWeights => {
+            nodeRadiusScale.domain([
+                Math.min(...Object.values(nodeWeights)),
+                Math.max(...Object.values(nodeWeights))
+            ]);
+            for(let i = 0; i<subgraph.nodes.length; i++) {
+                subgraph.nodes[i]['weight_radius'] = nodeRadiusScale(
+                    +nodeWeights[subgraph.nodes[i].id]
+                );
+            }
+            console.log(subgraph);
+        });
+    }
+    const weightChanged = (weight) => {
+        Object.assign(nodeWeightParams, weight);
+        weightUpdated();
+    }
+
 
     const d3UpdateFunc = () => {
         // This is not actually an effect, but it works like an effect as it is run after component is mounted and rendered.
@@ -239,6 +275,8 @@ const MainGraph = React.memo(({ apiUrl }) => {
                 subgraph.nodes = newNodes;
                 subgraph.links = newLinks;
 
+                weightUpdated();
+
                 const link = svgLinkGroup
                     .selectAll('g.line')
                     .data(subgraph.links, d => d.source + d.target)
@@ -287,12 +325,6 @@ const MainGraph = React.memo(({ apiUrl }) => {
                         exit => exit.remove()
                     );
 
-                const nodeRadiusRange = [
-                    Math.min(...subgraph.nodes.map(node => node.degree)),
-                    Math.max(...subgraph.nodes.map(node => node.degree))
-                ]
-                const circleScale = d3.scaleLinear().domain(nodeRadiusRange).range([1, 10]);
-
                 const categoryNodeColors = {
                     3: "#8a2a44",
                     4: "#10712b",
@@ -321,7 +353,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
 
                             nodeGroup.append("circle")
-                                .attr('r', d => circleScale(d.degree))
+                                .attr('r', d => nodeRadiusScale(d.weight_radius))
                                 .attr('stroke', d => categoryNodeColors[d.category])
                                 .on('mouseover', (e) => {
                                     const circle = d3.select(e.target).classed('hovered', true);
@@ -487,10 +519,10 @@ const MainGraph = React.memo(({ apiUrl }) => {
                     return Array.from({ length: num }, (_, i) => start + step * i);
                 }
 
-                const legendSizeData = Array.from(linspace(nodeRadiusRange[0], nodeRadiusRange[1], sizeLegendItemsCount), (d, i) => ({
+                const legendSizeData = Array.from(linspace(nodeRadiusScale.domain()[0], nodeRadiusScale.domain()[1], sizeLegendItemsCount), (d, i) => ({
                     id: i, value: d
                 }))
-                const legendMaxCircleSize = circleScale(nodeRadiusRange[1]);
+                const legendMaxCircleSize = nodeRadiusScale.range()[1];
 
                 svgSizeLegends.selectAll('circle')
                     .data(legendSizeData, d => d.id)
@@ -498,11 +530,11 @@ const MainGraph = React.memo(({ apiUrl }) => {
                         .append('circle')
                         .attr('cx', 0)
                         .attr('cy', (d, i) => i * (legendMaxCircleSize * 2))
-                        .attr('r', d => circleScale(d.value))
+                        .attr('r', d => nodeRadiusScale(d.value))
                         .style('fill', d => "lightblue"),
                         update => update
                             .attr('cy', (d, i) => i * (legendMaxCircleSize * 2))
-                            .attr('r', d => circleScale(d.value)),
+                            .attr('r', d => nodeRadiusScale(d.value)),
                         exit => exit.remove()
                     );
 
@@ -526,7 +558,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
             svg.attr('transform', e.transform)
             // @ts-ignore
         })(svgRoot);
-
+    
 
         return cleanUp;
     }
@@ -545,16 +577,14 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
     // React.useEffect(d3UpdateFunc);
 
-    const weightUpdated = (weights) => {
-        console.table(weights);
-    }
 
     return (
         <>
             <WeightPanel
-                updateWeightValues={weightUpdated}
+                updateWeightValues={weightChanged}
                 useButton={false}
                 buttonText={"Update Weight"}
+                initialUpdateCall={true}
 			/>
             <main className="main-ui">
                 <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} />

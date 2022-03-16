@@ -2,17 +2,20 @@ from functools import lru_cache
 from typing import NamedTuple
 
 from fastapi import APIRouter, Depends
-from networkx import DiGraph
 
 import difflib
 
 import networkx as nx
 
+from networkx import MultiDiGraph, DiGraph
+from backend.utils import calculateWeight, convert2cytoscapeJSON, get_global_edge_data
+import itertools
+
 # Data loading and preprocessing
-from .dependencies import get_graph
+from .dependencies import get_graph, get_significance
 
 # Auxiliary data and data structures
-from .models import CategoryCount, NodesList
+from .models import CategoryCount, NodesList, Weights
 
 categories = {
     "uniprot": "Proteins or Gene Products",
@@ -36,7 +39,7 @@ category_encoding_rev = {v: k for k, v in category_encoding.items()}
 
 
 def get_category_name_from_id(node_id):
-    return categories[node_id.split('_')[0]]
+    return categories[node_id.split(':')[0]]
 
 
 def get_category_number_from_id(node_id):
@@ -71,19 +74,6 @@ def get_blob_graph() -> PreprocessedVizData:
 
     max_freq = max([d[2]['freq'] for d in G_se.edges.data()])
 
-    chars = {
-        ':': '_',
-        '-': '_'
-    }
-    mapping = {}
-    for node in G_se.nodes:
-        new_node = node
-        for k, v in chars.items():
-            if k in new_node:
-                new_node = v.join(node.split(k))
-                mapping[node] = new_node
-
-    G_se = nx.relabel_nodes(G_se, mapping)
     # Reverse graph: To calculate incident edges of X
     G_se_rev = G_se.reverse()
 
@@ -103,7 +93,7 @@ async def get_best_subgraph(nodes: NodesList, category_count: CategoryCount,
     {
         "nodes": {
             "nodes": [
-            "uniprot_Q92504", "uniprot_Q0CJ54"
+            "uniprot:Q92504", "uniprot:Q0CJ54"
             ]
         },
         "category_count": {
@@ -211,3 +201,62 @@ async def search_node(node_text: str, n: int, data: PreprocessedVizData = Depend
     return {
         "matches": ret
     }
+
+def interaction(source, destination, bidirectional: bool, graph: MultiDiGraph = get_graph(),
+                      significance=get_significance()):
+    # Find the shortest path between source and destination
+    path = nx.shortest_path(graph, source, destination)
+    valid_edges = set(zip(path, path[1:]))
+    subgraph = graph.subgraph(path)
+
+    edges = list(
+        sorted((e for e in subgraph.edges if bidirectional or (e[0], e[1]) in valid_edges), key=lambda e: (e[0], e[1])))
+    grouped_edges = itertools.groupby(edges, key=lambda e: (e[0], e[1]))
+
+    discarded = set()
+
+    for group, subset in grouped_edges:
+        subset = list(subset)
+        subset.sort(key=lambda e: sum(v for k, v in subgraph.get_edge_data(*e).items() if k == 'freq'), reverse=True)
+
+    # Add the significance data here
+    new_edges = list()
+    for e in edges:
+        if e not in discarded:
+            x = (*e, dict(**subgraph.get_edge_data(*e), **get_global_edge_data(e, graph, significance)))
+            new_edges.append(x)
+    # new_edges = [(*e, dict(**subgraph.get_edge_data(*e), **get_global_edge_data(e))) for e in subgraph.edges if e in edges and e not in discarded]
+
+    new_g = nx.MultiDiGraph()
+    # new_g.add_nodes_from(set(it.chain.from_iterable((e[0], e[1]) for e in new_edges)))
+    new_nodes = list()
+
+    for e in new_edges:
+        new_nodes.append((e[0], subgraph.nodes[e[0]]))
+        new_nodes.append((e[1], subgraph.nodes[e[1]]))
+    # new_nodes = set(it.chain.from_iterable((n, subgraph.nodes[n]) for n in e for e in new_edges))
+    new_g.add_nodes_from(list(new_nodes))
+    new_g.add_edges_from(new_edges)
+
+    new_g.remove_edges_from(discarded)
+
+    return new_g
+
+
+@api_router.post("/noderadius")
+async def node_radius(nodes: NodesList, weights: Weights, data: PreprocessedVizData = Depends(get_blob_graph)):
+    nodes = nodes.nodes
+    weights = weights.weights
+    _, G_se, _ = data
+    subgraph = G_se.subgraph(nodes)
+
+    node_weights = {node:0 for node in nodes}
+
+    for edge in subgraph.edges(data=True):
+        edge_interactions = interaction(edge[0], edge[1], True)
+
+        calculatedWeights = sum([calculateWeight(edge[2], weights) for edge in edge_interactions.edges(data=True)])
+        node_weights[edge[0]] += calculatedWeights
+        node_weights[edge[1]] += calculatedWeights
+
+    return node_weights
