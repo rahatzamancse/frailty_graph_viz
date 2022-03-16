@@ -44,3 +44,6 @@ class CategoryCount(BaseModel):
 
 class NodesList(BaseModel):
     nodes: list[str]
+
+class Weights(BaseModel):
+    weights: dict[str, float]
