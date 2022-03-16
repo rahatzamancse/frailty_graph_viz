@@ -87,11 +87,6 @@ export default function Overview({apiUrl, entityId, entityName}){
 		pValue: 1,
 	});
 
-	// Define a function to update the weight values on the state AND save them to local storage
-	function saveAndSetWeightValues(newWeightValues){
-		localStorage.setItem('overviewWeightValues', JSON.stringify(newWeightValues));
-		setWeightValues(newWeightValues);
-	}
 
 	// Side effect to load the weight values from local storage
 	useEffect(() => {
@@ -189,7 +184,7 @@ export default function Overview({apiUrl, entityId, entityName}){
 				</Row>
 			</Form>
 			<br />
-			<WeightPanel sliderValues={weightValues} setSliderValues={saveAndSetWeightValues} />
+			<WeightPanel updateWeightValues={setWeightValues} />
 			<br />
 			<Container fluid>
 				<Row>

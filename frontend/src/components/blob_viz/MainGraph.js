@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import * as d3 from "d3";
 import smoothHull from '../../utils/convexHull';
 
-import { Collapse } from 'react-bootstrap';
+import { Col, Collapse, Row } from 'react-bootstrap';
 import { Button } from 'react-bootstrap';
 
 
 import "../styles/MainGraph.scss";
 import EntityAutoComplete from './entityAutoComplete';
+import WeightPanel from '../weight/WeightPanel';
 
 const dummyData = {
-    'nodes': { nodes: ["uniprot_P05231"] },
+    'nodes': { nodes: ["uniprot:P05231"] },
     category_count: {
         categorycount: {
             "1": 5,
@@ -120,7 +121,8 @@ const updateForces = ({ simulation, maxDist }) => {
     simulation.alpha(1).alphaMin(-1).restart();
 }
 
-const MainGraph = ({ apiUrl }) => {
+// @ts-ignore
+const MainGraph = React.memo(({ apiUrl }) => {
     console.log("Module Loading");
 
     const simulation = d3.forceSimulation();
@@ -140,7 +142,6 @@ const MainGraph = ({ apiUrl }) => {
 
 
     let maxDist = 100;
-
 
     const svgRef = React.useRef();
     // const [selectedNode, setSelectedNode] = React.useState(dummyData);
@@ -170,6 +171,43 @@ const MainGraph = ({ apiUrl }) => {
     const subgraph = {
         nodes: [], links: []
     };
+
+    const nodeRadiusScale = d3.scaleLinear().range([1, 10]);
+    const nodeWeightParams = {}
+    const weightUpdated = () => {
+        if(Object.keys(nodeWeightParams).length === 0) return;
+        fetch(`${apiUrl}/noderadius`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                nodes: {
+                    nodes: subgraph.nodes.map(d => d.id)
+                },
+                weights: {
+                    weights: nodeWeightParams
+                }
+            })
+        }).then(response => response.json())
+        .then(nodeWeights => {
+            nodeRadiusScale.domain([
+                Math.min(...Object.values(nodeWeights)),
+                Math.max(...Object.values(nodeWeights))
+            ]);
+            for(let i = 0; i<subgraph.nodes.length; i++) {
+                subgraph.nodes[i]['weight_radius'] = nodeRadiusScale(
+                    +nodeWeights[subgraph.nodes[i].id]
+                );
+            }
+            console.log(subgraph);
+        });
+    }
+    const weightChanged = (weight) => {
+        Object.assign(nodeWeightParams, weight);
+        weightUpdated();
+    }
+
 
     const d3UpdateFunc = () => {
         // This is not actually an effect, but it works like an effect as it is run after component is mounted and rendered.
@@ -237,6 +275,8 @@ const MainGraph = ({ apiUrl }) => {
                 subgraph.nodes = newNodes;
                 subgraph.links = newLinks;
 
+                weightUpdated();
+
                 const link = svgLinkGroup
                     .selectAll('g.line')
                     .data(subgraph.links, d => d.source + d.target)
@@ -285,12 +325,6 @@ const MainGraph = ({ apiUrl }) => {
                         exit => exit.remove()
                     );
 
-                const nodeRadiusRange = [
-                    Math.min(...subgraph.nodes.map(node => node.degree)),
-                    Math.max(...subgraph.nodes.map(node => node.degree))
-                ]
-                const circleScale = d3.scaleLinear().domain(nodeRadiusRange).range([1, 10]);
-
                 const categoryNodeColors = {
                     3: "#8a2a44",
                     4: "#10712b",
@@ -319,7 +353,7 @@ const MainGraph = ({ apiUrl }) => {
 
 
                             nodeGroup.append("circle")
-                                .attr('r', d => circleScale(d.degree))
+                                .attr('r', d => nodeRadiusScale(d.weight_radius))
                                 .attr('stroke', d => categoryNodeColors[d.category])
                                 .on('mouseover', (e) => {
                                     const circle = d3.select(e.target).classed('hovered', true);
@@ -485,10 +519,10 @@ const MainGraph = ({ apiUrl }) => {
                     return Array.from({ length: num }, (_, i) => start + step * i);
                 }
 
-                const legendSizeData = Array.from(linspace(nodeRadiusRange[0], nodeRadiusRange[1], sizeLegendItemsCount), (d, i) => ({
+                const legendSizeData = Array.from(linspace(nodeRadiusScale.domain()[0], nodeRadiusScale.domain()[1], sizeLegendItemsCount), (d, i) => ({
                     id: i, value: d
                 }))
-                const legendMaxCircleSize = circleScale(nodeRadiusRange[1]);
+                const legendMaxCircleSize = nodeRadiusScale.range()[1];
 
                 svgSizeLegends.selectAll('circle')
                     .data(legendSizeData, d => d.id)
@@ -496,11 +530,11 @@ const MainGraph = ({ apiUrl }) => {
                         .append('circle')
                         .attr('cx', 0)
                         .attr('cy', (d, i) => i * (legendMaxCircleSize * 2))
-                        .attr('r', d => circleScale(d.value))
+                        .attr('r', d => nodeRadiusScale(d.value))
                         .style('fill', d => "lightblue"),
                         update => update
                             .attr('cy', (d, i) => i * (legendMaxCircleSize * 2))
-                            .attr('r', d => circleScale(d.value)),
+                            .attr('r', d => nodeRadiusScale(d.value)),
                         exit => exit.remove()
                     );
 
@@ -524,7 +558,7 @@ const MainGraph = ({ apiUrl }) => {
             svg.attr('transform', e.transform)
             // @ts-ignore
         })(svgRoot);
-
+    
 
         return cleanUp;
     }
@@ -543,44 +577,50 @@ const MainGraph = ({ apiUrl }) => {
 
     // React.useEffect(d3UpdateFunc);
 
+
     return (
-        <main className="main-ui">
-            <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} />
-            <div className="mainview">
-                <div className="mainview-drawings" style={{
-                    display: "inline-block",
-                    position: "relative",
-                    width: "100%",
-                    height: "100%",
-                    paddingBottom: "50%",
-                    verticalAlign: "top",
-                    overflow: "hidden"
-                }}>
-                    <svg ref={svgRef} id="maingraph" className="maingraph" style={{
+        <>
+            <WeightPanel
+                updateWeightValues={weightChanged}
+                useButton={false}
+                buttonText={"Update Weight"}
+                initialUpdateCall={true}
+			/>
+            <main className="main-ui">
+                <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} />
+                <div className="mainview">
+                    <div className="mainview-drawings" style={{
                         display: "inline-block",
-                        position: "absolute",
-                        top: "0",
-                        left: "0"
+                        position: "relative",
+                        width: "100%",
+                        height: "100%",
+                        paddingBottom: "50%",
+                        verticalAlign: "top",
+                        overflow: "hidden"
                     }}>
-                        <g className="everything">
-                            <g className="hullgroup"></g>
-                            <g className="linkgroup"></g>
-                            <g className="nodegroup"></g>
-                        </g>
-                        <g className="legendgroup">
-                            <g className="categorylegends" transform={`translate(${width - 200},25)`}></g>
-                            <g className="sizelegends" transform={`translate(${width - 200},160)`}></g>
-                        </g>
-                    </svg>
+                        <svg ref={svgRef} id="maingraph" className="maingraph" style={{
+                            display: "inline-block",
+                            position: "absolute",
+                            top: "0",
+                            left: "0"
+                        }}>
+                            <g className="everything">
+                                <g className="hullgroup"></g>
+                                <g className="linkgroup"></g>
+                                <g className="nodegroup"></g>
+                            </g>
+                            <g className="legendgroup">
+                                <g className="categorylegends" transform={`translate(${width - 200},25)`}></g>
+                                <g className="sizelegends" transform={`translate(${width - 200},160)`}></g>
+                            </g>
+                        </svg>
+                    </div>
                 </div>
-            </div>
-        </main>
+            </main>
+        </>
     )
+})
 
-
-}
-
-// TODO: Rahat, I am drilling the props here. Perhaps you can refactor better according to your vision for this component
 function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions }) {
     const [entityOpen, setEntityOpen] = useState(false);
     const [visualOpen, setVisualOpen] = useState(false);

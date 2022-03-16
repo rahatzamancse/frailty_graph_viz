@@ -4,13 +4,13 @@ import Column from "./Column";
 
 
 const suggestionDummyNode = {
-    "id": "uniprot_P31944",
-    "label": "uniprot_P31944",
+    "id": "uniprot:P31944",
+    "label": "uniprot:P31944",
     "category": 1
 }
 const dummyNode = {
-    "id": "uniprot_P05231",
-    "label": "Interleukin_6",
+    "id": "uniprot:P05231",
+    "label": "Interleukin-6",
     "category": 1
 }
 

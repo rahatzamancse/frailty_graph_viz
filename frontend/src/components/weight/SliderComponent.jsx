@@ -1,7 +1,10 @@
 import RangeSlider from 'react-bootstrap-range-slider';
 import { Form, Row, Col } from 'react-bootstrap';
+import { useState } from 'react';
 
 export default function SliderComponent({label, value, max, granularity, onChange}) {
+
+	const [currentValue, setCurrentValue] = useState(value);
 
 	if(!max)
 		max = 10;
@@ -17,22 +20,27 @@ export default function SliderComponent({label, value, max, granularity, onChang
 				</Col>
 				<Col xs={9}>
 					<RangeSlider 
-						value={value}
+						value={currentValue}
 						min={1}
 						max={max}
 						step={granularity}
 						tooltip='off'
-						onChange={e => {
+						onChange={e => setCurrentValue(e.target.value)}
+						onAfterChange={e => {
 							if(onChange)
-								onChange(e.target.value);
-							}}
+								onChange(currentValue);
+							}
+						}
 					/>
 				</Col>
 				<Col xs={1}>
-					<Form.Control type="number" value={value} onChange={e => {
-						if(onChange)
-							onChange(e.target.value);
-					}}/>
+					<Form.Control type="number" value={currentValue}
+						onChange={e => {
+							setCurrentValue(e.target.value);
+							if(onChange)
+								onChange(e.target.value);
+						}}
+					/>
 				</Col>
 			</Form.Group>
 		</Form>
