@@ -10,7 +10,8 @@ import networkx as nx
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
-from backend.cli_parser import args
+# from backend.cli_parser import args
+from .config import Settings
 from evidence_index.client import EvidenceIndexClient
 from .models import EvidenceItem
 from backend.rankings import ImpactFactors
@@ -20,14 +21,19 @@ from .utils import get_git_revision_hash, md5_hash
 
 logger = logging.getLogger("frailty-viz-dependencies")
 
-engine = construct_engine(Path(args.records_db))
-models.Base.metadata.create_all(bind=engine)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
 # Dependencies
+@lru_cache()
+def get_cli_args():
+    return Settings()
+
+@lru_cache()
+def _build_db_session_class():
+    engine = construct_engine(Path(get_cli_args().records_db))
+    models.Base.metadata.create_all(bind=engine)
+    return sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 def get_db():
-    db = SessionLocal()
+    db = _build_db_session_class()
     try:
         yield db
     finally:
@@ -36,7 +42,7 @@ def get_db():
 
 @lru_cache()
 def get_es_client():
-    return EvidenceIndexClient(args.es_index)
+    return EvidenceIndexClient(get_cli_args().es_index)
 
 
 @lru_cache()
@@ -48,24 +54,20 @@ def get_commit_hash():
 
 @lru_cache()
 def get_graph_hash():
-    graph_hash = md5_hash(args.graph_file)
+    graph_hash = md5_hash(get_cli_args().graph_file)
     return graph_hash
 
 
 @lru_cache()
 def get_rankings_hash():
-    rankings_hash = md5_hash(args.impact_factors)
+    rankings_hash = md5_hash(get_cli_args().impact_factors)
     return rankings_hash
 
 
 @lru_cache()
 def get_impact_factors():
-    impacts = ImpactFactors(Path(args.impact_factors))
+    impacts = ImpactFactors(Path(get_cli_args().impact_factors))
     return impacts
-
-
-def get_cli_args():
-    return args
 
 
 @lru_cache()
@@ -84,7 +86,7 @@ def read_graph_and_significance():
         return polarity
 
     print("Loading data ...")
-    with open(args.graph_file, 'rb') as f:
+    with open(get_cli_args().graph_file, 'rb') as f:
         data = pickle.load(f)
 
     graph = data['graph']

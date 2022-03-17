@@ -7,10 +7,11 @@ from fastapi import APIRouter, Depends
 from networkx import MultiDiGraph
 from sqlalchemy.orm import Session
 
-from backend.utils import convert2cytoscapeJSON, get_global_edge_data
+from .utils import convert2cytoscapeJSON, get_global_edge_data
 from evidence_index import Evidence
 from evidence_index.client import EvidenceIndexClient
 from . import models as md
+from .config import Settings
 from .sql_app import schemas, crud
 from .sql_app.schemas import RecordCreate, RecordMetadataCreate
 import itertools as it
@@ -71,13 +72,13 @@ def record_weights(data: md.UserRecord, db: Session = Depends(get_db),
                    commit_hash: str = Depends(get_commit_hash),
                    graph_hash: str = Depends(get_graph_hash),
                    rankings_hash: str = Depends(get_rankings_hash),
-                   args: Namespace = Depends(get_cli_args)):
+                   settings: Settings = Depends(get_cli_args)):
     metadata = RecordMetadataCreate(
         commit=commit_hash,
         query_str=data.query_str,
-        graph_name=args.graph_file,
+        graph_name=settings.graph_file,
         graph_hash=graph_hash,
-        rankings_name=args.impact_factors,
+        rankings_name=settings.impact_factors,
         rankings_hash=rankings_hash
     )
 
