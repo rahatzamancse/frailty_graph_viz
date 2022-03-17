@@ -98,8 +98,7 @@ export default function StructuredSearch({ apiUrl }){
           if(choice.length > 0) {
               // Piggyback on this api call from the NetworkViz page
               fetchNeighbots(apiUrl, choice[0]['id'])
-              .then((data) => {
-                  let reciprocals = JSON.parse(data);
+              .then((reciprocals) => {
                   // Remove all those virtual elements that represent edges
                   reciprocals = reciprocals.map((e) => e["data"]).filter((e) => !("source" in e));
                   // Set the component state
