@@ -8,13 +8,14 @@ import pickle
 import re
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import NamedTuple, Set, Optional, Mapping, Any, List
+from typing import NamedTuple, Set, Optional, Mapping
 
 import networkx as nx
 import plac as plac
 from tqdm import tqdm
 
 # Function definitions
+from backend.network import SignificanceRow
 from rankings import ImpactFactors
 
 
@@ -178,12 +179,6 @@ class EdgeKey(NamedTuple):
     label: str
 
 
-class SignificanceRow(NamedTuple):
-    """ Represents the elements of a significance extration """
-    type_: str
-    value: str
-
-
 pmcid_pattern = re.compile(r"^PMC[1-9]\d{0,6}$", re.IGNORECASE)
 
 
@@ -211,10 +206,9 @@ def resolve_document(seen_in: str, bibilography: Mapping[str, XDDMetaData], doi2
 def main(output_file:Path,
          index_factors_path: Optional[Path],
          bibliography_path: Optional[Path],
-         uniprot_path=Path('data/uniprot_sprot.fasta'),
-         pmcid_map_path=Path('data/PMC-ids.csv'),
+         uniprot_path=Path('../data/uniprot_sprot.fasta'),
+         pmcid_map_path=Path('../data/PMC-ids.csv'),
          *input_files_dirs
-         # =['/home/enrique/data/arizona_associations_markup/', '/media/evo870/data/xDD_extractions/arizona_files/']
          ):
     """
     Reads

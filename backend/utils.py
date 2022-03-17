@@ -1,14 +1,13 @@
 """ Utility functions for the backend """
 import hashlib
 import itertools as it
-import json
 import logging
 import os
 import subprocess
 from typing import List
 import math
 
-from build_network import SignificanceRow
+from backend.network import SignificanceRow
 
 logger = logging.getLogger("frailty_viz_utils")
 

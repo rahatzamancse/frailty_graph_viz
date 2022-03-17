@@ -13,7 +13,6 @@ import plac
 
 from evidence_index import Evidence
 
-from build_network import SignificanceRow
 
 class EvidenceParser(HTMLParser):
     """ Use this class to strip markup and get the attributes of the tags as properties of the instance """

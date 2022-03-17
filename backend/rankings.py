@@ -49,7 +49,8 @@ class ImpactFactors:
 @plac.pos('pmc_file_list', help='Path to the FTP service file list', type=Path)
 @plac.pos('rankings_file', help='CSV file with the rankings and impact factor data', type=Path)
 @plac.pos('output_pickle', help='Output path for the pickle with the resulsts', type=Path)
-def main(pmc_file_list:Path = Path('data', 'oa_file_list.csv'), rankings_file = Path('data', 'scimagojr 2020.csv'), output_pickle = Path('data', "journal_rankings.pickle")):
+def main(pmc_file_list:Path = Path('../data', 'oa_file_list.csv'), rankings_file = Path('../data', 'scimagojr 2020.csv'), output_pickle = Path(
+    '../data', "journal_rankings.pickle")):
     """ Builds the data structures with the impact factor information """
 
 
