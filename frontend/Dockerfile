@@ -1,3 +1,4 @@
+# Build step #1: build the React front end
 FROM node:lts-alpine as build-step
 WORKDIR /app
 ENV PATH /app/node_modules/.bin:$PATH
@@ -11,5 +12,4 @@ RUN npm run build
 FROM caddy:alpine
 EXPOSE 80
 EXPOSE 443
-EXPOSE 1601
 COPY --from=build-step /app/build /usr/share/caddy
