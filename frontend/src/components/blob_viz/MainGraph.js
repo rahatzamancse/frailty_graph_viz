@@ -183,7 +183,17 @@ const MainGraph = React.memo(({ apiUrl }) => {
         });
     };
 
-    const nodeRadiusScale = d3.scaleLog().range([1, 30]);
+    const nodeRadiusScale = {
+        'linear': d3.scaleLinear().range([1, 30]),
+        'log': d3.scaleLog().range([1, 30])
+    }
+    let selectedNodeRadiusScale = 'linear';
+
+    const nodeRadiusScaleChanged = (val) => {
+        selectedNodeRadiusScale = val;
+        d3UpdateFunc();
+    }
+
     const nodeWeightParams = {
         frequency: 1,
         hasSignificance: 1,
@@ -211,7 +221,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
             })
         });
         const nodeWeights = await nodeWeightsResponse.json();
-        nodeRadiusScale.domain([
+        nodeRadiusScale[selectedNodeRadiusScale].domain([
             Math.min(...Object.values(nodeWeights)),
             Math.max(...Object.values(nodeWeights))
         ]);
@@ -315,7 +325,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
         const nodeWeights = await nodeWeightsResponse.json();
 
-        nodeRadiusScale.domain([
+        nodeRadiusScale[selectedNodeRadiusScale].domain([
             Math.min(...Object.values(nodeWeights)),
             Math.max(...Object.values(nodeWeights))
         ]);
@@ -389,7 +399,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
 
                     nodeGroup.append("circle")
-                        .attr('r', d => nodeRadiusScale(d.weight_radius))
+                        .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius))
                         .attr('stroke', d => categoryNodeColors[d.category])
                         .attr('fill', d => categoryNodeColors[d.category])
                         .on('mouseover', (e) => {
@@ -444,7 +454,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
 
                     nodeGroup.select("circle")
-                        .attr('r', d => nodeRadiusScale(d.weight_radius))
+                        .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius))
                         .attr('stroke', d => categoryNodeColors[d.category]);
 
                     return nodeGroup;
@@ -570,10 +580,10 @@ const MainGraph = React.memo(({ apiUrl }) => {
             return Array.from({ length: num }, (_, i) => start + step * i);
         }
 
-        const legendSizeData = Array.from(linspace(nodeRadiusScale.domain()[0], nodeRadiusScale.domain()[1], sizeLegendItemsCount), (d, i) => ({
+        const legendSizeData = Array.from(linspace(nodeRadiusScale[selectedNodeRadiusScale].domain()[0], nodeRadiusScale[selectedNodeRadiusScale].domain()[1], sizeLegendItemsCount), (d, i) => ({
             id: i, value: d
         }))
-        const legendMaxCircleSize = nodeRadiusScale.range()[1];
+        const legendMaxCircleSize = nodeRadiusScale[selectedNodeRadiusScale].range()[1];
 
         svgSizeLegends.selectAll('circle')
             .data(legendSizeData, d => d.id)
@@ -581,11 +591,11 @@ const MainGraph = React.memo(({ apiUrl }) => {
                 .append('circle')
                 .attr('cx', 0)
                 .attr('cy', (d, i) => i * (legendMaxCircleSize * 2))
-                .attr('r', d => nodeRadiusScale(d.value))
+                .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.value))
                 .style('fill', d => "grey"),
                 update => update
                     .attr('cy', (d, i) => i * (legendMaxCircleSize * 2))
-                    .attr('r', d => nodeRadiusScale(d.value)),
+                    .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.value)),
                 exit => exit.remove()
             );
 
@@ -636,7 +646,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
                 initialUpdateCall={false}
             />
             <main className="main-ui">
-                <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} />
+                <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} nodeRadiusScaleChanged={nodeRadiusScaleChanged} />
                 <div className="mainview">
                     <div className="mainview-drawings" style={{
                         display: "inline-block",
@@ -670,7 +680,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
     )
 })
 
-function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions }) {
+function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions, nodeRadiusScaleChanged }) {
     const [entityOpen, setEntityOpen] = useState(false);
     const [visualOpen, setVisualOpen] = useState(false);
     const [graphParamsOpen, setGraphParamsOpen] = useState(false);
@@ -764,6 +774,20 @@ function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions }) {
                                     else simulation.stop();
                                 }} />
                                 <label className="form-check-label" htmlFor="simulationenabled"><b>Simulation</b></label>
+                            </div>
+                        </li>
+                        <li>
+                            <span><b>Node Radius Scale</b></span><br/>
+                            <div className="form-check form-switch m-3">
+                                <input type="checkbox" className="form-check-input" id="noderadiuslog" defaultChecked={false} onChange={e => {
+                                    if(e.target.checked) {
+                                        nodeRadiusScaleChanged('log');
+                                    }
+                                    else {
+                                        nodeRadiusScaleChanged('linear');
+                                    }
+                                }} />
+                                <label className="form-check-label" htmlFor="noderadiuslog">Logarithmic</label>
                             </div>
                         </li>
                         <li>
