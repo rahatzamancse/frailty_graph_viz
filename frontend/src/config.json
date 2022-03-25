@@ -1,4 +1,4 @@
 {
-  "apiUrl":  "http://localhost:1600/api",
-  "vizApiUrl": "http://localhost:1600/viz_api"
+  "apiUrl":  "http://localhost:1601/api",
+  "vizApiUrl": "http://localhost:1601/viz_api"
 }

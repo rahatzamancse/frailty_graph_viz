@@ -189,7 +189,7 @@ export default function Overview({apiUrl, entityId, entityName}){
 			<Container fluid>
 				<Row>
 					<Col>
-					<EntityColumn title="Infenceced By:" 
+					<EntityColumn title="Influenced By:"
 						data={influenced}
 						sorter={sorter}
 						grouper={groupByEntityType}
