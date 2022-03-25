@@ -157,13 +157,11 @@ def convert2cytoscapeJSON(G, label_field="polarity"):
 def calculateWeight(meta, coefficients):
     frequency = coefficients['frequency']
     hasSignificance = coefficients['hasSignificance']
-    avgSignificance = coefficients['avgSignificance']
     avgImpactFactor = coefficients['avgImpactFactor']
     maxImpactFactor = coefficients['maxImpactFactor']
     pValue = coefficients['pValue']
 
     weight = math.log((meta['freq']) + 1) * frequency + \
-        ((2*meta['percentage_significance']) if 'percentage_significance' in meta else 0.0) ** 2 * avgSignificance + \
         (meta['has_significance'] if 'has_significance' in meta else 0.0) * hasSignificance + \
         (sum(meta['impact_factors'])/len(meta['impact_factors'])) * avgImpactFactor + \
         max(meta['impact_factors']) * maxImpactFactor + \
