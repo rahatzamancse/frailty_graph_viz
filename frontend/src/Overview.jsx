@@ -188,14 +188,14 @@ export default function Overview({apiUrl, entityId, entityName}){
 			<br />
 			<Container fluid>
 				<Row>
-					<Col>
-					<EntityColumn title="Influenced By:"
-						data={influenced}
-						sorter={sorter}
-						grouper={groupByEntityType}
-						anchor={entityId}
-						/>
-					</Col>
+					{/*<Col>*/}
+					{/*<EntityColumn title="Influenced By:"*/}
+					{/*	data={influenced}*/}
+					{/*	sorter={sorter}*/}
+					{/*	grouper={groupByEntityType}*/}
+					{/*	anchor={entityId}*/}
+					{/*	/>*/}
+					{/*</Col>*/}
 					<Col>
 						<EntityColumn title="Reciprocal With:" 
 							data={reciprocals}
