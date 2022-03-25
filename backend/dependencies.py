@@ -33,7 +33,7 @@ def _build_db_session_class():
     return sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
-    db = _build_db_session_class()
+    db = _build_db_session_class()()
     try:
         yield db
     finally:
