@@ -1,15 +1,16 @@
-# Build step #1: build the React front end
-FROM node:lts-alpine as build-step
-WORKDIR /app
-ENV PATH /app/node_modules/.bin:$PATH
-COPY package.json  ./
-COPY ./src ./src
-COPY ./public ./public
-RUN npm install
-RUN npm run build
+# pull official base image
+FROM node:latest
 
-# Build step #2: build an Caddy container
-FROM caddy:alpine
-EXPOSE 80
-EXPOSE 443
-COPY --from=build-step /app/build /usr/share/caddy
+WORKDIR /app
+
+# install app dependencies
+COPY package.json ./
+COPY package-lock.json ./
+RUN npm install --silent
+RUN npm install react-scripts@3.4.1 -g --silent
+
+# add app
+COPY . ./
+
+# start app
+CMD ["npm", "start"]
