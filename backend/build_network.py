@@ -15,8 +15,8 @@ import plac as plac
 from tqdm import tqdm
 
 # Function definitions
-from backend.network import SignificanceRow
-from rankings import ImpactFactors
+from .network import SignificanceRow
+from .rankings import ImpactFactors
 
 
 class XDDMetaData(NamedTuple):

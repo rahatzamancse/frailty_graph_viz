@@ -11,7 +11,7 @@ from elasticsearch import helpers
 
 import plac
 
-from evidence_index import Evidence
+from backend.evidence_index import Evidence
 
 
 class EvidenceParser(HTMLParser):

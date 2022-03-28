@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any, Iterable
 
 from elasticsearch import AsyncElasticsearch
 
-from evidence_index import Evidence
+from backend.evidence_index import Evidence
 
 
 class EvidenceIndexClient:

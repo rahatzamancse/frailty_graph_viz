@@ -8,14 +8,14 @@ import difflib
 import networkx as nx
 
 from networkx import MultiDiGraph, DiGraph
-from utils import calculateWeight, convert2cytoscapeJSON, get_global_edge_data
+from .utils import calculateWeight, convert2cytoscapeJSON, get_global_edge_data
 import itertools
 
 # Data loading and preprocessing
-from dependencies import get_graph, get_significance
+from .dependencies import get_graph, get_significance
 
 # Auxiliary data and data structures
-from models import CategoryCount, NodesList, Weights
+from .models import CategoryCount, NodesList, Weights
 
 categories = {
     "uniprot": "Proteins or Gene Products",
