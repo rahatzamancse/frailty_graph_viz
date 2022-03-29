@@ -22,6 +22,16 @@ const dummyData = {
     }
 };
 
+const idToClass = id => {
+    if (typeof id === 'string' || id instanceof String) {
+        // @ts-ignore
+        return id.replaceAll(':', '_');
+    }
+    else {
+        return id.id.replaceAll(':', '_');
+    }
+}
+
 // These are the initially assumed height. After rendering the html, these height and width will be updated.
 const minHeight = 300;
 const minWidth = 300;
@@ -47,13 +57,13 @@ const forceProperties = {
         enabled: true,
         strength: .4,
         iterations: 1,
-        radius: 29
+        radius: 30
     },
     separation: {
         enabled: true,
         strength: 0.1,
-        radius: (width+height)/2.0 * 0.25,
-        radiusFunc: (width, height) => (width + height)/2.0 * 0.25
+        radius: (width + height) / 2.0 * 0.25,
+        radiusFunc: (width, height) => (width + height) / 2.0 * 0.25
     },
     link: {
         enabled: true,
@@ -114,7 +124,7 @@ const updateForces = ({ simulation, maxDist }) => {
         .distance(d => normalizeDistance(d.freq, 1, maxDist, 1, 50) * forceProperties.link.distanceFactor)
         .iterations(forceProperties.link.iterations)
         // @ts-ignore
-        .strength(forceProperties.link.enabled ? simulation.force("link").strength() : 0)
+        .strength(forceProperties.link.enabled ? simulation.force("link").strength() : 0);
 
     // updates ignored until this is run
     // restarts the simulation (important if simulation has already slowed down)
@@ -128,7 +138,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
     const simulation = d3.forceSimulation();
 
     simulation.stop()
-        .force("link", d3.forceLink())
+        .force("link", d3.forceLink().id(d => d.id))
         .force("charge", d3.forceManyBody())
         .force("collide", d3.forceCollide())
         .force("center", d3.forceCenter())
@@ -156,6 +166,11 @@ const MainGraph = React.memo(({ apiUrl }) => {
         // d3.select(svgRef.current).select('g.everything').append('g').attr('class', 'linkgroup');
         // d3.select(svgRef.current).select('g.everything').append('g').attr('class', 'nodegroup');
     };
+
+    const subgraph = {
+        nodes: [], links: []
+    };
+
     const setSelectedNode = (d) => {
         selectedNode = d;
         cleanUp();
@@ -168,15 +183,30 @@ const MainGraph = React.memo(({ apiUrl }) => {
         });
     };
 
-    const subgraph = {
-        nodes: [], links: []
-    };
+    const nodeRadiusScale = {
+        'linear': d3.scaleLinear().range([1, 30]),
+        'log': d3.scaleLog().range([1, 30])
+    }
+    let selectedNodeRadiusScale = 'linear';
 
-    const nodeRadiusScale = d3.scaleLinear().range([1, 10]);
-    const nodeWeightParams = {}
-    const weightUpdated = () => {
-        if(Object.keys(nodeWeightParams).length === 0) return;
-        fetch(`${apiUrl}/noderadius`, {
+    const nodeRadiusScaleChanged = (val) => {
+        selectedNodeRadiusScale = val;
+        d3UpdateFunc();
+    }
+
+    const nodeWeightParams = {
+        frequency: 1,
+        hasSignificance: 1,
+        avgSignificance: 1,
+        avgImpactFactor: 1,
+        maxImpactFactor: 1,
+        pValue: 1,
+    }
+
+
+    const weightUpdated = async () => {
+        if (Object.keys(nodeWeightParams).length === 0) return;
+        const nodeWeightsResponse = await fetch(`${apiUrl}/noderadius`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -189,27 +219,24 @@ const MainGraph = React.memo(({ apiUrl }) => {
                     weights: nodeWeightParams
                 }
             })
-        }).then(response => response.json())
-        .then(nodeWeights => {
-            nodeRadiusScale.domain([
-                Math.min(...Object.values(nodeWeights)),
-                Math.max(...Object.values(nodeWeights))
-            ]);
-            for(let i = 0; i<subgraph.nodes.length; i++) {
-                subgraph.nodes[i]['weight_radius'] = nodeRadiusScale(
-                    +nodeWeights[subgraph.nodes[i].id]
-                );
-            }
-            console.log(subgraph);
         });
+        const nodeWeights = await nodeWeightsResponse.json();
+        nodeRadiusScale[selectedNodeRadiusScale].domain([
+            Math.min(...Object.values(nodeWeights)),
+            Math.max(...Object.values(nodeWeights))
+        ]);
+        for (let i = 0; i < subgraph.nodes.length; i++) {
+            subgraph.nodes[i]['weight_radius'] = +nodeWeights[subgraph.nodes[i].id];
+        }
     }
     const weightChanged = (weight) => {
         Object.assign(nodeWeightParams, weight);
         weightUpdated();
+        d3UpdateFunc();
     }
 
 
-    const d3UpdateFunc = () => {
+    const d3UpdateFunc = async () => {
         // This is not actually an effect, but it works like an effect as it is run after component is mounted and rendered.
         console.log("effect called");
         if (selectedNode.nodes.nodes.length === 0) {
@@ -217,11 +244,17 @@ const MainGraph = React.memo(({ apiUrl }) => {
             return;
         }
 
+        simulation.stop();
+
         const svgRoot = d3.select(svgRef.current);
         const svg = d3.select(svgRef.current).select("g.everything");
         const svgHullGroup = svg.select('g.hullgroup');
         const svgLinkGroup = svg.select('g.linkgroup');
         const svgNodeGroup = svg.select('g.nodegroup');
+
+        height = Math.max(parseInt(svgRoot.style("height")), minHeight);
+        width = Math.max(parseInt(svgRoot.style("width")), minWidth);
+        forceProperties.separation.radius = forceProperties.separation.radiusFunc(width, height);
 
         svgHullGroup
             .selectAll('path')
@@ -230,335 +263,366 @@ const MainGraph = React.memo(({ apiUrl }) => {
             .append('path')
             .attr('class', d => 'hull_' + (d.category));
 
-        fetch(`${apiUrl}/getbestsubgraph`, {
+        const newSubgraphResponse = await fetch(`${apiUrl}/getbestsubgraph`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(selectedNode)
-        }).then(response => response.json())
-            .then(newSubgraph => {
-                height = Math.max(parseInt(svgRoot.style("height")), minHeight);
-                width = Math.max(parseInt(svgRoot.style("width")), minWidth);
-                forceProperties.separation.radius = forceProperties.separation.radiusFunc(width, height);
+        });
+        const newSubgraph = await newSubgraphResponse.json();
 
-                const newNodes = [];
-                const newLinks = [];
-                for (let i in newSubgraph.nodes) {
-                    const myNode = subgraph.nodes.findIndex(node => node.id === newSubgraph.nodes[i].id)
-                    if (myNode !== -1) {
-                        newNodes.push({
-                            ...subgraph.nodes[myNode],
-                            ...newSubgraph.nodes[i]
-                        });
-                    }
-                    else {
-                        newNodes.push({
-                            ...newSubgraph.nodes[i],
-                            x: width / 2,
-                            y: height / 2,
-                        });
-                    }
-                }
-                for (let i in newSubgraph.links) {
-                    const myEdge = subgraph.links.findIndex(edge => edge.source.id === newSubgraph.links[i].source && edge.target.id === newSubgraph.links[i].target)
-                    if (myEdge !== -1) {
-                        newLinks.push({
-                            ...subgraph.links[myEdge],
-                            ...newSubgraph.links[i]
-                        });
-                    }
-                    else {
-                        newLinks.push(newSubgraph.links[i]);
-                    }
-                }
-                subgraph.nodes = newNodes;
-                subgraph.links = newLinks;
+        height = Math.max(parseInt(svgRoot.style("height")), minHeight);
+        width = Math.max(parseInt(svgRoot.style("width")), minWidth);
 
-                weightUpdated();
-
-                const link = svgLinkGroup
-                    .selectAll('g.line')
-                    .data(subgraph.links, d => d.source + d.target)
-                    .join(
-                        enter => {
-                            const lineGroup = enter
-                                .append('g')
-                                .attr('class', d => "line " + d.source + " " + d.target)
-                                .classed('betweencategory', d => d['samecategory'])
-                                .classed('intracategory', d => !d['samecategory']);
-                            lineGroup.append("text")
-                                .text(d => d.freq);
-                            const lineItem = lineGroup.append("line");
-                            lineItem
-                                .on('mouseover', (e) => {
-                                    const line = d3.select(e.target.parentNode).classed('hovered', true);
-                                    const lineData = line.data();
-                                    d3.selectAll(`g#${lineData[0].source.id} circle`).classed('hovered', true);
-                                    d3.selectAll(`g#${lineData[0].target.id} circle`).classed('hovered', true);
-                                })
-                                .on('mouseout', (e) => {
-                                    const line = d3.select(e.target.parentNode).classed('hovered', false);
-                                    const lineData = line.data();
-                                    d3.selectAll(`g#${lineData[0].source.id} circle`).classed('hovered', false);
-                                    d3.selectAll(`g#${lineData[0].target.id} circle`).classed('hovered', false);
-                                })
-                                .on('click', (e) => {
-                                    const line = d3.select(e.target.parentNode).classed('hovered', true);
-                                    const lineData = line.data();
-                                    const url = `/viz?src=${lineData[0].source.id.replaceAll('_', ':')}&dst=${lineData[0].target.id.replaceAll('_', ':')}&bidirect`
-                                    console.log(url)
-                                    // window.open(url, "_self")
-                                });
-
-                            // Reinitialize force
-                            // const forces = ["link", 'charge', 'collide', 'center', 'forceX', 'forceY'];
-                            // for(let i in forces) {
-                            //     simulation.force(forces[i]).initialize(subgraph.nodes, () => 1);
-                            // }
-
-                            // simulation.alpha(0.5).alphaTarget(0.3).restart();
-
-                            return lineGroup;
-                        },
-                        update => update,
-                        exit => exit.remove()
-                    );
-
-                const categoryNodeColors = {
-                    3: "#8a2a44",
-                    4: "#10712b",
-                    1: "#411c58",
-                    2: "#00308e",
-                }
-
-                const node = svgNodeGroup
-                    .selectAll("g.node")
-                    .data(subgraph.nodes, d => d.id)
-                    .join(
-                        enter => {
-                            const nodeGroup = enter
-                                .append("g")
-                                .classed("node", true)
-                                .classed("pinned", d => d['pinned'])
-                                .attr('id', d => d.id);
-
-                            nodeGroup.append("text")
-                                .text(d => d["label"])
-                                .attr('x', 10)
-                                .attr('y', 5);
-                            // node tooltip
-                            nodeGroup.append("title")
-                                .text(d => d.id);
-
-
-                            nodeGroup.append("circle")
-                                .attr('r', d => nodeRadiusScale(d.weight_radius))
-                                .attr('stroke', d => categoryNodeColors[d.category])
-                                .on('mouseover', (e) => {
-                                    const circle = d3.select(e.target).classed('hovered', true);
-                                    const nodeId = circle.data()[0].id;
-                                    d3.selectAll('g.linkgroup g.' + nodeId).classed('hovered', true);
-
-                                    d3.selectAll('g.linkgroup g.' + nodeId + '.hovered text').classed('hovered', true);
-                                })
-                                .on('mouseout', (e) => {
-                                    const circle = d3.select(e.target).classed('hovered', false);
-                                    const nodeId = circle.data()[0].id;
-                                    d3.selectAll('g.linkgroup g.' + nodeId + '.hovered text').classed('hovered', false);
-                                    d3.selectAll('g.linkgroup g.' + nodeId).classed('hovered', false);
-
-                                })
-                                .on("click", (e) => {
-                                    window.open(`/viz?src=uniprot:P05231&dst=go:GO:0006954&bidirect`, '_self');
-
-                                })
-                            nodeGroup
-                                // @ts-ignore
-                                .call(d3.drag()
-                                    .on("start", (event, d) => {
-                                        if (!event.active) simulation.alphaTarget(0.3).restart();
-                                        d.fx = d.x;
-                                        d.fy = d.y;
-
-                                    })
-                                    .on("drag", (event, d) => {
-                                        d.fx = event.x;
-                                        d.fy = event.y;
-
-                                    })
-                                    .on("end", (event, d) => {
-                                        if (!event.active) simulation.alphaTarget(0.001);
-                                        d.fx = null;
-                                        d.fy = null;
-                                    }));
-
-                            simulation.alpha(0.5).alphaTarget(0.3).restart();
-
-                            return nodeGroup;
-                        },
-                        update => update,
-                        exit => exit.remove()
-                    );
-
-
-                simulation.nodes(subgraph.nodes);
-                maxDist = Math.max(...subgraph.links.map(link => link.freq));
-
-                simulation.force("link")
-                    // @ts-ignore
-                    .id(d => d.id)
-                    .links(subgraph.links);
-
-                updateForces({ simulation, maxDist });
-
-
-                simulation.on("tick", () => {
-                    link.selectAll('line')
-                        .attr("x1", d => d.source.x)
-                        .attr("y1", d => d.source.y)
-                        .attr("x2", d => d.target.x)
-                        .attr("y2", d => d.target.y);
-
-                    link.selectAll('text')
-                        .attr('x', d => d.target.x + 20)
-                        .attr('y', d => d.target.y + 20);
-
-                    node
-                        .attr('transform', d => `translate(${d.x},${d.y})`);
-
-                    const hullPoints = [];
-                    for (let i = 1; i <= 4; i++) {
-                        hullPoints.push({
-                            category: i,
-                            hulls: d3.polygonHull(subgraph.nodes.filter(d => d["category"] === i).map(d => [d.x, d.y]))
-                        });
-                    }
-
-                    const hullPadding = 25;
-                    for (let i = 1; i <= 4; i++) {
-                        d3.select('.hull_' + i).attr('d', smoothHull(hullPoints[i - 1].hulls, hullPadding));
-                    }
-
-                    const entropyBar = d3.select('#alpha_value').style('width', simulation.alpha() * 100 + "%");
-                    if (simulation.alpha() > 0.5) {
-                        entropyBar.classed("bg-danger", true).classed("bg-warning", false).classed("bg-success", false);
-                    }
-                    else if (simulation.alpha() > 0.2) {
-                        entropyBar.classed("bg-warning", true).classed("bg-danger", false).classed("bg-success", false);
-                    }
-                    else {
-                        entropyBar.classed("bg-warning", false).classed("bg-danger", false).classed("bg-success", true);
-                    }
+        const newNodes = [];
+        const newLinks = [];
+        for (let i in newSubgraph.nodes) {
+            const myNode = subgraph.nodes.findIndex(node => node.id === newSubgraph.nodes[i].id)
+            if (myNode !== -1) {
+                newNodes.push({
+                    ...subgraph.nodes[myNode],
+                    ...newSubgraph.nodes[i]
                 });
-
-                d3.select("#interclusterEdgeOpacity").on('change', (e) => {
-                    d3.selectAll("g.intracategory line").style('opacity', e.target.value);
-                })
-                d3.select("#intraclusterEdgeOpacity").on('change', (e) => {
-                    d3.selectAll("g.betweencategory line").style('opacity', e.target.value);
-                })
-                d3.select("#nodeLabelOpacity").on('change', (e) => {
-                    d3.selectAll("g.node text").style('opacity', e.target.value);
-                })
-
-                d3.selectAll(".clusternodecount").on('change', (e) => {
-                    const categoryIds = ['cluster1count', 'cluster2count', 'cluster3count', 'cluster4count'];
-                    setSelectedNode({
-                        ...selectedNode,
-                        category_count: {
-                            categorycount: {
-                                "1": d3.select('#' + categoryIds[0]).property('value'),
-                                "2": d3.select('#' + categoryIds[1]).property('value'),
-                                "3": d3.select('#' + categoryIds[2]).property('value'),
-                                "4": d3.select('#' + categoryIds[3]).property('value'),
-                            }
-                        }
-                    });
+            }
+            else {
+                newNodes.push({
+                    ...newSubgraph.nodes[i],
+                    x: width / 2,
+                    y: height / 2,
                 });
+            }
+        }
+        for (let i in newSubgraph.links) {
+            const myEdge = subgraph.links.findIndex(edge => edge.source.id === newSubgraph.links[i].source && edge.target.id === newSubgraph.links[i].target)
+            if (myEdge !== -1) {
+                newLinks.push({
+                    ...subgraph.links[myEdge],
+                    ...newSubgraph.links[i]
+                });
+            }
+            else {
+                newLinks.push(newSubgraph.links[i]);
+            }
+        }
+        subgraph.nodes = newNodes;
+        subgraph.links = newLinks;
 
-                // Legends
-                const colors = [
-                    { id: "Protein", color: "#d282beff" },
-                    { id: "Diseases", color: "#a6d9efff" },
-                    { id: "Biological Process", color: "#ffa770ff" },
-                    { id: "Chemical", color: "#e5f684ff" },
-                ];
-
-                const svgColorLegends = d3.select('g.categorylegends')
-                    .attr('transform', `translate(${width - 200},25)`);
-                const legendSquareSize = 20;
-                svgColorLegends.selectAll('rect')
-                    .data(colors)
-                    .enter()
-                    .append('rect')
-                    .attr('x', 0)
-                    .attr('y', (d, i) => i * (legendSquareSize + 5))
-                    .attr('width', legendSquareSize)
-                    .attr('height', legendSquareSize)
-                    .style('fill', d => d.color);
-
-                svgColorLegends.selectAll('text')
-                    .data(colors)
-                    .enter()
-                    .append("text")
-                    .attr("x", legendSquareSize * 1.2)
-                    .attr("y", (d, i) => i * (legendSquareSize + 5) + (legendSquareSize / 2))
-                    .style("fill", d => d.color)
-                    .text(d => d.id)
-                    .attr("text-anchor", "left")
-                    .style("alignment-baseline", "middle");
-
-                const svgSizeLegends = d3.select('g.sizelegends')
-                    .attr('transform', `translate(${width - 200},160)`);
-                const sizeLegendItemsCount = 3;
-
-                const linspace = (start, stop, num, endpoint = true) => {
-                    const div = endpoint ? (num - 1) : num;
-                    const step = (stop - start) / div;
-                    return Array.from({ length: num }, (_, i) => start + step * i);
+        const nodeWeightsResponse = await fetch(`${apiUrl}/noderadius`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                nodes: {
+                    nodes: subgraph.nodes.map(d => d.id)
+                },
+                weights: {
+                    weights: nodeWeightParams
                 }
+            })
+        })
 
-                const legendSizeData = Array.from(linspace(nodeRadiusScale.domain()[0], nodeRadiusScale.domain()[1], sizeLegendItemsCount), (d, i) => ({
-                    id: i, value: d
-                }))
-                const legendMaxCircleSize = nodeRadiusScale.range()[1];
+        const nodeWeights = await nodeWeightsResponse.json();
 
-                svgSizeLegends.selectAll('circle')
-                    .data(legendSizeData, d => d.id)
-                    .join(enter => enter
-                        .append('circle')
-                        .attr('cx', 0)
-                        .attr('cy', (d, i) => i * (legendMaxCircleSize * 2))
-                        .attr('r', d => nodeRadiusScale(d.value))
-                        .style('fill', d => "lightblue"),
-                        update => update
-                            .attr('cy', (d, i) => i * (legendMaxCircleSize * 2))
-                            .attr('r', d => nodeRadiusScale(d.value)),
-                        exit => exit.remove()
-                    );
+        nodeRadiusScale[selectedNodeRadiusScale].domain([
+            Math.min(...Object.values(nodeWeights)),
+            Math.max(...Object.values(nodeWeights))
+        ]);
+        for (let i = 0; i < subgraph.nodes.length; i++) {
+            subgraph.nodes[i]['weight_radius'] = +nodeWeights[subgraph.nodes[i].id];
+        }
 
-                svgSizeLegends.selectAll('text')
-                    .data(legendSizeData, d => d.id)
-                    .join(enter => enter
-                        .append("text")
-                        .attr("x", legendMaxCircleSize * 2)
-                        .attr("y", (d, i) => i * (legendMaxCircleSize * 2))
-                        .text(d => Math.round(d.value) + " degree")
-                        .attr("text-anchor", "left")
-                        .style("alignment-baseline", "middle"),
-                        update => update
-                            .attr("y", (d, i) => i * (legendMaxCircleSize * 2))
-                            .text(d => Math.round(d.value) + " degree"),
-                        exit => exit.remove()
-                    );
+        const link = svgLinkGroup
+            .selectAll('g.line')
+            .data(subgraph.links, d => d.source + d.target)
+            .join(
+                enter => {
+                    const lineGroup = enter
+                        .append('g')
+                        .attr('class', d => "line " + idToClass(d.source) + " " + idToClass(d.target))
+                        .classed('betweencategory', d => d['samecategory'])
+                        .classed('intracategory', d => !d['samecategory']);
+                    lineGroup.append("text")
+                        .text(d => d.freq);
+                    lineGroup.append("line")
+                        .on('mouseover', (e) => {
+                            const line = d3.select(e.target.parentNode).classed('hovered', true);
+                            const lineData = line.data();
+                            d3.selectAll(`g#${idToClass(lineData[0].source.id)} circle`).classed('hovered', true);
+                            d3.selectAll(`g#${idToClass(lineData[0].target.id)} circle`).classed('hovered', true);
+                        })
+                        .on('mouseout', (e) => {
+                            const line = d3.select(e.target.parentNode).classed('hovered', false);
+                            const lineData = line.data();
+                            d3.selectAll(`g#${idToClass(lineData[0].source.id)} circle`).classed('hovered', false);
+                            d3.selectAll(`g#${idToClass(lineData[0].target.id)} circle`).classed('hovered', false);
+                        })
+                        .on('click', (e) => {
+                            const line = d3.select(e.target.parentNode).classed('hovered', true);
+                            const lineData = line.data();
+                            const url = `/viz?src=${lineData[0].source.id}&dst=${lineData[0].target.id}&bidirect`
+                            // window.open(url, "_self")
+                        });
+
+                    return lineGroup;
+                },
+                update => update,
+                exit => exit.remove()
+            );
+
+        const categoryNodeColors = {
+            3: "#8a2a44",
+            4: "#10712b",
+            1: "#411c58",
+            2: "#00308e",
+        }
+
+        const node = svgNodeGroup
+            .selectAll("g.node")
+            .data(subgraph.nodes, d => d.id)
+            .join(
+                enter => {
+                    const nodeGroup = enter
+                        .append("g")
+                        .classed("node", true)
+                        .classed("pinned", d => d['pinned'])
+                        .attr('id', d => idToClass(d.id));
+
+                    nodeGroup.append("text")
+                        .text(d => d["label"])
+                        .attr('x', 40)
+                        .attr('y', 0);
+                    // node tooltip
+                    nodeGroup.append("title")
+                        .text(d => d.id);
+
+
+                    nodeGroup.append("circle")
+                        .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius))
+                        .attr('stroke', d => categoryNodeColors[d.category])
+                        .attr('fill', d => categoryNodeColors[d.category])
+                        .on('mouseover', (e) => {
+                            const circle = d3.select(e.target).classed('hovered', true);
+                            const nodeId = circle.data()[0].id;
+                            d3.selectAll('g.linkgroup g.' + idToClass(nodeId)).classed('hovered', true);
+
+                            d3.selectAll('g.linkgroup g.' + idToClass(nodeId) + '.hovered text').classed('hovered', true);
+                        })
+                        .on('mouseout', (e) => {
+                            const circle = d3.select(e.target).classed('hovered', false);
+                            const nodeId = circle.data()[0].id;
+                            d3.selectAll('g.linkgroup g.' + idToClass(nodeId) + '.hovered text').classed('hovered', false);
+                            d3.selectAll('g.linkgroup g.' + idToClass(nodeId)).classed('hovered', false);
+
+                        })
+                        .on("click", (e) => {
+                            window.open(`/viz?src=uniprot:P05231&dst=go:GO:0006954&bidirect`, '_self');
+
+                        })
+                    nodeGroup
+                        // @ts-ignore
+                        .call(d3.drag()
+                            .on("start", (event, d) => {
+                                if (!event.active) simulation.alphaTarget(0.3).restart();
+                                d.fx = d.x;
+                                d.fy = d.y;
+
+                            })
+                            .on("drag", (event, d) => {
+                                d.fx = event.x;
+                                d.fy = event.y;
+
+                            })
+                            .on("end", (event, d) => {
+                                if (!event.active) simulation.alphaTarget(0.001);
+                                d.fx = null;
+                                d.fy = null;
+                            }));
+
+                    return nodeGroup;
+                },
+                update => {
+                    const nodeGroup = update
+                        .classed("pinned", d => d['pinned']);
+
+                    nodeGroup.select('text')
+                        .text(d => d["label"]);
+                    // node tooltip
+                    nodeGroup.select("title")
+                        .text(d => d.id);
+
+
+                    nodeGroup.select("circle")
+                        .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius))
+                        .attr('stroke', d => categoryNodeColors[d.category]);
+
+                    return nodeGroup;
+                },
+                exit => exit.remove()
+            );
+
+
+        simulation.nodes(subgraph.nodes);
+        maxDist = Math.max(...subgraph.links.map(link => link.freq));
+
+        simulation.force("link").links(subgraph.links);
+
+        updateForces({ simulation, maxDist });
+
+        simulation.on("tick", () => {
+            link.selectAll('line')
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            link.selectAll('text')
+                .attr('x', d => d.target.x + 20)
+                .attr('y', d => d.target.y + 20);
+
+            node
+                .attr('transform', d => `translate(${d.x},${d.y})`);
+
+            const hullPoints = [];
+            for (let i = 1; i <= 4; i++) {
+                hullPoints.push({
+                    category: i,
+                    hulls: d3.polygonHull(subgraph.nodes.filter(d => d["category"] === i).map(d => [d.x, d.y]))
+                });
+            }
+
+            const hullPadding = 25;
+            for (let i = 1; i <= 4; i++) {
+                if (hullPoints[i - 1].hulls) {
+                    d3.select('.hull_' + i).attr('d', smoothHull(hullPoints[i - 1].hulls, hullPadding));
+                }
+            }
+
+            const entropyBar = d3.select('#alpha_value').style('width', simulation.alpha() * 100 + "%");
+            if (simulation.alpha() > 0.5) {
+                entropyBar.classed("bg-danger", true).classed("bg-warning", false).classed("bg-success", false);
+            }
+            else if (simulation.alpha() > 0.2) {
+                entropyBar.classed("bg-warning", true).classed("bg-danger", false).classed("bg-success", false);
+            }
+            else {
+                entropyBar.classed("bg-warning", false).classed("bg-danger", false).classed("bg-success", true);
+            }
+        });
+
+        simulation.alpha(1).restart();
+
+        d3.select("#interclusterEdgeOpacity").on('change', (e) => {
+            d3.selectAll("g.intracategory line").style('opacity', e.target.value);
+        })
+        d3.select("#intraclusterEdgeOpacity").on('change', (e) => {
+            d3.selectAll("g.betweencategory line").style('opacity', e.target.value);
+        })
+        d3.select("#nodeLabelOpacity").on('change', (e) => {
+            d3.selectAll("g.node text").style('opacity', e.target.value);
+        })
+        d3.select("#maxRadius").on('change', (e) => {
+            nodeRadiusScale["linear"].range([1, e.target.value]);
+            d3.selectAll("g.node circle").attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius));
+        })
+
+        d3.selectAll(".clusternodecount").on('change', (e) => {
+            const categoryIds = ['cluster1count', 'cluster2count', 'cluster3count', 'cluster4count'];
+            setSelectedNode({
+                ...selectedNode,
+                category_count: {
+                    categorycount: {
+                        "1": d3.select('#' + categoryIds[0]).property('value'),
+                        "2": d3.select('#' + categoryIds[1]).property('value'),
+                        "3": d3.select('#' + categoryIds[2]).property('value'),
+                        "4": d3.select('#' + categoryIds[3]).property('value'),
+                    }
+                }
             });
+        });
+
+        // Legends
+        const colors = [
+            { id: "Protein", color: "#d282beff" },
+            { id: "Diseases", color: "#a6d9efff" },
+            { id: "Biological Process", color: "#ffa770ff" },
+            { id: "Chemical", color: "#e5f684ff" },
+        ];
+
+        const svgColorLegends = d3.select('g.categorylegends')
+            .attr('transform', `translate(${width - 200},25)`);
+        const legendSquareSize = 20;
+        svgColorLegends.selectAll('rect')
+            .data(colors)
+            .enter()
+            .append('rect')
+            .attr('x', 0)
+            .attr('y', (d, i) => i * (legendSquareSize + 5))
+            .attr('width', legendSquareSize)
+            .attr('height', legendSquareSize)
+            .style('fill', d => d.color);
+
+        svgColorLegends.selectAll('text')
+            .data(colors)
+            .enter()
+            .append("text")
+            .attr("x", legendSquareSize * 1.2)
+            .attr("y", (d, i) => i * (legendSquareSize + 5) + (legendSquareSize / 2))
+            .style("fill", d => d.color)
+            .text(d => d.id)
+            .attr("text-anchor", "left")
+            .style("alignment-baseline", "middle");
+
+        const svgSizeLegends = d3.select('g.sizelegends')
+            .attr('transform', `translate(${width - 200},160)`);
+        const sizeLegendItemsCount = 5;
+
+        const linspace = (start, stop, num, endpoint = true) => {
+            const div = endpoint ? (num - 1) : num;
+            const step = (stop - start) / div;
+            return Array.from({ length: num }, (_, i) => start + step * i);
+        }
+
+        const legendSizeData = Array.from(linspace(nodeRadiusScale[selectedNodeRadiusScale].domain()[0], nodeRadiusScale[selectedNodeRadiusScale].domain()[1], sizeLegendItemsCount), (d, i) => ({
+            id: i, value: d
+        }))
+        const legendMaxCircleSize = nodeRadiusScale[selectedNodeRadiusScale].range()[1];
+
+        svgSizeLegends.selectAll('circle')
+            .data(legendSizeData, d => d.id)
+            .join(enter => enter
+                .append('circle')
+                .attr('cx', 0)
+                .attr('cy', (d, i) => i * (legendMaxCircleSize * 2))
+                .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.value))
+                .style('fill', d => "grey"),
+                update => update
+                    .attr('cy', (d, i) => i * (legendMaxCircleSize * 2))
+                    .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.value)),
+                exit => exit.remove()
+            );
+
+        svgSizeLegends.selectAll('text')
+            .data(legendSizeData, d => d.id)
+            .join(enter => enter
+                .append("text")
+                .attr("x", legendMaxCircleSize * 2)
+                .attr("y", (d, i) => i * (legendMaxCircleSize * 2))
+                .text(d => Math.round(d.value) + " degree")
+                .attr("text-anchor", "left")
+                .style("alignment-baseline", "middle"),
+                update => update
+                    .attr("y", (d, i) => i * (legendMaxCircleSize * 2))
+                    .text(d => Math.round(d.value) + " degree"),
+                exit => exit.remove()
+            );
 
         d3.zoom().on("zoom", (e) => {
             svg.attr('transform', e.transform)
             // @ts-ignore
         })(svgRoot);
-    
+
 
         return cleanUp;
     }
@@ -575,8 +639,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
         d3UpdateFunc();
     }));
 
-    // React.useEffect(d3UpdateFunc);
-
+    // React.useEffect(d3UpdateFunc, []);
 
     return (
         <>
@@ -584,10 +647,10 @@ const MainGraph = React.memo(({ apiUrl }) => {
                 updateWeightValues={weightChanged}
                 useButton={false}
                 buttonText={"Update Weight"}
-                initialUpdateCall={true}
-			/>
+                initialUpdateCall={false}
+            />
             <main className="main-ui">
-                <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} />
+                <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} nodeRadiusScaleChanged={nodeRadiusScaleChanged} />
                 <div className="mainview">
                     <div className="mainview-drawings" style={{
                         display: "inline-block",
@@ -621,7 +684,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
     )
 })
 
-function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions }) {
+function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions, nodeRadiusScaleChanged }) {
     const [entityOpen, setEntityOpen] = useState(false);
     const [visualOpen, setVisualOpen] = useState(false);
     const [graphParamsOpen, setGraphParamsOpen] = useState(false);
@@ -694,6 +757,10 @@ function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions }) {
                             <label htmlFor="nodeLabelOpacity" className="form-label">Entity Label Opacity</label>
                             <input type="range" className="form-range" min="0" max="1" step="0.01" id="nodeLabelOpacity" defaultValue="0.1" />
                         </li>
+                        <li>
+                            <label htmlFor="maxRadius" className="form-label">Maximum Radius of Each Entity</label>
+                            <input type="range" className="form-range" min="1" max="50" step="1" id="maxRadius" defaultValue="30" />
+                        </li>
                     </ul>
                 </Collapse>
             </li>
@@ -715,6 +782,20 @@ function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions }) {
                                     else simulation.stop();
                                 }} />
                                 <label className="form-check-label" htmlFor="simulationenabled"><b>Simulation</b></label>
+                            </div>
+                        </li>
+                        <li>
+                            <span><b>Node Radius Scale</b></span><br/>
+                            <div className="form-check form-switch m-3">
+                                <input type="checkbox" className="form-check-input" id="noderadiuslog" defaultChecked={false} onChange={e => {
+                                    if(e.target.checked) {
+                                        nodeRadiusScaleChanged('log');
+                                    }
+                                    else {
+                                        nodeRadiusScaleChanged('linear');
+                                    }
+                                }} />
+                                <label className="form-check-label" htmlFor="noderadiuslog">Logarithmic</label>
                             </div>
                         </li>
                         <li>

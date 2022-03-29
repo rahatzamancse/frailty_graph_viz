@@ -149,3 +149,8 @@ data/
 .vscode/launch.json
 *.db
 /frontend/build/
+
+# Venv files
+environment.yml
+poetry.lock
+pyproject.toml
