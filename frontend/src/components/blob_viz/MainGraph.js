@@ -522,6 +522,10 @@ const MainGraph = React.memo(({ apiUrl }) => {
         d3.select("#nodeLabelOpacity").on('change', (e) => {
             d3.selectAll("g.node text").style('opacity', e.target.value);
         })
+        d3.select("#maxRadius").on('change', (e) => {
+            nodeRadiusScale["linear"].range([1, e.target.value]);
+            d3.selectAll("g.node circle").attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius));
+        })
 
         d3.selectAll(".clusternodecount").on('change', (e) => {
             const categoryIds = ['cluster1count', 'cluster2count', 'cluster3count', 'cluster4count'];
@@ -752,6 +756,10 @@ function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions, nodeRad
                         <li>
                             <label htmlFor="nodeLabelOpacity" className="form-label">Entity Label Opacity</label>
                             <input type="range" className="form-range" min="0" max="1" step="0.01" id="nodeLabelOpacity" defaultValue="0.1" />
+                        </li>
+                        <li>
+                            <label htmlFor="maxRadius" className="form-label">Maximum Radius of Each Entity</label>
+                            <input type="range" className="form-range" min="1" max="50" step="1" id="maxRadius" defaultValue="30" />
                         </li>
                     </ul>
                 </Collapse>

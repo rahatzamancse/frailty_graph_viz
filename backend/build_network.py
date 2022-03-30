@@ -7,6 +7,8 @@ import os.path
 import pickle
 import re
 from collections import Counter, defaultdict
+from html.parser import HTMLParser
+from io import StringIO
 from pathlib import Path
 from typing import NamedTuple, Set, Optional, Mapping
 
@@ -398,6 +400,7 @@ def main(output_file:Path,
             except Exception as ex:
                 pass  # TODO log exceptions
 
+
     # Create the nx graph
     G = nx.MultiDiGraph()
 
@@ -415,11 +418,21 @@ def main(output_file:Path,
             else:
                 trigger = key.label
 
+            evidence = evidences[key]
+            kept_evidence = list()
+            seen = set()
+            for link, significance, markup in evidence:
+                stripper = TagStripper(markup)
+                raw_sent = stripper.raw_sentence
+                if raw_sent not in seen:
+                    kept_evidence.append((link, significance, markup))
+                    seen.add(raw_sent)
+
             metadata = {
                 "input": key.output,
                 "trigger": trigger,
-                "freq": len(evidences[key]),
-                "evidence": evidences[key],
+                "freq": len(kept_evidence),
+                "evidence": kept_evidence,
                 "seen_in": seen_in[key],
                 "label": key.label,
                 "journals": journals[key],
@@ -440,6 +453,23 @@ def main(output_file:Path,
     with output_file.open('wb') as f:
         pickle.dump(output, f)
     logging.info("Done")
+
+
+class TagStripper(HTMLParser):
+    """ Use this class to strip markup and get the attributes of the tags as properties of the instance """
+    def __init__(self, data:str):
+        super().__init__()
+        self._raw_sentence = StringIO()
+        self._data = data
+        self.feed(data)
+        self.space_remover = re.compile(r'\s+')
+
+    def handle_data(self, data: str) -> None:
+        self._raw_sentence.write(data)
+
+    @property
+    def raw_sentence(self) -> str:
+        return self.space_remover.sub(' ', self._raw_sentence.getvalue().strip())
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ export default function App() {
   return (
 	<div>
     <div className="header">
-      <h1>Explore Frailty Literature</h1>
+      <h1>Explore Biomedical Literature</h1>
       <nav>
           <NavLink to="/" style={isActiveNavLink}>Interactions Overview</NavLink> |{" "}
           <NavLink to="/blob-viz" style={isActiveNavLink}>Graphic Overview</NavLink> | {" "}
