@@ -55,6 +55,7 @@ def parse_file(p, bibliography: Mapping[str, XDDMetaData]):
                     # TODO: Fix this in the source
                     if r['SEEN IN'] == "PMC0":
                         seen_in = Path(p).name[3:]
+                        r['SEEN IN'] = seen_in
                     else:
                         seen_in = r['SEEN IN'][3:]
                     if seen_in in bibliography:
