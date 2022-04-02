@@ -21,6 +21,8 @@ from backend.network import SignificanceRow
 from evidence_index.create_evidence_index import parse_markup
 from rankings import ImpactFactors
 
+pmcid_pattern = re.compile(r"^PMC[1-9]\d{0,6}$", re.IGNORECASE)
+
 
 class XDDMetaData(NamedTuple):
     journal: str
@@ -53,7 +55,7 @@ def parse_file(p, bibliography: Mapping[str, XDDMetaData]):
             for r in reader:
                 if r['SEEN IN'] is not None:
                     # TODO: Fix this in the source
-                    if r['SEEN IN'] == "PMC0":
+                    if r['SEEN IN'] == "PMC0" or not pmcid_pattern.match(r['SEEN IN']):
                         r['SEEN IN'] = Path(p).name.split('-')[0]
 
                     seen_in = r['SEEN IN'][3:]
