@@ -333,8 +333,9 @@ def main(output_file:Path,
         # Skip this extraction if it comes from a paper with low index factor
         if index_factors:
             source = row['JOURNAL'] if 'JOURNAL' in row else row['SEEN IN'].strip()
-            if row['SEEN IN'] and index_factors.get_impact(source) < 0.5:
-                continue
+            # TODO make this dynamic
+            # if row['SEEN IN'] and index_factors.get_impact(source) < 0.5:
+            #     continue
 
         # Ignore those that have adhoc entities, i.e. uaz prefixes
         if "uaz:" not in row['INPUT'] and "uaz:" not in row['OUTPUT'] and "uaz:" not in row['CONTROLLER']:
