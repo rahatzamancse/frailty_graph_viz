@@ -139,7 +139,7 @@ def bulk_index(documents: Iterable[Evidence], index_host:str, index_name:str):
 
 @plac.pos("data_path", help="Path to the pickle that holds the graph", type=Path)
 @plac.opt("index_host", help="Path to the pickle that holds the graph", type=str)
-@plac.pos("data_path", help="Path to the pickle that holds the graph", type=str)
+@plac.pos("index_name", help="Path to the pickle that holds the graph", type=str)
 def main(data_path: Path, index_name:str, index_host:str = "localhost"):
     documents = extract_evidence(data_path)
     bulk_index(documents, index_host, index_name)
