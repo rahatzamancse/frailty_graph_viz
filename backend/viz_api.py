@@ -27,7 +27,8 @@ categories = {
     "proonto": "Proteins or Gene Products",
     "chebi": "Chemicals",
     "pfam": "Proteins or Gene Products",
-    "frailty": "Biological Process"
+    "frailty": "Biological Process",
+    "bioprocess": "Biological Process"
 }
 category_encoding = {
     1: 'Proteins or Gene Products',
@@ -125,7 +126,7 @@ async def get_best_subgraph(nodes: NodesList, category_count: CategoryCount,
                 'id': d[0],
                 'freq': d[1]['freq'],
                 'pinned': False
-            }, filter(lambda x: get_category_number_from_id(x[0]) == cat_id, dict(G_se[node]).items())))
+            }, filter(lambda x: x[0] !='' and get_category_number_from_id(x[0]) == cat_id, dict(G_se[node]).items()))) # TODO: Rahat, I had to add that condition to filter the empty node. Please fix
             to_neighbors = sorted(neighbors, key=lambda x: x['freq'], reverse=True)[
                            :cat_count]
 
