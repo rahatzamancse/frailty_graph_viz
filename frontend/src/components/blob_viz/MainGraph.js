@@ -397,6 +397,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
                     nodeGroup.append("title")
                         .text(d => d.id);
 
+                    let nodeSelection1 = null;
 
                     nodeGroup.append("circle")
                         .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius))
@@ -417,7 +418,26 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
                         })
                         .on("click", (e) => {
-                            window.open(`/viz?src=uniprot:P05231&dst=go:GO:0006954&bidirect`, '_self');
+                            if(!nodeSelection1) {
+                                const circle = d3.select(e.target).classed('selected', true);
+                                const nodeId = circle.data()[0].id;
+                                nodeSelection1 = nodeId;
+
+                                d3.selectAll('g.linkgroup g.' + idToClass(nodeId)).classed('largehovered', true);
+                            }
+                            else {
+                                d3.select(".node circle.selected").classed("selected", false);
+                                const circle = d3.select(e.target);
+                                const nodeId = circle.data()[0].id;
+                                d3.selectAll('g.linkgroup g.' + idToClass(nodeSelection1)).classed('largehovered', false);
+                                if(nodeId !== nodeSelection1) {
+                                    window.open(`/viz?src=${nodeSelection1}&dst=${nodeId}&bidirect`);
+                                    nodeSelection1 = null;
+                                }
+                                else {
+                                    nodeSelection1 = null;
+                                }
+                            }
 
                         })
                     nodeGroup
@@ -544,38 +564,66 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
         // Legends
         const colors = [
-            { id: "Protein", color: "#d282beff" },
-            { id: "Diseases", color: "#a6d9efff" },
-            { id: "Biological Process", color: "#ffa770ff" },
-            { id: "Chemical", color: "#e5f684ff" },
+            { id: "Protein", color: "#411c58" },
+            { id: "Diseases", color: "#00308e" },
+            { id: "Biological Process", color: "#8a2a44" },
+            { id: "Chemical", color: "#10712b" },
         ];
+
 
         const svgColorLegends = d3.select('g.categorylegends')
             .attr('transform', `translate(${width - 200},25)`);
+
+
+        const addLegendTitle = (group, legendTitle, legendClass) => {
+            group.selectAll("." + legendClass).data([1]).join(
+                enter => enter
+                    .append("text")
+                    .attr("class", legendClass)
+                    .text(legendTitle)
+                    .attr("x", 0)
+                    .attr("y", 0)
+                    .attr("text-anchor", "left")
+                    .style("alignment-baseline", "middle")
+                    .attr('text-decoration', "underline"),
+                update => update
+                    .text(legendTitle)
+                    .attr("x", 0)
+                    .attr("y", 0),
+                exit => exit.remove()
+            )
+        };
+
+        addLegendTitle(svgColorLegends, "Category Colors", "colorlegendtitle");
+
+        const legendTitleHeight = 20;
+
         const legendSquareSize = 20;
         svgColorLegends.selectAll('rect')
             .data(colors)
             .enter()
             .append('rect')
             .attr('x', 0)
-            .attr('y', (d, i) => i * (legendSquareSize + 5))
+            .attr('y', (d, i) => i * (legendSquareSize + 5) + legendTitleHeight)
             .attr('width', legendSquareSize)
             .attr('height', legendSquareSize)
-            .style('fill', d => d.color);
+            .style('fill', d => d.color)
+            .attr("stroke", "black");
 
-        svgColorLegends.selectAll('text')
+        svgColorLegends.selectAll('.colorlabel')
             .data(colors)
             .enter()
             .append("text")
+            .attr("class", "colorlabel")
             .attr("x", legendSquareSize * 1.2)
-            .attr("y", (d, i) => i * (legendSquareSize + 5) + (legendSquareSize / 2))
+            .attr("y", (d, i) => i * (legendSquareSize + 5) + (legendSquareSize / 2) + legendTitleHeight)
             .style("fill", d => d.color)
             .text(d => d.id)
             .attr("text-anchor", "left")
             .style("alignment-baseline", "middle");
 
         const svgSizeLegends = d3.select('g.sizelegends')
-            .attr('transform', `translate(${width - 200},160)`);
+            .attr('transform', `translate(${width - 200},200)`);
         const sizeLegendItemsCount = 5;
 
         const linspace = (start, stop, num, endpoint = true) => {
@@ -589,34 +637,41 @@ const MainGraph = React.memo(({ apiUrl }) => {
         }))
         const legendMaxCircleSize = nodeRadiusScale[selectedNodeRadiusScale].range()[1];
 
-        svgSizeLegends.selectAll('circle')
+        addLegendTitle(svgSizeLegends, "Weight Values", "radiuslegendtitle");
+
+        svgSizeLegends.selectAll('.circleradiuslabel')
             .data(legendSizeData, d => d.id)
             .join(enter => enter
                 .append('circle')
+                .attr("class", "circleradiuslabel")
                 .attr('cx', 0)
-                .attr('cy', (d, i) => i * (legendMaxCircleSize * 2))
+                .attr('cy', (d, i) => i * (legendMaxCircleSize * 2) + legendTitleHeight*2)
                 .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.value))
-                .style('fill', d => "grey"),
+                .style('fill', d => "grey")
+                .attr("stroke", "black"),
                 update => update
-                    .attr('cy', (d, i) => i * (legendMaxCircleSize * 2))
+                    .attr('cy', (d, i) => i * (legendMaxCircleSize * 2) + legendTitleHeight*2)
                     .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.value)),
                 exit => exit.remove()
             );
 
-        svgSizeLegends.selectAll('text')
+        svgSizeLegends.selectAll('.radiuslabel')
             .data(legendSizeData, d => d.id)
             .join(enter => enter
                 .append("text")
+                .attr("class", "radiuslabel")
                 .attr("x", legendMaxCircleSize * 2)
-                .attr("y", (d, i) => i * (legendMaxCircleSize * 2))
-                .text(d => Math.round(d.value) + " degree")
+                .attr("y", (d, i) => i * (legendMaxCircleSize * 2) + legendTitleHeight*2)
+                .text(d => Math.round(d.value))
                 .attr("text-anchor", "left")
                 .style("alignment-baseline", "middle"),
                 update => update
-                    .attr("y", (d, i) => i * (legendMaxCircleSize * 2))
-                    .text(d => Math.round(d.value) + " degree"),
+                    .attr("y", (d, i) => i * (legendMaxCircleSize * 2) + legendTitleHeight*2)
+                    .text(d => Math.round(d.value)),
                 exit => exit.remove()
             );
+        
+
 
         d3.zoom().on("zoom", (e) => {
             svg.attr('transform', e.transform)

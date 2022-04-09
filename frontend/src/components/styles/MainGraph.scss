@@ -5,6 +5,11 @@ $colorCategory3: #ffa770ff; // atomic-tangerine
 $colorCategory4: #e5f684ff; // mindaro
 $colorCategory5: #fef1f3ff; // lavender-blush
 
+$nodeColorCategory1: #8a2a44;
+$nodeColorCategory2: #10712b;
+$nodeColorCategory3: #411c58;
+$nodeColorCategory4: #00308e;
+
 .maingraph {
   background: white;
   width: 100%;
@@ -43,6 +48,11 @@ g.linkgroup {
       opacity: 0.3 !important;
     }
 
+    g.largehovered line {
+      stroke-width: 5px !important;
+      opacity: 0.7 !important;
+    }
+
     g.betweencategory line {
         stroke: rgb(0, 0, 0);
         opacity: 0.02;
@@ -73,6 +83,12 @@ g.pinned circle {
   stroke: red !important;
   stroke-width: 12px !important;
 }
+
+g.node circle.selected {
+  stroke: black !important;
+  stroke-width: 12px !important;
+}
+
 
 // Legends
 .mainview-legends {
