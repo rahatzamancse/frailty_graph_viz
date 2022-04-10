@@ -81,7 +81,6 @@ const forceProperties = {
 const normalizeDistance = (x, xMin, xMax, minDist, maxDist) => {
     const dist = xMax + 1 - Math.min(xMax, x);
     return (dist - xMin) / (xMax - xMin) * (maxDist - minDist) + minDist;
-
 }
 
 const calculateCategoryCenters = (cats, r) => [...Array(cats).keys()].map(i => [width / 2 + Math.round(r * Math.cos(2 * Math.PI * i / cats)), height / 2 + Math.round(r * Math.sin(2 * Math.PI * i / cats))]);
@@ -128,7 +127,7 @@ const updateForces = ({ simulation, maxDist }) => {
 
     // updates ignored until this is run
     // restarts the simulation (important if simulation has already slowed down)
-    simulation.alpha(1).alphaMin(-1).restart();
+    simulation.alpha(1).alphaMin(0.002).restart();
 }
 
 // @ts-ignore
@@ -154,6 +153,9 @@ const MainGraph = React.memo(({ apiUrl }) => {
     let maxDist = 100;
 
     const svgRef = React.useRef();
+    const loadingRef = React.useRef();
+    const startLoading = () => { d3.select(loadingRef.current).style("visibility", "visible"); };
+    const endLoading = () => { d3.select(loadingRef.current).style("visibility", "hidden"); };
     // const [selectedNode, setSelectedNode] = React.useState(dummyData);
     let selectedNode = dummyData;
     const cleanUp = () => {
@@ -239,6 +241,11 @@ const MainGraph = React.memo(({ apiUrl }) => {
     const d3UpdateFunc = async () => {
         // This is not actually an effect, but it works like an effect as it is run after component is mounted and rendered.
         console.log("effect called");
+
+
+
+        startLoading();
+
         if (selectedNode.nodes.nodes.length === 0) {
             setSelectedNode(dummyData);
             return;
@@ -440,26 +447,6 @@ const MainGraph = React.memo(({ apiUrl }) => {
                             }
 
                         })
-                    nodeGroup
-                        // @ts-ignore
-                        .call(d3.drag()
-                            .on("start", (event, d) => {
-                                if (!event.active) simulation.alphaTarget(0.3).restart();
-                                d.fx = d.x;
-                                d.fy = d.y;
-
-                            })
-                            .on("drag", (event, d) => {
-                                d.fx = event.x;
-                                d.fy = event.y;
-
-                            })
-                            .on("end", (event, d) => {
-                                if (!event.active) simulation.alphaTarget(0.001);
-                                d.fx = null;
-                                d.fy = null;
-                            }));
-
                     return nodeGroup;
                 },
                 update => {
@@ -490,7 +477,13 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
         updateForces({ simulation, maxDist });
 
+
         simulation.on("tick", () => {
+            if(simulation.alpha() > simulation.alphaMin()) {
+                return;
+            }
+            endLoading();
+
             link.selectAll('line')
                 .attr("x1", d => d.source.x)
                 .attr("y1", d => d.source.y)
@@ -519,16 +512,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
                 }
             }
 
-            const entropyBar = d3.select('#alpha_value').style('width', simulation.alpha() * 100 + "%");
-            if (simulation.alpha() > 0.5) {
-                entropyBar.classed("bg-danger", true).classed("bg-warning", false).classed("bg-success", false);
-            }
-            else if (simulation.alpha() > 0.2) {
-                entropyBar.classed("bg-warning", true).classed("bg-danger", false).classed("bg-success", false);
-            }
-            else {
-                entropyBar.classed("bg-warning", false).classed("bg-danger", false).classed("bg-success", true);
-            }
+            simulation.stop();
         });
 
         simulation.alpha(1).restart();
@@ -705,7 +689,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
                 initialUpdateCall={false}
             />
             <main className="main-ui">
-                <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} nodeRadiusScaleChanged={nodeRadiusScaleChanged} />
+                <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} nodeRadiusScaleChanged={nodeRadiusScaleChanged} startLoading={startLoading} />
                 <div className="mainview">
                     <div className="mainview-drawings" style={{
                         display: "inline-block",
@@ -731,6 +715,10 @@ const MainGraph = React.memo(({ apiUrl }) => {
                                 <g className="categorylegends" transform={`translate(${width - 200},25)`}></g>
                                 <g className="sizelegends" transform={`translate(${width - 200},160)`}></g>
                             </g>
+                            <g ref={loadingRef}>
+                                <rect x="0" y="0" width="100%" height="100%" rx="50" ry="50" fill="#aaaaaa" fillOpacity="0.3"/>
+                                <text textAnchor="center" x="50%" y="50%" fontSize="100" fontWeight="bold">Loading</text>
+                            </g>
                         </svg>
                     </div>
                 </div>
@@ -739,7 +727,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
     )
 })
 
-function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions, nodeRadiusScaleChanged }) {
+function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions, nodeRadiusScaleChanged, startLoading }) {
     const [entityOpen, setEntityOpen] = useState(false);
     const [visualOpen, setVisualOpen] = useState(false);
     const [graphParamsOpen, setGraphParamsOpen] = useState(false);
@@ -748,10 +736,6 @@ function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions, nodeRad
 
 
     return <div className="sidebar flex-shrink-0 p-3 bg-white">
-        <h4>Entropy</h4>
-        <div className="progress mb-5">
-            <div id="alpha_value" className="progress-bar" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
-        </div>
         <span className="d-flex align-items-center pb-3 mb-3 link-dark text-decoration-none border-bottom">
             <span className="fs-5 fw-semibold">Controls</span>
         </span>
@@ -831,15 +815,6 @@ function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions, nodeRad
                 <Collapse in={graphParamsOpen}>
                     <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
                         <li>
-                            <div className="form-check form-switch m-3">
-                                <input type="checkbox" className="form-check-input" id="simulationenabled" defaultChecked={true} onChange={e => {
-                                    if (e.target.checked) simulation.alpha(1).restart();
-                                    else simulation.stop();
-                                }} />
-                                <label className="form-check-label" htmlFor="simulationenabled"><b>Simulation</b></label>
-                            </div>
-                        </li>
-                        <li>
                             <span><b>Node Radius Scale</b></span><br/>
                             <div className="form-check form-switch m-3">
                                 <input type="checkbox" className="form-check-input" id="noderadiuslog" defaultChecked={false} onChange={e => {
@@ -858,6 +833,7 @@ function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions, nodeRad
                             <input type="range" className="form-range" min="0" max="1" step="0.01" id="graphparamsepfactor" defaultValue="0.1" onChange={e => {
                                 forceProperties.separation.strength = parseFloat(e.target.value);
                                 updateForces({ simulation, maxDist });
+                                startLoading();
                             }} />
                         </li>
                         <li>
@@ -865,6 +841,7 @@ function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions, nodeRad
                             <input type="range" className="form-range" min="0" max="1" step="0.01" id="linkstrength" defaultValue="0.9" onChange={e => {
                                 forceProperties.link.strength = parseFloat(e.target.value);
                                 updateForces({ simulation, maxDist });
+                                startLoading();
                             }} />
                         </li>
                     </ul>
