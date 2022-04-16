@@ -236,6 +236,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
     };
 
     const clickedOnRelation = async (node1, node2) => {
+        window.open(`viz?src=${node1}&dst=${node2}&true`, '_blank');
     }
 
 
