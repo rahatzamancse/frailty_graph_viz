@@ -86,7 +86,7 @@ function useQuery() {
 	return useMemo(() => new URLSearchParams(search), [search]);
   }
 
-export default function NetworkViz({ apiUrl }){
+export default function NetworkViz({ apiUrl, initData=null, onDataChange=null }){
 
 	const [elements, setElements] = useState([]);
 	const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
@@ -112,14 +112,38 @@ export default function NetworkViz({ apiUrl }){
 
 
 	const  pattern = /^.+ \(([^\(\)]+)\)$/
-	let source = query.get("src")
-	let destination = query.get("dst")
-	let bidirectional = true//query.get("bidirect")
-	if(pattern.test(source)) {
-		source = source.match(pattern)[1]
+	let src, dst, bid;
+	if(initData === null) {
+		src = query.get("src");
+		dst = query.get("dst");
+		bid = true;
 	}
-	if(pattern.test(destination))
-		destination = destination.match(pattern)[1]
+	else {
+		src = initData.src;
+		dst = initData.dst;
+		bid = initData.bid;
+	}
+	if(pattern.test(src)) {
+		src = src.match(pattern)[1]
+	}
+	if(pattern.test(dst))
+		dst = dst.match(pattern)[1]
+
+	const [data, setData] = useState({
+		src: src,
+		dst: dst,
+		bid: bid
+	})
+
+	console.log("Loading module")
+	console.log(data);
+
+	if(onDataChange !== null) {
+		onDataChange((newData) => {
+			setData(newData);
+		});
+	}
+
 
 	// Side effect to load the weight values from local storage
 	useEffect(() => {
@@ -131,13 +155,17 @@ export default function NetworkViz({ apiUrl }){
 
 	useEffect(() => {
 		// Initial fetch of the data
-		getInteraction(apiUrl, source, destination, bidirectional).then(
+		getInteraction(apiUrl, data.src, data.dst, data.bid).then(
 			elements => {
 				setElements(elements);
 				setIsLoading(false);
 			}
 		);
-	}, []);
+		return () => {
+			setElements([]);
+			setIsLoading(true);
+		}
+	}, [apiUrl, data]);
 
 	useEffect(() => {
 		// Imperatively call the cytoscape js api

@@ -6,6 +6,7 @@ import smoothHull from '../../utils/convexHull';
 import "../styles/MainGraph.scss";
 import WeightPanel from '../weight/WeightPanel';
 import SidePanel from "./SidePanel";
+import NetworkViz from '../../NetworkViz';
 
 const dummyData = {
     'nodes': { nodes: ["uniprot:P05231"] },
@@ -129,7 +130,7 @@ const updateForces = ({ simulation, maxDist }) => {
 }
 
 // @ts-ignore
-const MainGraph = ({ vizApiUrl, apiUrl }) => {
+const MainGraph = React.memo(({ vizApiUrl, apiUrl }) => {
     console.log("Module Loading");
 
     const simulation = d3.forceSimulation();
@@ -235,7 +236,19 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         first: null
     };
 
-    const clickedOnRelation = async (node1, node2) => {
+    // NetworkViz states
+    let setNetworkVizData = null;
+    const networkVizDataChanged = (dataFromChild) => {
+        setNetworkVizData = dataFromChild;
+    };
+
+    const clickedOnRelation = (node1, node2) => {
+        console.log("Calling set data");
+        setNetworkVizData({
+            src: node1,
+            dst: node2,
+            bid: true
+        })
     }
 
 
@@ -717,7 +730,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         d3UpdateFunc();
     }));
 
-    // React.useEffect(d3UpdateFunc, []);
+
 
     return (
         <>
@@ -743,6 +756,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                         <main className="main-ui rsection" style={{
                                 width: "100%",
                                 display: "flex",
+                                flexDirection: "column",
                                 position: "relative",
                                 verticalAlign: "top",
                                 overflow: "hidden",
@@ -781,12 +795,16 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                                 </g>
                             </svg>
                         </main>
+                        <div className="rsection" style={{
+                            width: "100%",
+                        }}>
+                            <NetworkViz apiUrl={apiUrl} initData={{src:"uniprot:P05231", dst:"go:GO:0006954", bid:true}} onDataChange={networkVizDataChanged}></NetworkViz>
+                        </div>
                     </div>
-
                 </div>
             </div>
         </>
     )
-};
+});
 
 export default MainGraph;
