@@ -59,7 +59,7 @@ ReactDOM.render(
 				}/>
 				<Route path="blob-viz" element={
 					<>
-						<BlobViz apiUrl={ vizApiUrl } />
+						<BlobViz vizApiUrl={ vizApiUrl } apiUrl={ apiUrl } />
 						<ScrollToTop />
 					</>
 				} />

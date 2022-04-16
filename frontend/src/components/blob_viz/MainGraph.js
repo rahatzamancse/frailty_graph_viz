@@ -2,13 +2,10 @@ import React, { useState } from 'react';
 import * as d3 from "d3";
 import smoothHull from '../../utils/convexHull';
 
-import { Col, Collapse, Row } from 'react-bootstrap';
-import { Button } from 'react-bootstrap';
-
 
 import "../styles/MainGraph.scss";
-import EntityAutoComplete from './entityAutoComplete';
 import WeightPanel from '../weight/WeightPanel';
+import SidePanel from "./SidePanel";
 
 const dummyData = {
     'nodes': { nodes: ["uniprot:P05231"] },
@@ -132,7 +129,7 @@ const updateForces = ({ simulation, maxDist }) => {
 }
 
 // @ts-ignore
-const MainGraph = React.memo(({ apiUrl }) => {
+const MainGraph = ({ vizApiUrl, apiUrl }) => {
     console.log("Module Loading");
 
     const simulation = d3.forceSimulation();
@@ -206,7 +203,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
     const weightUpdated = async () => {
         if (Object.keys(nodeWeightParams).length === 0) return;
-        const nodeWeightsResponse = await fetch(`${apiUrl}/noderadius`, {
+        const nodeWeightsResponse = await fetch(`${vizApiUrl}/noderadius`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -233,6 +230,12 @@ const MainGraph = React.memo(({ apiUrl }) => {
         Object.assign(nodeWeightParams, weight);
         weightUpdated();
         d3UpdateFunc();
+    }
+    let nodeSelection = {
+        first: null
+    };
+
+    const clickedOnRelation = async (node1, node2) => {
     }
 
 
@@ -263,7 +266,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
             .append('path')
             .attr('class', d => 'hull_' + (d.category));
 
-        const newSubgraphResponse = await fetch(`${apiUrl}/getbestsubgraph`, {
+        const newSubgraphResponse = await fetch(`${vizApiUrl}/getbestsubgraph`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -308,7 +311,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
         subgraph.nodes = newNodes;
         subgraph.links = newLinks;
 
-        const nodeWeightsResponse = await fetch(`${apiUrl}/noderadius`, {
+        const nodeWeightsResponse = await fetch(`${vizApiUrl}/noderadius`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -347,22 +350,28 @@ const MainGraph = React.memo(({ apiUrl }) => {
                         .text(d => d.freq);
                     lineGroup.append("line")
                         .on('mouseover', (e) => {
+                            if(nodeSelection.first) return;
                             const line = d3.select(e.target.parentNode).classed('hovered', true);
                             const lineData = line.data();
                             d3.selectAll(`g#${idToClass(lineData[0].source.id)} circle`).classed('hovered', true);
                             d3.selectAll(`g#${idToClass(lineData[0].target.id)} circle`).classed('hovered', true);
                         })
                         .on('mouseout', (e) => {
+                            if(nodeSelection.first) {
+                                return;
+                            }
                             const line = d3.select(e.target.parentNode).classed('hovered', false);
                             const lineData = line.data();
                             d3.selectAll(`g#${idToClass(lineData[0].source.id)} circle`).classed('hovered', false);
                             d3.selectAll(`g#${idToClass(lineData[0].target.id)} circle`).classed('hovered', false);
                         })
                         .on('click', (e) => {
-                            const line = d3.select(e.target.parentNode).classed('hovered', true);
+                            const line = d3.select(e.target.parentNode);
                             const lineData = line.data();
-                            const url = `/viz?src=${lineData[0].source.id}&dst=${lineData[0].target.id}&bidirect`
-                            // window.open(url, "_self")
+                            if(nodeSelection.first !== null && nodeSelection.first !== lineData[0].source.id && nodeSelection.first !== lineData[0].target.id) {
+                                return;
+                            }
+                            clickedOnRelation(lineData[0].source.id, lineData[0].target.id);
                         });
 
                     return lineGroup;
@@ -378,6 +387,11 @@ const MainGraph = React.memo(({ apiUrl }) => {
             2: "#00308e",
         }
 
+        const shortenText = (t) => {
+            if (t.length <= 15) return t;
+            return t.substring(0, 7) + '...' + t.substring(t.length-3)
+        };
+
         const node = svgNodeGroup
             .selectAll("g.node")
             .data(subgraph.nodes, d => d.id)
@@ -390,14 +404,18 @@ const MainGraph = React.memo(({ apiUrl }) => {
                         .attr('id', d => idToClass(d.id));
 
                     nodeGroup.append("text")
-                        .text(d => d["label"])
+                        .text(d => shortenText(d["label"]))
                         .attr('x', 40)
-                        .attr('y', 0);
+                        .attr('y', 0)
+                        .on("mouseover", e => {
+                            d3.select(e.target).text(d => d['label'])
+                        })
+                        .on("mouseout", e => {
+                            d3.select(e.target).text(d => shortenText(d['label']))
+                        });
                     // node tooltip
                     nodeGroup.append("title")
                         .text(d => d.id);
-
-                    let nodeSelection1 = null;
 
                     nodeGroup.append("circle")
                         .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius))
@@ -418,10 +436,10 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
                         })
                         .on("click", (e) => {
-                            if(!nodeSelection1) {
+                            if(!nodeSelection.first) {
                                 const circle = d3.select(e.target).classed('selected', true);
                                 const nodeId = circle.data()[0].id;
-                                nodeSelection1 = nodeId;
+                                nodeSelection.first = nodeId;
 
                                 d3.selectAll('g.linkgroup g.' + idToClass(nodeId)).classed('largehovered', true);
                             }
@@ -429,13 +447,13 @@ const MainGraph = React.memo(({ apiUrl }) => {
                                 d3.select(".node circle.selected").classed("selected", false);
                                 const circle = d3.select(e.target);
                                 const nodeId = circle.data()[0].id;
-                                d3.selectAll('g.linkgroup g.' + idToClass(nodeSelection1)).classed('largehovered', false);
-                                if(nodeId !== nodeSelection1) {
-                                    window.open(`/viz?src=${nodeSelection1}&dst=${nodeId}&bidirect`);
-                                    nodeSelection1 = null;
+                                d3.selectAll('g.linkgroup g.' + idToClass(nodeSelection.first)).classed('largehovered', false);
+                                if(nodeId !== nodeSelection.first) {
+                                    clickedOnRelation(nodeSelection.first, nodeId);
+                                    nodeSelection.first = null;
                                 }
                                 else {
-                                    nodeSelection1 = null;
+                                    nodeSelection.first = null;
                                 }
                             }
 
@@ -467,7 +485,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
                         .classed("pinned", d => d['pinned']);
 
                     nodeGroup.select('text')
-                        .text(d => d["label"]);
+                        .text(d => shortenText(d["label"]));
                     // node tooltip
                     nodeGroup.select("title")
                         .text(d => d.id);
@@ -533,15 +551,20 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
         simulation.alpha(1).restart();
 
+        d3.selectAll("g.intracategory line").style('opacity', d3.select("#interclusterEdgeOpacity").node().value);
         d3.select("#interclusterEdgeOpacity").on('change', (e) => {
             d3.selectAll("g.intracategory line").style('opacity', e.target.value);
         })
+        d3.selectAll("g.betweencategory line").style('opacity', d3.select("#intraclusterEdgeOpacity").node().value);
         d3.select("#intraclusterEdgeOpacity").on('change', (e) => {
             d3.selectAll("g.betweencategory line").style('opacity', e.target.value);
         })
+        d3.selectAll("g.node text").style('opacity', d3.select("#nodeLabelOpacity").node().value);
         d3.select("#nodeLabelOpacity").on('change', (e) => {
             d3.selectAll("g.node text").style('opacity', e.target.value);
         })
+        nodeRadiusScale["linear"].range([1, d3.select("#maxRadius").node().value]);
+        d3.selectAll("g.node circle").attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius));
         d3.select("#maxRadius").on('change', (e) => {
             nodeRadiusScale["linear"].range([1, e.target.value]);
             d3.selectAll("g.node circle").attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius));
@@ -624,7 +647,7 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
         const svgSizeLegends = d3.select('g.sizelegends')
             .attr('transform', `translate(${width - 200},200)`);
-        const sizeLegendItemsCount = 5;
+        const sizeLegendItemsCount = 3;
 
         const linspace = (start, stop, num, endpoint = true) => {
             const div = endpoint ? (num - 1) : num;
@@ -698,196 +721,72 @@ const MainGraph = React.memo(({ apiUrl }) => {
 
     return (
         <>
-            <WeightPanel
-                updateWeightValues={weightChanged}
-                useButton={false}
-                buttonText={"Update Weight"}
-                initialUpdateCall={false}
-            />
-            <main className="main-ui">
-                <SidePanel simulation={simulation} maxDist={maxDist} apiUrl={apiUrl} updateNodeSuggestions={updateNodeSuggestions} nodeRadiusScaleChanged={nodeRadiusScaleChanged} />
-                <div className="mainview">
-                    <div className="mainview-drawings" style={{
-                        display: "inline-block",
-                        position: "relative",
+            <div style={{
+                display: "flex",
+                flexDirection: "column",
+            }}>
+                <WeightPanel
+                    updateWeightValues={weightChanged}
+                    useButton={false}
+                    buttonText={"Update Weight"}
+                    initialUpdateCall={false}
+                />
+                <div style={{
+                    display: "flex",
+                    flexDirection: "row",
+                }}>
+                    <SidePanel currentView={{view: "root"}} simulation={simulation} maxDist={maxDist} apiUrl={vizApiUrl} updateNodeSuggestions={updateNodeSuggestions} nodeRadiusScaleChanged={nodeRadiusScaleChanged} forceProperties={forceProperties} updateForces={updateForces} />
+                    <div style={{
                         width: "100%",
-                        height: "100%",
-                        paddingBottom: "50%",
-                        verticalAlign: "top",
-                        overflow: "hidden"
+                        minWidth: "800px"
                     }}>
-                        <svg ref={svgRef} id="maingraph" className="maingraph" style={{
-                            display: "inline-block",
-                            position: "absolute",
-                            top: "0",
-                            left: "0"
+                        <main className="main-ui rsection" style={{
+                                width: "100%",
+                                display: "flex",
+                                position: "relative",
+                                verticalAlign: "top",
+                                overflow: "hidden",
+                                paddingBottom: "50%",
                         }}>
-                            <g className="everything">
-                                <g className="hullgroup"></g>
-                                <g className="linkgroup"></g>
-                                <g className="nodegroup"></g>
-                            </g>
-                            <g className="legendgroup">
-                                <g className="categorylegends" transform={`translate(${width - 200},25)`}></g>
-                                <g className="sizelegends" transform={`translate(${width - 200},160)`}></g>
-                            </g>
-                        </svg>
+                            <svg ref={svgRef} id="maingraph" className="fullsize" style={{
+                                position: "absolute",
+                                background: "white",
+                            }}>
+                                <g className="relationview"></g>
+                                <g className="everything">
+                                    <g className="hullgroup"></g>
+                                    <g className="linkgroup"></g>
+                                    <g className="nodegroup"></g>
+                                </g>
+                                <g className="legendgroup" style={{
+                                    outline: "1px solid black",
+                                    outlineOffset: "10px"
+                                }}>
+                                    <g className="categorylegends" transform={`translate(${width - 200},25)`}></g>
+                                    <g className="sizelegends" transform={`translate(${width - 200},160)`}></g>
+                                </g>
+                                <g className="ui">
+                                    <g transform="scale(0.4, 0.4),translate(100, 100)" className="backbtn" style={{
+                                        position: "absolute"
+                                    }}>
+                                        <rect x="-15" y="-15" height="250" width="250" rx="10" ry="10" fill="white" />
+                                        <path d="M109.576,219.151c60.419,0,109.573-49.156,109.573-109.576C219.149,49.156,169.995,0,109.576,0S0.002,49.156,0.002,109.575
+                                            C0.002,169.995,49.157,219.151,109.576,219.151z M109.576,15c52.148,0,94.573,42.426,94.574,94.575
+                                            c0,52.149-42.425,94.575-94.574,94.576c-52.148-0.001-94.573-42.427-94.573-94.577C15.003,57.427,57.428,15,109.576,15z"/>
+                                        <path d="M94.861,156.507c2.929,2.928,7.678,2.927,10.606,0c2.93-2.93,2.93-7.678-0.001-10.608l-28.82-28.819l83.457-0.008
+                                            c4.142-0.001,7.499-3.358,7.499-7.502c-0.001-4.142-3.358-7.498-7.5-7.498l-83.46,0.008l28.827-28.825
+                                            c2.929-2.929,2.929-7.679,0-10.607c-1.465-1.464-3.384-2.197-5.304-2.197c-1.919,0-3.838,0.733-5.303,2.196l-41.629,41.628
+                                            c-1.407,1.406-2.197,3.313-2.197,5.303c0.001,1.99,0.791,3.896,2.198,5.305L94.861,156.507z"/>
+                                    </g>
+                                </g>
+                            </svg>
+                        </main>
                     </div>
+
                 </div>
-            </main>
+            </div>
         </>
     )
-})
-
-function SidePanel({ simulation, maxDist, apiUrl, updateNodeSuggestions, nodeRadiusScaleChanged }) {
-    const [entityOpen, setEntityOpen] = useState(false);
-    const [visualOpen, setVisualOpen] = useState(false);
-    const [graphParamsOpen, setGraphParamsOpen] = useState(false);
-    const [othersOpen, setOthersOpen] = useState(false);
-
-
-
-    return <div className="sidebar flex-shrink-0 p-3 bg-white">
-        <h4>Entropy</h4>
-        <div className="progress mb-5">
-            <div id="alpha_value" className="progress-bar" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
-        </div>
-        <span className="d-flex align-items-center pb-3 mb-3 link-dark text-decoration-none border-bottom">
-            <span className="fs-5 fw-semibold">Controls</span>
-        </span>
-        <ul className="list-unstyled ps-0">
-            <li className="mb-1">
-                <Button
-                    className="btn btn-toggle align-items-center rounded collapsed"
-                    onClick={() => setEntityOpen(!entityOpen)}
-                    aria-controls="example-collapse-text"
-                    aria-expanded={entityOpen}
-                >
-                    Entity
-                </Button>
-                <Collapse in={entityOpen}>
-                    <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                        <li>
-                            <EntityAutoComplete fromEntityAutoComplete={updateNodeSuggestions} apiUrl={apiUrl} />
-                        </li>
-                        <li>
-                            <label htmlFor="cluster1count" className="form-label">Protein Entity Count</label>
-                            <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster1count" defaultValue="5" />
-                        </li>
-                        <li>
-                            <label htmlFor="cluster2count" className="form-label">Disease Entity Count</label>
-                            <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster2count" defaultValue="5" />
-                        </li>
-                        <li>
-                            <label htmlFor="cluster3count" className="form-label">Chemical Entity Count</label>
-                            <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster3count" defaultValue="5" />
-                        </li>
-                        <li>
-                            <label htmlFor="cluster4count" className="form-label">Disease Entity Count</label>
-                            <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster4count" defaultValue="5" />
-                        </li>
-                    </ul>
-                </Collapse>
-            </li>
-            <li className="mb-1">
-                <Button
-                    className="btn btn-toggle align-items-center rounded collapsed"
-                    onClick={() => setVisualOpen(!visualOpen)}
-                    aria-controls="example-collapse-text"
-                    aria-expanded={visualOpen}
-                >
-                    Visual
-                </Button>
-                <Collapse in={visualOpen}>
-                    <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                        <li>
-                            <label htmlFor="interclusterEdgeOpacity" className="form-label">Inter Category Link Opacity</label>
-                            <input type="range" className="form-range" min="0" max="1" step="0.01" id="interclusterEdgeOpacity" defaultValue="0.1" />
-                        </li>
-                        <li>
-                            <label htmlFor="intraclusterEdgeOpacity" className="form-label">Between Category Link Opacity</label>
-                            <input type="range" className="form-range" min="0" max="1" step="0.01" id="intraclusterEdgeOpacity" defaultValue="0.1" />
-                        </li>
-                        <li>
-                            <label htmlFor="nodeLabelOpacity" className="form-label">Entity Label Opacity</label>
-                            <input type="range" className="form-range" min="0" max="1" step="0.01" id="nodeLabelOpacity" defaultValue="0.1" />
-                        </li>
-                        <li>
-                            <label htmlFor="maxRadius" className="form-label">Maximum Radius of Each Entity</label>
-                            <input type="range" className="form-range" min="1" max="50" step="1" id="maxRadius" defaultValue="30" />
-                        </li>
-                    </ul>
-                </Collapse>
-            </li>
-            <li className="mb-1">
-                <Button
-                    className="btn btn-toggle align-items-center rounded collapsed"
-                    onClick={() => setGraphParamsOpen(!graphParamsOpen)}
-                    aria-controls="example-collapse-text"
-                    aria-expanded={graphParamsOpen}
-                >
-                    Graph Parameters
-                </Button>
-                <Collapse in={graphParamsOpen}>
-                    <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                        <li>
-                            <div className="form-check form-switch m-3">
-                                <input type="checkbox" className="form-check-input" id="simulationenabled" defaultChecked={true} onChange={e => {
-                                    if (e.target.checked) simulation.alpha(1).restart();
-                                    else simulation.stop();
-                                }} />
-                                <label className="form-check-label" htmlFor="simulationenabled"><b>Simulation</b></label>
-                            </div>
-                        </li>
-                        <li>
-                            <span><b>Node Radius Scale</b></span><br/>
-                            <div className="form-check form-switch m-3">
-                                <input type="checkbox" className="form-check-input" id="noderadiuslog" defaultChecked={false} onChange={e => {
-                                    if(e.target.checked) {
-                                        nodeRadiusScaleChanged('log');
-                                    }
-                                    else {
-                                        nodeRadiusScaleChanged('linear');
-                                    }
-                                }} />
-                                <label className="form-check-label" htmlFor="noderadiuslog">Logarithmic</label>
-                            </div>
-                        </li>
-                        <li>
-                            <label htmlFor="graphparamsepfactor" className="form-label">Separation Factor</label>
-                            <input type="range" className="form-range" min="0" max="1" step="0.01" id="graphparamsepfactor" defaultValue="0.1" onChange={e => {
-                                forceProperties.separation.strength = parseFloat(e.target.value);
-                                updateForces({ simulation, maxDist });
-                            }} />
-                        </li>
-                        <li>
-                            <label htmlFor="linkstrength" className="form-label">Link Strength</label>
-                            <input type="range" className="form-range" min="0" max="1" step="0.01" id="linkstrength" defaultValue="0.9" onChange={e => {
-                                forceProperties.link.strength = parseFloat(e.target.value);
-                                updateForces({ simulation, maxDist });
-                            }} />
-                        </li>
-                    </ul>
-                </Collapse>
-            </li>
-            <li className="border-top my-3"></li>
-            <li className="mb-1">
-                <Button
-                    className="btn btn-toggle align-items-center rounded collapsed"
-                    onClick={() => setOthersOpen(!othersOpen)}
-                    aria-controls="example-collapse-text"
-                    aria-expanded={othersOpen}
-                >
-                    Others
-                </Button>
-                <Collapse in={othersOpen}>
-                    <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                        <li><span className="link-dark rounded">Others</span></li>
-                    </ul>
-                </Collapse>
-            </li>
-        </ul>
-    </div>
-}
+};
 
 export default MainGraph;
