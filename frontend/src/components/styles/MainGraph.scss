@@ -17,6 +17,7 @@ $nodeColorCategory4: #00308e;
 
 // Cluster background
 g.hullgroup {
+  transition: opacity 0.5s ease;
   path.hull_1 {
     fill: $colorCategory1;
   }
@@ -36,7 +37,7 @@ g.hullgroup {
 
 g.linkgroup {
   g line {
-    transition: all 0.5s ease;
+    transition: opacity 0.5s ease, stroke-width 0.5s;
     stroke-width: 1px;
   }
 
@@ -66,7 +67,7 @@ g.linkgroup {
   }
 
   g text {
-    transition: all 0.5s ease;
+    transition: opacity 0.5s ease;
     opacity: 0;
   }
 
@@ -78,7 +79,7 @@ g.linkgroup {
 g.nodegroup {
   g.node {
     circle {
-      transition: all 0.5s ease;
+      transition: r 0.5s ease, opacity 0.5s ease;
       stroke-width: 8px;
       cursor: pointer;
     }
@@ -87,7 +88,7 @@ g.nodegroup {
       stroke-width: 8px;
     }
     text {
-      transition: all 0.5s ease;
+      transition: opacity 0.5s ease;
       cursor: grab;
     }
     circle.selected {
@@ -115,4 +116,11 @@ svg.relationoverlay {
 
 .ui .backbtn {
   display: none;
+}
+
+.relationview {
+  .relationnodes .fake.hovered {
+    transition: opacity 0.5s ease;
+    opacity: 0.5
+  }
 }

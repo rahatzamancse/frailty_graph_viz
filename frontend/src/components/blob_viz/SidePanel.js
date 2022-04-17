@@ -98,7 +98,7 @@ function SidePanel({ currentView, simulation, maxDist, apiUrl, updateNodeSuggest
                 </Button>
                 <Collapse in={graphParamsOpen}>
                     <ul className="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                        <li>
+                        {/* <li>
                             <div className="form-check form-switch m-3">
                                 <input type="checkbox" className="form-check-input" id="simulationenabled" defaultChecked={true} onChange={e => {
                                     if(currentView.view !== "root") return;
@@ -107,7 +107,7 @@ function SidePanel({ currentView, simulation, maxDist, apiUrl, updateNodeSuggest
                                 }} />
                                 <label className="form-check-label" htmlFor="simulationenabled"><b>Simulation</b></label>
                             </div>
-                        </li>
+                        </li> */}
                         <li>
                             <span><b>Node Radius Scale</b></span><br/>
                             <div className="form-check form-switch m-3">
