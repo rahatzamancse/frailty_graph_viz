@@ -16,10 +16,10 @@ function SidePanel({ currentView, simulation, maxDist, apiUrl, updateNodeSuggest
         overflow: "auto",
         maxHeight: "80vh"
     }}>
-        <h4>Entropy</h4>
+        {/* <h4>Entropy</h4>
         <div className="progress mb-5">
             <div id="alpha_value" className="progress-bar" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
-        </div>
+        </div> */}
         <span className="d-flex align-items-center pb-3 mb-3 link-dark text-decoration-none border-bottom">
             <span className="fs-5" style={{fontWeight: "bold"}}>Controls</span>
         </span>
@@ -47,11 +47,11 @@ function SidePanel({ currentView, simulation, maxDist, apiUrl, updateNodeSuggest
                             <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster2count" defaultValue="5" />
                         </li>
                         <li>
-                            <label htmlFor="cluster3count" className="form-label">Chemical Entity Count</label>
+                            <label htmlFor="cluster3count" className="form-label">Biological Process Entity Count</label>
                             <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster3count" defaultValue="5" />
                         </li>
                         <li>
-                            <label htmlFor="cluster4count" className="form-label">Disease Entity Count</label>
+                            <label htmlFor="cluster4count" className="form-label">Chemical Entity Count</label>
                             <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster4count" defaultValue="5" />
                         </li>
                     </ul>
