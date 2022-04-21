@@ -425,6 +425,15 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         }
         const getNodeColor = (data, colors) => colors.find(color => color.id===data.id.substring(data.id.length-3)).value;
 
+        const onClickFakeNodes = (e) => {
+            const eData = d3.select(e.target.parentNode).data()[0];
+            setEvidenceData({
+                source: eData.source,
+                target: eData.target,
+                polarity: eData.polarity
+            });
+        };
+
         fakeNodes.append("path")
             .attr("class", "relationarrow")
             .attr("transform", d => `translate(70, 0),scale(80,${Math.max(30, heightScale(d.value))})`)
@@ -442,14 +451,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
             .on("mouseout", e => {
                 d3.select(e.target.parentNode).classed("hovered", false);
             })
-            .on("click", e => {
-                const eData = d3.select(e.target.parentNode).data()[0];
-                setEvidenceData({
-                    source: eData.source,
-                    target: eData.target,
-                    polarity: eData.polarity
-                });
-            })
+            .on("click", onClickFakeNodes);
 
         const text = fakeNodes.append("text")
             .attr("x", rectWidth/2)
@@ -462,6 +464,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
             .attr("x", rectWidth/2)
             .attr("dy", "1.4em")
             .text(d => `F: ${d.freq}`)
+            .on("click", onClickFakeNodes);
         // We can add more text by appending more tspan
         // ...
 
@@ -573,6 +576,13 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         })
 
         relationViewSimulation.alpha(ALPHA_INIT).alphaTarget(ALPHA_TARGET).restart();
+
+        const _intercluster_opac_el = d3.select("#interclusterEdgeOpacity").node();
+        _intercluster_opac_el.value = 0;
+        _intercluster_opac_el.dispatchEvent(new Event('change'));
+        const _intracluster_opac_el = d3.select("#intraclusterEdgeOpacity").node();
+        _intracluster_opac_el.value = 0;
+        _intracluster_opac_el.dispatchEvent(new Event('change'));
 
         // Hide hulls and links
         d3.selectAll("g.hullgroup").style("opacity", 0).transition().duration(transitionSpeed).on("end", () => {
@@ -741,6 +751,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                             d3.selectAll(`g#${idToClass(lineData[0].target.id)} circle`).classed('hovered', false);
                         })
                         .on('click', (e) => {
+                            if(currentView.view !== "root") return;
                             const line = d3.select(e.target.parentNode);
                             const lineData = line.data();
                             if(nodeSelection.first !== null && nodeSelection.first !== lineData[0].source.id && nodeSelection.first !== lineData[0].target.id) {
@@ -797,7 +808,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                         .attr('stroke', d => categoryNodeColors[d.category])
                         .attr('fill', d => categoryNodeColors[d.category])
                         .on('mouseover', (e) => {
-                            // if(currentView.view !== "root") return;
+                            if(currentView.view !== "root") return;
                             const circle = d3.select(e.target).classed('hovered', true);
                             const nodeId = circle.data()[0].id;
                             d3.selectAll('g.linkgroup g.' + idToClass(nodeId)).classed('hovered', true);
@@ -805,7 +816,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                             d3.selectAll('g.linkgroup g.' + idToClass(nodeId) + '.hovered text').classed('hovered', true);
                         })
                         .on('mouseout', (e) => {
-                            // if(currentView.view !== "root") return;
+                            if(currentView.view !== "root") return;
                             const circle = d3.select(e.target).classed('hovered', false);
                             const nodeId = circle.data()[0].id;
                             d3.selectAll('g.linkgroup g.' + idToClass(nodeId) + '.hovered text').classed('hovered', false);
@@ -825,6 +836,11 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                                 d3.select(".node circle.selected").classed("selected", false);
                                 const circle = d3.select(e.target);
                                 const nodeId = circle.data()[0].id;
+
+                                // Remove hover effect
+                                d3.selectAll('g.linkgroup g.' + idToClass(nodeId) + '.hovered text').classed('hovered', false);
+                                d3.selectAll('g.linkgroup g.' + idToClass(nodeId)).classed('hovered', false);
+
                                 d3.selectAll('g.linkgroup g.' + idToClass(nodeSelection.first)).classed('largehovered', false);
                                 if(nodeId !== nodeSelection.first) {
                                     clickedOnRelation(nodeSelection.first, nodeId);
