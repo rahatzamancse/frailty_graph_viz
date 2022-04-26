@@ -3,7 +3,7 @@ import EntityAutoComplete from "./entityAutoComplete";
 import { useState } from "react";
 import "../styles/SidePanel.scss";
 
-function SidePanel({ currentView, simulation, maxDist, apiUrl, updateNodeSuggestions, nodeRadiusScaleChanged, forceProperties, updateForces }) {
+function SidePanel({ currentView, simulation, maxLinkDist, apiUrl, updateNodeSuggestions, nodeRadiusScaleChanged, forceProperties, updateForces }) {
     const [entityOpen, setEntityOpen] = useState(false);
     const [visualOpen, setVisualOpen] = useState(false);
     const [graphParamsOpen, setGraphParamsOpen] = useState(false);
@@ -128,7 +128,7 @@ function SidePanel({ currentView, simulation, maxDist, apiUrl, updateNodeSuggest
                             <input type="range" className="form-range" min="0" max="1" step="0.01" id="graphparamsepfactor" defaultValue="0.1" onChange={e => {
                                 if(currentView.view !== "root") return;
                                 forceProperties.separation.strength = parseFloat(e.target.value);
-                                updateForces({ simulation, maxDist });
+                                updateForces({ simulation, maxLinkDist });
                             }} />
                         </li>
                         <li>
@@ -136,7 +136,7 @@ function SidePanel({ currentView, simulation, maxDist, apiUrl, updateNodeSuggest
                             <input type="range" className="form-range" min="0" max="1" step="0.01" id="linkstrength" defaultValue="0.9" onChange={e => {
                                 if(currentView.view !== "root") return;
                                 forceProperties.link.strength = parseFloat(e.target.value);
-                                updateForces({ simulation, maxDist });
+                                updateForces({ simulation, maxLinkDist });
                             }} />
                         </li>
                     </ul>

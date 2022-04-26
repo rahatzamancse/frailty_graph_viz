@@ -110,17 +110,44 @@ g.nodegroup {
   box-shadow: #929292 0px 0px 10px;
 }
 
-svg.relationoverlay {
-  display: none;
-}
-
 .ui .backbtn {
   display: none;
 }
 
 .relationview {
+  .relationnodes .fake {
+    cursor: pointer;
+  }
+
   .relationnodes .fake.hovered {
-    transition: opacity 0.5s ease;
     opacity: 0.5
   }
+
+  .relationhover {
+    position: relative;
+    border-bottom: 1px dotted black;
+  }
+
+  .relationhover:before {
+    content: attr(data-hover);
+    visibility: hidden;
+    opacity: 0;
+    width: max-content;
+    background-color: black;
+    color: #fff;
+    text-align: center;
+    border-radius: 5px;
+    padding: 5px 5px;
+    transition: opacity 1s ease-in-out;
+    position: absolute;
+    z-index: 1;
+    left: 0;
+    top: 110%;
+  }
+
+  .relationhover:hover:before {
+    opacity: 1;
+    visibility: visible;
+  }
+
 }

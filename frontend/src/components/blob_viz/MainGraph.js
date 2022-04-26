@@ -8,6 +8,7 @@ import "../styles/MainGraph.scss";
 import WeightPanel from '../weight/WeightPanel';
 import SidePanel from "./SidePanel";
 import EvidencePanelWrapper from './EvidencePanelWrapper';
+import { idToClass, calculateCategoryCenters, calculateCategoryCentersEllipse, normalizeDistance } from '../../utils/utils';
 
 const dummyData = {
     'nodes': { nodes: ["uniprot:P05231"] },
@@ -20,16 +21,6 @@ const dummyData = {
         }
     }
 };
-
-const idToClass = id => {
-    if (typeof id === 'string' || id instanceof String) {
-        // @ts-ignore
-        return id.replaceAll(':', '_');
-    }
-    else {
-        return id.id.replaceAll(':', '_');
-    }
-}
 
 const ALPHA_TARGET = 0.1;
 const ALPHA_MINVAL = -1;
@@ -82,21 +73,7 @@ const forceProperties = {
     }
 };
 
-const normalizeDistance = (x, xMin, xMax, minDist, maxDist) => {
-    const dist = xMax + 1 - Math.min(xMax, x);
-    return (dist - xMin) / (xMax - xMin) * (maxDist - minDist) + minDist;
-
-}
-
-const calculateCategoryCenters = (cats, r) => [...Array(cats).keys()].map(i => [width / 2 + Math.round(r * Math.cos(2 * Math.PI * i / cats)), height / 2 + Math.round(r * Math.sin(2 * Math.PI * i / cats))]);
-const calculateCategoryCentersEllipse = (cats, a, b) => [...Array(cats).keys()].map(i => {
-    const theta = i*Math.PI*2/cats;
-    const x = width/2 + ((theta<Math.PI/2 || theta>Math.PI/2*3)?1:-1)*a*b/(Math.sqrt(b*b + a*a*Math.tan(theta)*Math.tan(theta)));
-    const y = height/2 + (theta<Math.PI?1:-1)*a*b/(Math.sqrt(a*a + b*b/(Math.tan(theta)*Math.tan(theta))))
-    return [ x, y ];
-});
-
-const updateForces = ({ simulation, maxDist }) => {
+const updateForces = ({ simulation, maxLinkDist }) => {
     // get each force by name and update the properties
     simulation.force("center")
         // @ts-ignore
@@ -114,7 +91,7 @@ const updateForces = ({ simulation, maxDist }) => {
         .radius(forceProperties.collide.radius)
         .iterations(forceProperties.collide.iterations);
 
-    const cat_centers = calculateCategoryCenters(4, forceProperties.separation.radius)
+    const cat_centers = calculateCategoryCenters(4, forceProperties.separation.radius, width, height)
     simulation.force("forceX")
         // @ts-ignore
         .strength(forceProperties.separation.strength * forceProperties.separation.enabled)
@@ -131,7 +108,7 @@ const updateForces = ({ simulation, maxDist }) => {
 
     simulation.force("link")
         // @ts-ignore
-        .distance(d => normalizeDistance(d.freq, 1, maxDist, 1, 50) * forceProperties.link.distanceFactor)
+        .distance(d => normalizeDistance(d.freq, 1, maxLinkDist, 1, 50) * forceProperties.link.distanceFactor)
         .iterations(forceProperties.link.iterations)
         // @ts-ignore
         .strength(forceProperties.link.enabled ? simulation.force("link").strength() : 0);
@@ -142,10 +119,12 @@ const updateForces = ({ simulation, maxDist }) => {
 }
 
 
-// @ts-ignore
 const MainGraph = ({ vizApiUrl, apiUrl }) => {
     console.log("Module Loading");
 
+    const svgRef = React.useRef();
+    let maxLinkDist = 100;
+    let selectedNode = dummyData;
     const simulation = d3.forceSimulation();
 
     simulation.stop()
@@ -161,20 +140,18 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
             height / 2
         ));
 
-    let maxDist = 100;
-
-    const svgRef = React.useRef();
-    // const [selectedNode, setSelectedNode] = React.useState(dummyData);
-    let selectedNode = dummyData;
     const cleanUp = () => {
-        // console.log('Clean up');
-        // d3.select('g.linkgroup').remove();
-        // d3.select('g.hullgroup').remove();
-        // d3.select('g.nodegroup').remove();
-
-        // d3.select(svgRef.current).select('g.everything').append('g').attr('class', 'hullgroup');
-        // d3.select(svgRef.current).select('g.everything').append('g').attr('class', 'linkgroup');
-        // d3.select(svgRef.current).select('g.everything').append('g').attr('class', 'nodegroup');
+        simulation.stop();
+        relationViewSimulation.stop();
+        console.log('Clean up');
+        d3.select('g.hullgroup').html("");
+        d3.select('g.linkgroup').html("");
+        d3.select('g.nodegroup').html("");
+        d3.select('g.relationlinks').html("");
+        d3.select('g.relationnodes').html("");
+        d3.select('g.categorylegendss').html("");
+        d3.select('g.sizelegends').html("");
+        d3.select('g.relationlegends').html("");
     };
 
     const subgraph = {
@@ -182,8 +159,8 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
     };
 
     const setSelectedNode = (d) => {
-        selectedNode = d;
         cleanUp();
+        selectedNode = d;
         d3UpdateFunc();
     };
     const updateNodeSuggestions = (d) => {
@@ -343,6 +320,9 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
     
     const clickedOnRelation = async (node1, node2) => {
         simulation.stop();
+        d3.select(".selected").classed("selected", false);
+        d3.selectAll(".hovered").classed("hovered", false);
+        d3.selectAll(".largehovered").classed("largehovered", false);
 
         const transitionSpeed = 750;
         const depGraphResponse = await fetch(`${apiUrl}/interaction/${node1}/${node2}/true`);
@@ -401,11 +381,10 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
             .data(sankeyGraph.nodes)
             .enter().append("g")
                 .attr("class", "sankeyNode")
+                .attr("id", d => d.id)
                 .classed("original", d => d.id === node1 || d.id === node2)
                 .classed("fake", d => d.id !== node1 && d.id !== node2)
                 .attr("transform", d => `translate(${d.x0-rectWidth/2}, ${d.y0-heightScale(d.value)/2})`);
-        const originalNodes = d3.select("g.relationnodes").selectAll(".original");
-        const fakeNodes = d3.select("g.relationnodes").selectAll(".fake");
 
         const influenceLinkColors = [
             { id:"Pos", value: "#4bb543"},
@@ -434,6 +413,9 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
             });
         };
 
+        const originalNodes = d3.select("g.relationnodes").selectAll(".original");
+        const fakeNodes = d3.select("g.relationnodes").selectAll(".fake");
+
         fakeNodes.append("path")
             .attr("class", "relationarrow")
             .attr("transform", d => `translate(70, 0),scale(80,${Math.max(30, heightScale(d.value))})`)
@@ -444,14 +426,8 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                 if(d.id.startsWith("left"))
                     return "M 0 0 h 1 v 1 h -1 l -0.5 -0.5 Z";
             })
-            .attr("fill", d => getNodeColor(d, influenceNodeColors))
-            .on("mouseover", e => {
-                d3.select(e.target.parentNode).classed("hovered", true);
-            })
-            .on("mouseout", e => {
-                d3.select(e.target.parentNode).classed("hovered", false);
-            })
-            .on("click", onClickFakeNodes);
+            .attr("fill", d => getNodeColor(d, influenceNodeColors));
+        
 
         const text = fakeNodes.append("text")
             .attr("x", rectWidth/2)
@@ -463,14 +439,30 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         text.append("tspan")
             .attr("x", rectWidth/2)
             .attr("dy", "1.4em")
-            .text(d => `F: ${d.freq}`)
-            .on("click", onClickFakeNodes);
+            .text(d => `F: ${d.freq}`);
         // We can add more text by appending more tspan
         // ...
 
+        fakeNodes.append("span")
+            .attr("class", "relationhover")
+            .attr("data-hover", d => d.id);
+            // TODO: Add hover show more information
+
+
+        fakeNodes
+            .on("mouseover", e => {
+                const elId = d3.select(e.target).data()[0].id;
+                d3.select("#"+elId).classed("hovered", true);
+            })
+            .on("mouseout", e => {
+                const elId = d3.select(e.target).data()[0].id;
+                d3.select("#"+elId).classed("hovered", false);
+            })
+            .on("click", onClickFakeNodes);
+
+
 
         const link = d3.select("g.relationview g.relationlinks")
-            // .attr("transform", d => `translate(${10}, ${10})`)
             .attr("fill", "none")
             .attr("stroke-opacity", 0.5)
             .style("mix-blend-mode", "multiply")
@@ -539,8 +531,8 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         relationViewSimulation.nodes(subgraph.nodes);
         relationViewSimulation.force("link").links(subgraph.links);
 
-        const oldCatCenters = calculateCategoryCenters(4, forceProperties.separation.radius)
-        const newCatCenters = calculateCategoryCentersEllipse(4, relationalNodeSepDist+60, relationalMaxHeight + 80);
+        const oldCatCenters = calculateCategoryCenters(4, forceProperties.separation.radius, width, height);
+        const newCatCenters = calculateCategoryCentersEllipse(4, relationalNodeSepDist+60, relationalMaxHeight + 80, width, height);
         const catTransition = newCatCenters.map((center, idx) => [center[0] - oldCatCenters[idx][0], center[1] - oldCatCenters[idx][1]]);
         
         const getForceX = (d) => d.x + catTransition[d.category-1][0];
@@ -752,11 +744,13 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                         })
                         .on('click', (e) => {
                             if(currentView.view !== "root") return;
+                            nodeSelection.first = null;
                             const line = d3.select(e.target.parentNode);
                             const lineData = line.data();
                             if(nodeSelection.first !== null && nodeSelection.first !== lineData[0].source.id && nodeSelection.first !== lineData[0].target.id) {
                                 return;
                             }
+
                             clickedOnRelation(lineData[0].source.id, lineData[0].target.id);
                         });
 
@@ -899,11 +893,11 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
 
 
         simulation.nodes(subgraph.nodes);
-        maxDist = Math.max(...subgraph.links.map(link => link.freq));
+        maxLinkDist = Math.max(...subgraph.links.map(link => link.freq));
 
         simulation.force("link").links(subgraph.links);
 
-        updateForces({ simulation, maxDist });
+        updateForces({ simulation, maxLinkDist });
 
         simulation.on("tick", () => {
             link.selectAll('line')
@@ -1130,7 +1124,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                     display: "flex",
                     flexDirection: "row",
                 }}>
-                    <SidePanel currentView={{view: "root"}} simulation={simulation} maxDist={maxDist} apiUrl={vizApiUrl} updateNodeSuggestions={updateNodeSuggestions} nodeRadiusScaleChanged={nodeRadiusScaleChanged} forceProperties={forceProperties} updateForces={updateForces} />
+                    <SidePanel currentView={{view: "root"}} simulation={simulation} maxLinkDist={maxLinkDist} apiUrl={vizApiUrl} updateNodeSuggestions={updateNodeSuggestions} nodeRadiusScaleChanged={nodeRadiusScaleChanged} forceProperties={forceProperties} updateForces={updateForces} />
                     <div style={{
                         width: "100%",
                         minWidth: "800px"

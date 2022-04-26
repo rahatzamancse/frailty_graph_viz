@@ -44,3 +44,28 @@ export const unitNormal = function (pv0, p1) {           // Unit normal to vecto
     const normalVec = [-pv0[1], pv0[0]];
     return vecUnit(normalVec);
 };
+
+
+export const idToClass = id => {
+    if (typeof id === 'string' || id instanceof String) {
+        return id.replaceAll(':', '_');
+    }
+    else {
+        return id.id.replaceAll(':', '_');
+    }
+}
+
+export const normalizeDistance = (x, xMin, xMax, minDist, maxDist) => {
+    const dist = xMax + 1 - Math.min(xMax, x);
+    return (dist - xMin) / (xMax - xMin) * (maxDist - minDist) + minDist;
+
+}
+
+export const calculateCategoryCenters = (cats, r, width, height) => [...Array(cats).keys()].map(i => [width / 2 + Math.round(r * Math.cos(2 * Math.PI * i / cats)), height / 2 + Math.round(r * Math.sin(2 * Math.PI * i / cats))]);
+
+export const calculateCategoryCentersEllipse = (cats, a, b, width, height) => [...Array(cats).keys()].map(i => {
+    const theta = i*Math.PI*2/cats;
+    const x = width/2 + ((theta<Math.PI/2 || theta>Math.PI/2*3)?1:-1)*a*b/(Math.sqrt(b*b + a*a*Math.tan(theta)*Math.tan(theta)));
+    const y = height/2 + (theta<Math.PI?1:-1)*a*b/(Math.sqrt(a*a + b*b/(Math.tan(theta)*Math.tan(theta))))
+    return [ x, y ];
+});
