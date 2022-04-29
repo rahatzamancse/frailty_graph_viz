@@ -4,9 +4,9 @@ import Column from "./Column";
 
 
 const suggestionDummyNode = {
-    "id": "uniprot:P31944",
-    "label": "uniprot:P31944",
-    "category": 1
+    "id": "go:GO:0006954",
+    "label": "inflammation",
+    "category": 3
 }
 const dummyNode = {
     "id": "uniprot:P05231",
