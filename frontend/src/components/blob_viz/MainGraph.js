@@ -224,9 +224,9 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         d3.select("g.nodegroup").selectAll("circle")
             .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius));
     }
-    const weightChanged = (weight) => {
+    const weightChanged = async (weight) => {
         Object.assign(nodeWeightParams, weight);
-        weightUpdated();
+        await weightUpdated();
     }
     let nodeSelection = {
         first: null
@@ -650,7 +650,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         subgraph.nodes = newNodes;
         subgraph.links = newLinks;
 
-        weightUpdated();
+        await weightUpdated();
 
         const link = svgLinkGroup
             .selectAll('g.line')

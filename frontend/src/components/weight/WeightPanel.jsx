@@ -22,11 +22,11 @@ export default function WeightPanel({ updateWeightValues, useButton = false, but
 	const [isExpanded, setExpanded] = useState(false);
 	const [sliderValues, setSliderValues] = useState(getLocalStorageOrDefaultValues());
 
-	function saveAndSetWeightValues(newWeightValues){
+	async function saveAndSetWeightValues(newWeightValues){
 		localStorage.setItem('blobVizWeightValues', JSON.stringify(newWeightValues));
 		setSliderValues(newWeightValues);
 
-		updateWeightValues(newWeightValues);
+		await updateWeightValues(newWeightValues);
 	}
 
 	function sliderStateUpdate(name, value) {
