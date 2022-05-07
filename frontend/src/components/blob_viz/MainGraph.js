@@ -211,17 +211,22 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
             })
         });
         const nodeWeights = await nodeWeightsResponse.json();
+
         const nodeWeightMin = Math.min(...Object.values(nodeWeights));
         const nodeWeightMax = Math.max(...Object.values(nodeWeights));
         nodeRadiusScale[selectedNodeRadiusScale].domain([nodeWeightMin, nodeWeightMax]);
+
+        setBlobLegendNodeRadiusScale(nodeRadiusScale[selectedNodeRadiusScale], selectedNodeRadiusScale);
+
         for (let i = 0; i < subgraph.nodes.length; i++) {
             subgraph.nodes[i]['weight_radius'] = +nodeWeights[subgraph.nodes[i].id];
         }
+        d3.select("g.nodegroup").selectAll("circle")
+            .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius));
     }
     const weightChanged = (weight) => {
         Object.assign(nodeWeightParams, weight);
         weightUpdated();
-        d3UpdateFunc();
     }
     let nodeSelection = {
         first: null
@@ -645,31 +650,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         subgraph.nodes = newNodes;
         subgraph.links = newLinks;
 
-        const nodeWeightsResponse = await fetch(`${vizApiUrl}/noderadius`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                nodes: {
-                    nodes: subgraph.nodes.map(d => d.id)
-                },
-                weights: {
-                    weights: nodeWeightParams
-                }
-            })
-        })
-        const nodeWeights = await nodeWeightsResponse.json();
-
-        nodeRadiusScale[selectedNodeRadiusScale].domain([
-            Math.min(...Object.values(nodeWeights)),
-            Math.max(...Object.values(nodeWeights))
-        ]);
-        setBlobLegendNodeRadiusScale(nodeRadiusScale[selectedNodeRadiusScale], selectedNodeRadiusScale);
-
-        for (let i = 0; i < subgraph.nodes.length; i++) {
-            subgraph.nodes[i]['weight_radius'] = +nodeWeights[subgraph.nodes[i].id];
-        }
+        weightUpdated();
 
         const link = svgLinkGroup
             .selectAll('g.line')
@@ -917,7 +898,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         nodeRadiusScale[selectedNodeRadiusScale].range([1, d3.select("#maxRadius").node().value]);
         d3.selectAll("g.node circle").attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius));
         d3.select("#maxRadius").on('change', (e) => {
-            nodeRadiusScale["linear"].range([1, e.target.value]);
+            nodeRadiusScale[selectedNodeRadiusScale].range([1, e.target.value]);
             d3.selectAll("g.node circle").attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius));
         })
 
