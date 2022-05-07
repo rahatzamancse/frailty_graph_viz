@@ -9,6 +9,8 @@ import WeightPanel from '../weight/WeightPanel';
 import SidePanel from "./SidePanel";
 import EvidencePanelWrapper from './EvidencePanelWrapper';
 import { idToClass, calculateCategoryCenters, calculateCategoryCentersEllipse, normalizeDistance } from '../../utils/utils';
+import BlobLegends from './BlobLegends';
+import NodeDetail from './NodeDetail';
 
 const dummyData = {
     'nodes': { nodes: ["uniprot:P05231"] },
@@ -149,9 +151,6 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         d3.select('g.nodegroup').html("");
         d3.select('g.relationlinks').html("");
         d3.select('g.relationnodes').html("");
-        d3.select('g.categorylegendss').html("");
-        d3.select('g.sizelegends').html("");
-        d3.select('g.relationlegends').html("");
     };
 
     const subgraph = {
@@ -159,7 +158,6 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
     };
 
     const setSelectedNode = (d) => {
-        cleanUp();
         selectedNode = d;
         d3UpdateFunc();
     };
@@ -176,8 +174,12 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
     }
     let selectedNodeRadiusScale = 'linear';
 
+
+    let setBlobLegendNodeRadiusScale = null;
+
     const nodeRadiusScaleChanged = (val) => {
         selectedNodeRadiusScale = val;
+        setBlobLegendNodeRadiusScale(nodeRadiusScale[selectedNodeRadiusScale], selectedNodeRadiusScale);
         d3UpdateFunc();
     }
 
@@ -190,6 +192,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         pValue: 1,
     }
 
+    let setShowRelationViewLegends = null;
 
     const weightUpdated = async () => {
         if (Object.keys(nodeWeightParams).length === 0) return;
@@ -208,10 +211,9 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
             })
         });
         const nodeWeights = await nodeWeightsResponse.json();
-        nodeRadiusScale[selectedNodeRadiusScale].domain([
-            Math.min(...Object.values(nodeWeights)),
-            Math.max(...Object.values(nodeWeights))
-        ]);
+        const nodeWeightMin = Math.min(...Object.values(nodeWeights));
+        const nodeWeightMax = Math.max(...Object.values(nodeWeights));
+        nodeRadiusScale[selectedNodeRadiusScale].domain([nodeWeightMin, nodeWeightMax]);
         for (let i = 0; i < subgraph.nodes.length; i++) {
             subgraph.nodes[i]['weight_radius'] = +nodeWeights[subgraph.nodes[i].id];
         }
@@ -235,6 +237,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         };
     }
 
+    let setDetailNodeLegend = null;
 
     const getSankeyGraph = (graph, node1, node2) => {
         const nodes = [{id:node1}, {id:node2}];
@@ -314,15 +317,28 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         
 
     let setEvidenceData = null;
-    const evidenceDataChanged = (dataFromChild) => {
-        setEvidenceData = dataFromChild;
-    };
-    
+
+    // BEGIN: Setup RelationView
+    const influenceLinkColors = [
+        { id:"Pos", value: "#4bb543"},
+        { id:"Neu", value: "grey"},
+        { id:"Neg", value: "#ff8484"},
+    ];
+
+    const influenceNodeColors = [
+        { id:"Pos", value: "#5cc654"},
+        { id:"Neu", value: "lightgrey"},
+        { id:"Neg", value: "#ff9595"},
+    ];
+
+
     const clickedOnRelation = async (node1, node2) => {
         simulation.stop();
         d3.select(".selected").classed("selected", false);
         d3.selectAll(".hovered").classed("hovered", false);
         d3.selectAll(".largehovered").classed("largehovered", false);
+
+        setShowRelationViewLegends(true);
 
         const transitionSpeed = 750;
         const depGraphResponse = await fetch(`${apiUrl}/interaction/${node1}/${node2}/true`);
@@ -386,17 +402,6 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                 .classed("fake", d => d.id !== node1 && d.id !== node2)
                 .attr("transform", d => `translate(${d.x0-rectWidth/2}, ${d.y0-heightScale(d.value)/2})`);
 
-        const influenceLinkColors = [
-            { id:"Pos", value: "#4bb543"},
-            { id:"Neu", value: "grey"},
-            { id:"Neg", value: "#ff8484"},
-        ];
-
-        const influenceNodeColors = [
-            { id:"Pos", value: "#5cc654"},
-            { id:"Neu", value: "lightgrey"},
-            { id:"Neg", value: "#ff9595"},
-        ]
 
         const getLinkColor = (data, colors) => {
             let interNode = data.source.id===node1?data.target:data.source;
@@ -475,55 +480,6 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                     .style("stroke-width", d => heightScale(d.value));
 
 
-        const svgDirLegends = d3.select('g.relationlegends')
-            .attr('transform', `translate(${width - 200},450)`);
-
-        const addLegendTitle = (group, legendTitle, legendClass) => {
-            group.selectAll("." + legendClass).data([1]).join(
-                enter => enter
-                    .append("text")
-                    .attr("class", legendClass)
-                    .text(legendTitle)
-                    .attr("x", 0)
-                    .attr("y", 0)
-                    .attr("text-anchor", "left")
-                    .style("alignment-baseline", "middle")
-                    .attr('text-decoration', "underline"),
-                update => update
-                    .text(legendTitle)
-                    .attr("x", 0)
-                    .attr("y", 0),
-                exit => exit.remove()
-            )
-        };
-
-        addLegendTitle(svgDirLegends, "Influence", "influence");
-
-        const legendTitleHeight = 20;
-
-        const legendSquareSize = 20;
-        svgDirLegends.selectAll('rect')
-            .data(influenceLinkColors)
-            .enter()
-            .append('rect')
-            .attr('x', 0)
-            .attr('y', (d, i) => i * (legendSquareSize + 5) + legendTitleHeight)
-            .attr('width', legendSquareSize)
-            .attr('height', legendSquareSize)
-            .style('fill', d => d.value)
-            .attr("stroke", "black");
-
-        svgDirLegends.selectAll('.colorlabel')
-            .data(influenceLinkColors)
-            .enter()
-            .append("text")
-            .attr("class", "colorlabel")
-            .attr("x", legendSquareSize * 1.2)
-            .attr("y", (d, i) => i * (legendSquareSize + 5) + (legendSquareSize / 2) + legendTitleHeight)
-            .style("fill", d => d.value)
-            .text(d => d.id)
-            .attr("text-anchor", "left")
-            .style("alignment-baseline", "middle");
 
         d3.select("g.relationview g.relationlinks").transition().duration(transitionSpeed).style("opacity",1);
         d3.select("g.relationview g.relationnodes").transition().duration(transitionSpeed).style("opacity",1);
@@ -591,6 +547,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         backbtn.on("click", () => {
             // Update view state
             currentView.view = "root";
+            setShowRelationViewLegends(false);
 
             d3.selectAll("g.hullgroup").style("display", "inline-block");
             d3.selectAll("g.linkgroup").style("display", "inline-block");
@@ -628,7 +585,6 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         }
 
         simulation.stop();
-        // if(currentView.view === "relation") relationViewSimulation.stop();
 
         const svgRoot = d3.select(svgRef.current);
         const svg = d3.select(svgRef.current).select("g.everything");
@@ -709,6 +665,8 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
             Math.min(...Object.values(nodeWeights)),
             Math.max(...Object.values(nodeWeights))
         ]);
+        setBlobLegendNodeRadiusScale(nodeRadiusScale[selectedNodeRadiusScale], selectedNodeRadiusScale);
+
         for (let i = 0; i < subgraph.nodes.length; i++) {
             subgraph.nodes[i]['weight_radius'] = +nodeWeights[subgraph.nodes[i].id];
         }
@@ -784,9 +742,11 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                         .attr('id', d => idToClass(d.id));
 
                     nodeGroup.append("text")
+                        .attr("dominant-baseline", "hanging")
+                        .attr("text-anchor", "middle")
                         .text(d => shortenText(d["label"]))
-                        .attr('x', 40)
-                        .attr('y', 0)
+                        .attr('x', 0)
+                        .attr('y', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius)+5)
                         .on("mouseover", e => {
                             d3.select(e.target).text(d => d['label'])
                         })
@@ -821,10 +781,12 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                             if(currentView.view !== "root") return;
                             if(!nodeSelection.first) {
                                 const circle = d3.select(e.target).classed('selected', true);
-                                const nodeId = circle.data()[0].id;
-                                nodeSelection.first = nodeId;
+                                const nodeData = circle.data()[0];
+                                nodeSelection.first = nodeData.id;
 
-                                d3.selectAll('g.linkgroup g.' + idToClass(nodeId)).classed('largehovered', true);
+                                d3.selectAll('g.linkgroup g.' + idToClass(nodeData.id)).classed('largehovered', true);
+
+                                setDetailNodeLegend(nodeData);
                             }
                             else {
                                 d3.select(".node circle.selected").classed("selected", false);
@@ -952,7 +914,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         d3.select("#nodeLabelOpacity").on('change', (e) => {
             d3.selectAll("g.node text").style('opacity', e.target.value);
         })
-        nodeRadiusScale["linear"].range([1, d3.select("#maxRadius").node().value]);
+        nodeRadiusScale[selectedNodeRadiusScale].range([1, d3.select("#maxRadius").node().value]);
         d3.selectAll("g.node circle").attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.weight_radius));
         d3.select("#maxRadius").on('change', (e) => {
             nodeRadiusScale["linear"].range([1, e.target.value]);
@@ -973,115 +935,6 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                 }
             });
         });
-
-        // Legends
-        const colors = [
-            { id: "Protein", color: "#411c58" },
-            { id: "Diseases", color: "#00308e" },
-            { id: "Biological Process", color: "#8a2a44" },
-            { id: "Chemical", color: "#10712b" },
-        ];
-
-
-        const svgColorLegends = d3.select('g.categorylegends')
-            .attr('transform', `translate(${width - 200},25)`);
-
-
-        const addLegendTitle = (group, legendTitle, legendClass) => {
-            group.selectAll("." + legendClass).data([1]).join(
-                enter => enter
-                    .append("text")
-                    .attr("class", legendClass)
-                    .text(legendTitle)
-                    .attr("x", 0)
-                    .attr("y", 0)
-                    .attr("text-anchor", "left")
-                    .style("alignment-baseline", "middle")
-                    .attr('text-decoration', "underline"),
-                update => update
-                    .text(legendTitle)
-                    .attr("x", 0)
-                    .attr("y", 0),
-                exit => exit.remove()
-            )
-        };
-
-        addLegendTitle(svgColorLegends, "Category Colors", "colorlegendtitle");
-
-        const legendTitleHeight = 20;
-
-        const legendSquareSize = 20;
-        svgColorLegends.selectAll('rect')
-            .data(colors)
-            .enter()
-            .append('rect')
-            .attr('x', 0)
-            .attr('y', (d, i) => i * (legendSquareSize + 5) + legendTitleHeight)
-            .attr('width', legendSquareSize)
-            .attr('height', legendSquareSize)
-            .style('fill', d => d.color)
-            .attr("stroke", "black");
-
-        svgColorLegends.selectAll('.colorlabel')
-            .data(colors)
-            .enter()
-            .append("text")
-            .attr("class", "colorlabel")
-            .attr("x", legendSquareSize * 1.2)
-            .attr("y", (d, i) => i * (legendSquareSize + 5) + (legendSquareSize / 2) + legendTitleHeight)
-            .style("fill", d => d.color)
-            .text(d => d.id)
-            .attr("text-anchor", "left")
-            .style("alignment-baseline", "middle");
-
-        const svgSizeLegends = d3.select('g.sizelegends')
-            .attr('transform', `translate(${width - 200},200)`);
-        const sizeLegendItemsCount = 3;
-
-        const linspace = (start, stop, num, endpoint = true) => {
-            const div = endpoint ? (num - 1) : num;
-            const step = (stop - start) / div;
-            return Array.from({ length: num }, (_, i) => start + step * i);
-        }
-
-        const legendSizeData = Array.from(linspace(nodeRadiusScale[selectedNodeRadiusScale].domain()[0], nodeRadiusScale[selectedNodeRadiusScale].domain()[1], sizeLegendItemsCount), (d, i) => ({
-            id: i, value: d
-        }))
-        const legendMaxCircleSize = nodeRadiusScale[selectedNodeRadiusScale].range()[1];
-
-        addLegendTitle(svgSizeLegends, "Weight Values", "radiuslegendtitle");
-
-        svgSizeLegends.selectAll('.circleradiuslabel')
-            .data(legendSizeData, d => d.id)
-            .join(enter => enter
-                .append('circle')
-                .attr("class", "circleradiuslabel")
-                .attr('cx', 0)
-                .attr('cy', (d, i) => i * (legendMaxCircleSize * 2) + legendTitleHeight*2)
-                .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.value))
-                .style('fill', d => "grey")
-                .attr("stroke", "black"),
-                update => update
-                    .attr('cy', (d, i) => i * (legendMaxCircleSize * 2) + legendTitleHeight*2)
-                    .attr('r', d => nodeRadiusScale[selectedNodeRadiusScale](d.value)),
-                exit => exit.remove()
-            );
-
-        svgSizeLegends.selectAll('.radiuslabel')
-            .data(legendSizeData, d => d.id)
-            .join(enter => enter
-                .append("text")
-                .attr("class", "radiuslabel")
-                .attr("x", legendMaxCircleSize * 2)
-                .attr("y", (d, i) => i * (legendMaxCircleSize * 2) + legendTitleHeight*2)
-                .text(d => Math.round(d.value))
-                .attr("text-anchor", "left")
-                .style("alignment-baseline", "middle"),
-                update => update
-                    .attr("y", (d, i) => i * (legendMaxCircleSize * 2) + legendTitleHeight*2)
-                    .text(d => Math.round(d.value)),
-                exit => exit.remove()
-            );
         
 
 
@@ -1104,6 +957,7 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
         };
     }
 
+    // This resize callback is also fired at the start of the loading.
     window.addEventListener("resize", debounce((e) => {
         d3UpdateFunc();
     }));
@@ -1129,53 +983,75 @@ const MainGraph = ({ vizApiUrl, apiUrl }) => {
                         width: "100%",
                         minWidth: "800px"
                     }}>
-                        <main className="main-ui rsection" style={{
-                                width: "100%",
-                                maxHeight: "80vh",
-                                aspectRatio: "4/3",
-                                display: "flex",
-                                position: "relative",
-                                verticalAlign: "top",
-                                overflow: "hidden",
+                        <div style={{
+                            display: "flex",
+                            flexDirection: "row",
                         }}>
-                            <svg ref={svgRef} id="maingraph" className="fullsize" style={{
-                                position: "absolute",
-                                background: "white",
+                            <main className="main-ui rsection" style={{
+                                    width: "100%",
+                                    maxHeight: "80vh",
+                                    aspectRatio: "4/3",
+                                    display: "flex",
+                                    position: "relative",
+                                    verticalAlign: "top",
+                                    overflow: "hidden",
                             }}>
-                                <g className="everything">
-                                    <g className="relationview">
-                                        <g className="relationlinks"></g>
-                                        <g className="relationnodes"></g>
-                                    </g>
-                                    <g className="hullgroup"></g>
-                                    <g className="linkgroup"></g>
-                                    <g className="nodegroup"></g>
-                                </g>
-                                <g className="legendgroup" style={{
-                                    outline: "1px solid black",
-                                    outlineOffset: "10px"
+                                <svg ref={svgRef} id="maingraph" className="fullsize" style={{
+                                    position: "absolute",
+                                    background: "white",
                                 }}>
-                                    <g className="categorylegends" transform={`translate(${width - 200},25)`}></g>
-                                    <g className="sizelegends" transform={`translate(${width - 200},160)`}></g>
-                                    <g className="relationlegends" transform={`translate(${width-200},500)`}></g>
-                                </g>
-                                <g className="ui">
-                                    <g transform="scale(0.4, 0.4),translate(100, 100)" className="backbtn" style={{
-                                        position: "absolute"
-                                    }}>
-                                        <rect x="-15" y="-15" height="250" width="250" rx="10" ry="10" fill="white" />
-                                        <path d="M109.576,219.151c60.419,0,109.573-49.156,109.573-109.576C219.149,49.156,169.995,0,109.576,0S0.002,49.156,0.002,109.575
-                                            C0.002,169.995,49.157,219.151,109.576,219.151z M109.576,15c52.148,0,94.573,42.426,94.574,94.575
-                                            c0,52.149-42.425,94.575-94.574,94.576c-52.148-0.001-94.573-42.427-94.573-94.577C15.003,57.427,57.428,15,109.576,15z"/>
-                                        <path d="M94.861,156.507c2.929,2.928,7.678,2.927,10.606,0c2.93-2.93,2.93-7.678-0.001-10.608l-28.82-28.819l83.457-0.008
-                                            c4.142-0.001,7.499-3.358,7.499-7.502c-0.001-4.142-3.358-7.498-7.5-7.498l-83.46,0.008l28.827-28.825
-                                            c2.929-2.929,2.929-7.679,0-10.607c-1.465-1.464-3.384-2.197-5.304-2.197c-1.919,0-3.838,0.733-5.303,2.196l-41.629,41.628
-                                            c-1.407,1.406-2.197,3.313-2.197,5.303c0.001,1.99,0.791,3.896,2.198,5.305L94.861,156.507z"/>
+                                    <g className="everything">
+                                        <g className="relationview">
+                                            <g className="relationlinks"></g>
+                                            <g className="relationnodes"></g>
+                                        </g>
+                                        <g className="hullgroup"></g>
+                                        <g className="linkgroup"></g>
+                                        <g className="nodegroup"></g>
                                     </g>
-                                </g>
-                            </svg>
-                        </main>
-                    <EvidencePanelWrapper apiUrl={apiUrl} onDataChange={evidenceDataChanged}></EvidencePanelWrapper>
+                                    {/* <g className="legendgroup" style={{
+                                        outline: "1px solid black",
+                                        outlineOffset: "10px"
+                                    }}>
+                                        <g className="categorylegends" transform={`translate(${width - 200},25)`}></g>
+                                        <g className="sizelegends" transform={`translate(${width - 200},160)`}></g>
+                                        <g className="relationlegends" transform={`translate(${width-200},500)`}></g>
+                                    </g> */}
+                                    <g className="ui">
+                                        <g transform="scale(0.4, 0.4),translate(100, 100)" className="backbtn" style={{
+                                            position: "absolute"
+                                        }}>
+                                            <rect x="-15" y="-15" height="250" width="250" rx="10" ry="10" fill="white" />
+                                            <path d="M109.576,219.151c60.419,0,109.573-49.156,109.573-109.576C219.149,49.156,169.995,0,109.576,0S0.002,49.156,0.002,109.575
+                                                C0.002,169.995,49.157,219.151,109.576,219.151z M109.576,15c52.148,0,94.573,42.426,94.574,94.575
+                                                c0,52.149-42.425,94.575-94.574,94.576c-52.148-0.001-94.573-42.427-94.573-94.577C15.003,57.427,57.428,15,109.576,15z"/>
+                                            <path d="M94.861,156.507c2.929,2.928,7.678,2.927,10.606,0c2.93-2.93,2.93-7.678-0.001-10.608l-28.82-28.819l83.457-0.008
+                                                c4.142-0.001,7.499-3.358,7.499-7.502c-0.001-4.142-3.358-7.498-7.5-7.498l-83.46,0.008l28.827-28.825
+                                                c2.929-2.929,2.929-7.679,0-10.607c-1.465-1.464-3.384-2.197-5.304-2.197c-1.919,0-3.838,0.733-5.303,2.196l-41.629,41.628
+                                                c-1.407,1.406-2.197,3.313-2.197,5.303c0.001,1.99,0.791,3.896,2.198,5.305L94.861,156.507z"/>
+                                        </g>
+                                    </g>
+                                </svg>
+                            </main>
+                            <div style={{
+                                width: "300px",
+                                display: "flex",
+                                flexDirection: "column",
+                            }}>
+                                <BlobLegends
+                                    onChangeNodeRadiusScale={(dataFromChild) => { setBlobLegendNodeRadiusScale = dataFromChild; }}
+                                    onChangeRelationviewShow={(dataFromChild) => {setShowRelationViewLegends = dataFromChild; }}
+                                    influenceLinkColors={influenceLinkColors}
+                                    influenceNodeColors={influenceNodeColors}
+                                    height="60%"
+                                />
+                                <NodeDetail
+                                    onNodeDetailChange={(dataFromChild) => { setDetailNodeLegend = dataFromChild; }}
+                                    height="40%"
+                                />
+                            </div>
+                        </div>
+                        <EvidencePanelWrapper apiUrl={apiUrl} onDataChange={(dataFromChild) => { setEvidenceData = dataFromChild; }} />
                     </div>
                 </div>
             </div>
