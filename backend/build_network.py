@@ -296,7 +296,7 @@ def main(output_file:Path,
             if participant != 'NONE':
                 for txt, gid in decompose_complex([participant]):
                     # Normalize the text to remove case variations of the same description
-                    txt = txt.lower()
+                    txt = txt.lower().strip()
                     num = gid.split(':')[-1]  # Uniprot key
                     all_descriptions[gid][uniprot_names.get(num, txt)] += 1  # If in uniprot, use the desc, otherwise,
                     # use the text
