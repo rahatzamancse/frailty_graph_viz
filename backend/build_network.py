@@ -242,7 +242,7 @@ def main(output_file:Path,
         doi2pmcid = {r['DOI']:r['PMCID'] for r in tqdm(reader, desc="Reading PMCID metadata")}
 
     # Generate a data frame from the arizona output files
-    all_rows = parse_files(tqdm(it.islice(paths, 10000), desc='Parsing files'), xdd_bib)
+    all_rows = parse_files(tqdm(paths, desc='Parsing files'), xdd_bib)
 
     # Dict to resolve the oututs
     dataset_outputs = dict()
