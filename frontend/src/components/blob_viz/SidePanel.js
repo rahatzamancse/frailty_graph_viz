@@ -143,7 +143,7 @@ function SidePanel({ currentView, simulation, maxLinkDist, apiUrl, updateNodeSug
                 </Collapse>
             </li>
             <li className="border-top my-3"></li>
-            <li className="mb-1">
+            {/* <li className="mb-1">
                 <Button
                     className="btn btn-toggle align-items-center rounded collapsed"
                     onClick={() => setOthersOpen(!othersOpen)}
@@ -157,7 +157,7 @@ function SidePanel({ currentView, simulation, maxLinkDist, apiUrl, updateNodeSug
                         <li><span className="link-dark rounded">Others</span></li>
                     </ul>
                 </Collapse>
-            </li>
+            </li> */}
         </ul>
     </div>
 };
