@@ -91,6 +91,7 @@ def read_graph_and_significance():
 
     graph = data['graph']
     significance = data['significance']
+    synonyms  = data['synonyms']
 
     # Add polarity to all edges. This will go away soon
     for (_, _, data) in graph.edges(data=True):
@@ -102,17 +103,22 @@ def read_graph_and_significance():
     uaz_nodes = [n for n in graph.nodes if n.startswith("uaz:")]
     graph.remove_nodes_from(uaz_nodes)
 
-    return graph, significance
+    return graph, significance, synonyms
 
 
 def get_graph():
-    graph, _ = read_graph_and_significance()
+    graph, _, _ = read_graph_and_significance()
     return graph
 
 
 def get_significance():
-    _, significance = read_graph_and_significance()
+    _, significance, _ = read_graph_and_significance()
     return significance
+
+
+def get_synonyms():
+    _, _, synonyms = read_graph_and_significance()
+    return synonyms
 
 
 @lru_cache()

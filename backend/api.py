@@ -17,7 +17,7 @@ from .sql_app.schemas import RecordCreate, RecordMetadataCreate
 import itertools as it
 
 from .dependencies import get_db, get_evidence, get_entities, get_structured_entities, get_commit_hash, get_graph_hash, \
-    get_rankings_hash, get_cli_args, get_graph, get_frequencies, get_es_client, get_significance
+    get_rankings_hash, get_cli_args, get_graph, get_frequencies, get_es_client, get_significance, get_synonyms
 
 api_router = APIRouter(prefix="/api")
 
@@ -65,6 +65,11 @@ async def graph_entities(term='', entities=Depends(get_entities)):
 @api_router.get('/all_entities')
 async def all_graph_entities(structured_entities=Depends(get_structured_entities)):
     return structured_entities
+
+
+@api_router.get('/synonyms/{entity_id}')
+async def entity_synonyms(entity_id:str, synonyms=Depends(get_synonyms)):
+    return synonyms.get(entity_id, [])
 
 
 @api_router.put('/record_weights/')

@@ -242,7 +242,7 @@ def main(output_file:Path,
         doi2pmcid = {r['DOI']:r['PMCID'] for r in tqdm(reader, desc="Reading PMCID metadata")}
 
     # Generate a data frame from the arizona output files
-    all_rows = parse_files(tqdm(paths, desc='Parsing files'), xdd_bib)
+    all_rows = parse_files(tqdm(it.islice(paths, 10000), desc='Parsing files'), xdd_bib)
 
     # Dict to resolve the oututs
     dataset_outputs = dict()
@@ -295,6 +295,8 @@ def main(output_file:Path,
         for participant in (row[p] for p in ('INPUT', 'OUTPUT', 'CONTROLLER')):
             if participant != 'NONE':
                 for txt, gid in decompose_complex([participant]):
+                    # Normalize the text to remove case variations of the same description
+                    txt = txt.lower()
                     num = gid.split(':')[-1]  # Uniprot key
                     all_descriptions[gid][uniprot_names.get(num, txt)] += 1  # If in uniprot, use the desc, otherwise,
                     # use the text
@@ -454,7 +456,8 @@ def main(output_file:Path,
 
     output = {
         'graph': G,
-        'significance': dict(**significance_extractions)
+        'significance': dict(**significance_extractions),
+        'synonyms':{k:list(v.keys()) for k, v in all_descriptions.items()}
     }
     # Save the graph into a file
     logging.info(f"Saving output to {output_file}")
