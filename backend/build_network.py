@@ -23,6 +23,12 @@ from rankings import ImpactFactors
 
 pmcid_pattern = re.compile(r"^PMC[1-9]\d{0,6}$", re.IGNORECASE)
 
+black_listed_entities = {
+    "uniprot:P31944",
+    "pubchem:6234",
+    "uniprot:O14896"
+}
+
 
 class XDDMetaData(NamedTuple):
     journal: str
@@ -448,6 +454,10 @@ def main(output_file:Path,
                 "journals": journals[key],
                 "impact_factors": impact_factors[key]
             }
+
+            # Ignore problematic entities
+            if key.controller in black_listed_entities or key.output in black_listed_entities:
+                continue
 
             G.add_edge(key.controller, key.output, **metadata)
         except Exception as ex:
