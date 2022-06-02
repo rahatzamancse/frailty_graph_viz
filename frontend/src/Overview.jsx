@@ -60,7 +60,13 @@ const categories = {
 	"proonto": "Proteins or Gene Products",
 	"chebi": "Chemicals",
 	"pfam": "Proteins or Gene Products",
-	"frailty": "Biological Process"
+	"frailty": "Biological Process",
+	"bioprocess": "Biological Process",
+	"atcc": "Cells, Organs and Tissues",
+	"cellosaurus": "Cells, Organs and Tissues",
+	"cl": "Cells, Organs and Tissues",
+	"tissuelist": "Cells, Organs and Tissues",
+	"uberon": "Cells, Organs and Tissues",
 }
 
 function groupByEntityType(items){

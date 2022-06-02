@@ -18,23 +18,29 @@ from .dependencies import get_graph, get_significance
 from .models import CategoryCount, NodesList, Weights
 
 categories = {
-    "uniprot": "Proteins or Gene Products",
-    "mesh": "Diseases",
-    "go": "Biological Process",
-    "fplx": "Proteins or Gene Products",
-    "pubchem": "Chemicals",
-    "interpro": "Proteins or Gene Products",
-    "proonto": "Proteins or Gene Products",
-    "chebi": "Chemicals",
-    "pfam": "Proteins or Gene Products",
-    "frailty": "Biological Process",
-    "bioprocess": "Biological Process"
+	"uniprot": "Proteins or Gene Products",
+	"mesh": "Diseases",
+	"go": "Biological Process",
+	"fplx": "Proteins or Gene Products",
+	"pubchem": "Chemicals",
+	"interpro": "Proteins or Gene Products",
+	"proonto": "Proteins or Gene Products",
+	"chebi": "Chemicals",
+	"pfam": "Proteins or Gene Products",
+	"frailty": "Biological Process",
+	"bioprocess": "Biological Process",
+	"atcc": "Cells, Organs and Tissues",
+	"cellosaurus": "Cells, Organs and Tissues",
+	"cl": "Cells, Organs and Tissues",
+	"tissuelist": "Cells, Organs and Tissues",
+	"uberon": "Cells, Organs and Tissues",
 }
 category_encoding = {
     1: 'Proteins or Gene Products',
     2: 'Diseases',
     3: 'Biological Process',
-    4: 'Chemicals'
+    4: 'Chemicals',
+    5: "Cells, Organs and Tissues"
 }
 category_encoding_rev = {v: k for k, v in category_encoding.items()}
 
