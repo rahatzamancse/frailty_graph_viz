@@ -9,7 +9,7 @@ export function groupBy(arr, criteria) {
     }, {});
 }
 
-export function getEntityCategory(id){
+export function getEntityCategory(id) {
     // Just split the grounding id and get the first element as the DB normalizer
     let tokens = id.split(":")
     return tokens[0]
@@ -64,8 +64,32 @@ export const normalizeDistance = (x, xMin, xMax, minDist, maxDist) => {
 export const calculateCategoryCenters = (cats, r, width, height) => [...Array(cats).keys()].map(i => [width / 2 + Math.round(r * Math.cos(2 * Math.PI * i / cats)), height / 2 + Math.round(r * Math.sin(2 * Math.PI * i / cats))]);
 
 export const calculateCategoryCentersEllipse = (cats, a, b, width, height) => [...Array(cats).keys()].map(i => {
-    const theta = i*Math.PI*2/cats;
-    const x = width/2 + ((theta<Math.PI/2 || theta>Math.PI/2*3)?1:-1)*a*b/(Math.sqrt(b*b + a*a*Math.tan(theta)*Math.tan(theta)));
-    const y = height/2 + (theta<Math.PI?1:-1)*a*b/(Math.sqrt(a*a + b*b/(Math.tan(theta)*Math.tan(theta))))
-    return [ x, y ];
+    const theta = i * Math.PI * 2 / cats;
+    const x = width / 2 + ((theta < Math.PI / 2 || theta > Math.PI / 2 * 3) ? 1 : -1) * a * b / (Math.sqrt(b * b + a * a * Math.tan(theta) * Math.tan(theta)));
+    const y = height / 2 + (theta < Math.PI ? 1 : -1) * a * b / (Math.sqrt(a * a + b * b / (Math.tan(theta) * Math.tan(theta))))
+    return [x, y];
 });
+
+export const categoryNodeColors = {
+    1: "#411c58",
+    2: "#00308e",
+    3: "#8a2a44",
+    4: "#10712b",
+    // https://coolors.co/4e7e72-fe9c9a-c1aa85-848a9a
+    5: "#4e7e72",
+    6: "#fe9c9a",
+    7: "#c1aa85",
+    8: "#848a9a",
+}
+
+export const categoryHullColors = {
+    1: "#d282be",
+    2: "#a6d9ef",
+    3: "#ffa770",
+    4: "#e5f684",
+    // https://coolors.co/4e7e72-fe9c9a-c1aa85-848a9a
+    5: "#4e7e72",
+    6: "#fe9c9a",
+    7: "#c1aa85",
+    8: "#848a9a",
+}

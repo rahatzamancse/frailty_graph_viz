@@ -1,9 +1,10 @@
 import React from 'react';
 import * as d3 from "d3";
 
-const BlobLegends = ({ onChangeNodeRadiusScale, onChangeRelationviewShow, influenceLinkColors, influenceNodeColors, height }) => {
+const BlobLegends = ({ onChangeNodeRadiusScale, onChangeRelationviewShow, onChangeCategoryCount, influenceLinkColors, influenceNodeColors, height }) => {
 
     const [showRelationViewLegends, setShowRelationViewLegends] = React.useState(false);
+    const [colors, setColors] = React.useState([]);
 
 
     const [nodeRadiusScaleVals, setNodeRadiusScaleVals] = React.useState({
@@ -37,16 +38,10 @@ const BlobLegends = ({ onChangeNodeRadiusScale, onChangeRelationviewShow, influe
     });
 
     onChangeRelationviewShow(setShowRelationViewLegends);
+    onChangeCategoryCount(setColors);
 
     const legendTitleHeight = 20;
     const legendSquareSize = 20;
-
-    const colors = [
-        { id: "Protein", color: "#411c58" },
-        { id: "Diseases", color: "#00308e" },
-        { id: "Biological Process", color: "#8a2a44" },
-        { id: "Chemical", color: "#10712b" },
-    ];
 
     const addLegendTitle = (group, legendTitle, legendClass) => {
         group.selectAll("." + legendClass).data([1]).join(
@@ -112,7 +107,7 @@ const BlobLegends = ({ onChangeNodeRadiusScale, onChangeRelationviewShow, influe
         addLegendTitle(svgColorLegends, "Category Colors", "colorlegendtitle");
 
         svgColorLegends.selectAll('rect')
-            .data(colors)
+            .data(colors, d => d.encoding)
             .enter()
             .append('rect')
             .attr('x', 0)
@@ -193,8 +188,8 @@ const BlobLegends = ({ onChangeNodeRadiusScale, onChangeRelationviewShow, influe
         }}>
             <g className="legendgroup">
                 <g className="categorylegends" transform="translate(50,40)"></g>
-                <g className="sizelegends" transform="translate(50,200)"></g>
-                <g className="relationlegends" transform="translate(50,550)"></g>
+                <g className="sizelegends" transform="translate(50,250)"></g>
+                <g className="relationlegends" transform="translate(50,500)"></g>
             </g>
         </svg>
     </aside>

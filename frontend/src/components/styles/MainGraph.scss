@@ -3,12 +3,23 @@ $colorCategory1: #d282beff; // middle-purple
 $colorCategory2: #a6d9efff; // uranian-blue
 $colorCategory3: #ffa770ff; // atomic-tangerine
 $colorCategory4: #e5f684ff; // mindaro
-$colorCategory5: #fef1f3ff; // lavender-blush
+// https://coolors.co/4e7e72-fe9c9a-c1aa85-848a9a
+$colorCategory5: #4e7e72;
+$colorCategory6: #fe9c9a;
+$colorCategory7: #c1aa85;
+$colorCategory8: #848a9a;
+
 
 $nodeColorCategory1: #8a2a44;
 $nodeColorCategory2: #10712b;
 $nodeColorCategory3: #411c58;
 $nodeColorCategory4: #00308e;
+
+// https://coolors.co/1f332e-fd2521-886e44-494e5a
+$nodeColorCategory5: #1f332e;
+$nodeColorCategory6: #fd2521;
+$nodeColorCategory7: #886e44;
+$nodeColorCategory8: #494e5a;
 
 .fullsize {
   width: 100%;
@@ -32,6 +43,22 @@ g.hullgroup {
 
   path.hull_4 {
     fill: $colorCategory4;
+  }
+
+  path.hull_5 {
+    fill: $colorCategory5;
+  }
+
+  path.hull_6 {
+    fill: $colorCategory6;
+  }
+
+  path.hull_7 {
+    fill: $colorCategory7;
+  }
+
+  path.hull_8 {
+    fill: $colorCategory8;
   }
 }
 

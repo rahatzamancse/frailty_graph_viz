@@ -63,14 +63,6 @@ ReactDOM.render(
 								nodes: ["uniprot:P05231"],
 								labels: ["Interleukin-6"],
 								categories: [1]
-							},
-							category_count: {
-								categorycount: {
-									"1": 5,
-									"2": 5,
-									"3": 5,
-									"4": 5,
-								}
 							}
 						}} />
 						<ScrollToTop />
@@ -83,14 +75,6 @@ ReactDOM.render(
 								nodes: ["uniprot:P01375", "mesh:D005218"],
 								labels: ["TNF", "Fat"],
 								categories: [1, 1]
-							},
-							category_count: {
-								categorycount: {
-									"1": 5,
-									"2": 5,
-									"3": 5,
-									"4": 5,
-								}
 							}
 						}} />
 						<ScrollToTop />

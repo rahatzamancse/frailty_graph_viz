@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import * as d3 from "d3";
-import { sankey, sankeyLinkHorizontal} from "d3-sankey";
+import { sankey, sankeyLinkHorizontal } from "d3-sankey";
 import smoothHull from '../../utils/convexHull';
 
 
@@ -8,7 +8,7 @@ import "../styles/MainGraph.scss";
 import WeightPanel from '../weight/WeightPanel';
 import SidePanel from "./SidePanel";
 import EvidencePanelWrapper from './EvidencePanelWrapper';
-import { idToClass, calculateCategoryCenters, calculateCategoryCentersEllipse, normalizeDistance } from '../../utils/utils';
+import { idToClass, calculateCategoryCenters, calculateCategoryCentersEllipse, normalizeDistance, categoryNodeColors } from '../../utils/utils';
 import BlobLegends from './BlobLegends';
 import NodeDetail from './NodeDetail';
 
@@ -51,7 +51,7 @@ const forceProperties = {
         radiusFunc: (width, height) => (width + height) / 2.0 * 0.25
     },
     link: {
-        enabled: true,
+        enabled: false,
         strength: 0.9,
         iterations: 1,
         distanceFactor: 5
@@ -63,7 +63,7 @@ const forceProperties = {
     }
 };
 
-const updateForces = ({ simulation, maxLinkDist }) => {
+const updateForces = ({ simulation, maxLinkDist, categoriesDetailsLength }) => {
     // get each force by name and update the properties
     simulation.force("center")
         // @ts-ignore
@@ -81,7 +81,7 @@ const updateForces = ({ simulation, maxLinkDist }) => {
         .radius(forceProperties.collide.radius)
         .iterations(forceProperties.collide.iterations);
 
-    const cat_centers = calculateCategoryCenters(4, forceProperties.separation.radius, width, height)
+    const cat_centers = calculateCategoryCenters(categoriesDetailsLength, forceProperties.separation.radius, width, height)
     simulation.force("forceX")
         // @ts-ignore
         .strength(forceProperties.separation.strength * forceProperties.separation.enabled)
@@ -110,12 +110,32 @@ const updateForces = ({ simulation, maxLinkDist }) => {
 
 
 const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
-    // Will be moved to component prop later
+    const categoryCount = {};
+    if("category_count" in defaultEntities) {
+        categoryCount["category_count"] = {
+            categorycount: defaultEntities.category_count.categorycount
+        };
+    }
+    else {
+        categoryCount["category_count"] = {categorycount:{}}
+    }
+    
+    defaultEntities = {
+        ...categoryCount,
+        nodes: {...defaultEntities.nodes},
+    }
+
+    console.log("Module Loading");
+
+
     const initialSuggestionNodes = [{
         "id": "go:GO:0006954",
         "label": "inflammation",
         "category": 3
     }];
+
+    let setBlobLegendsColors = null;
+    let setSidePanelCategoryDetails = null;
 
     const initialPinnedNodes = [];
     for(let i = 0; i < defaultEntities.nodes.nodes.length; i++) {
@@ -126,12 +146,21 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
         });
     }
 
-    console.log("Module Loading");
-    console.log(initialPinnedNodes);
-
     const svgRef = React.useRef();
     let maxLinkDist = 100;
+
     let selectedNode = defaultEntities;
+    const setSelectedNode = (d) => {
+        selectedNode = d;
+        d3UpdateFunc();
+    };
+    const updateNodeSuggestions = (d) => {
+        setSelectedNode({
+            ...selectedNode,
+            nodes: { nodes: d }
+        });
+    };
+
     const simulation = d3.forceSimulation();
 
     simulation.stop()
@@ -160,17 +189,6 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
 
     const subgraph = {
         nodes: [], links: []
-    };
-
-    const setSelectedNode = (d) => {
-        selectedNode = d;
-        d3UpdateFunc();
-    };
-    const updateNodeSuggestions = (d) => {
-        setSelectedNode({
-            ...selectedNode,
-            nodes: { nodes: d }
-        });
     };
 
     const nodeRadiusScale = {
@@ -327,6 +345,7 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
         
 
     let setEvidenceData = null;
+    let setNodeDetailColors = null;
 
     // BEGIN: Setup RelationView
     const influenceLinkColors = [
@@ -607,9 +626,31 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
         width = Math.max(parseInt(svgRoot.style("width")), minWidth);
         forceProperties.separation.radius = forceProperties.separation.radiusFunc(width, height);
 
+        const categoriesDetailsResponse = await fetch(`${vizApiUrl}/categories`)
+        const categoriesDetails = await categoriesDetailsResponse.json();
+
+        const BlobLegendsColors = Object.entries(categoriesDetails).map(([k, v]) => ({
+            id: v,
+            color: categoryNodeColors[k],
+            encoding: k
+        }));;
+        setBlobLegendsColors(BlobLegendsColors);
+        setNodeDetailColors(BlobLegendsColors);
+        setSidePanelCategoryDetails(BlobLegendsColors);
+
+
+        const initialDefaultCategoryCount = 5;
+        for(const cat in categoriesDetails) {
+            if(!(cat in selectedNode.category_count.categorycount)) {
+                selectedNode.category_count.categorycount[cat] = initialDefaultCategoryCount;
+            }
+        }
+
+        const categoriesDetailsLength = Object.keys(categoriesDetails).length;
+
         svgHullGroup
             .selectAll('path')
-            .data([{ category: 1 }, { category: 2 }, { category: 3 }, { category: 4 }], d => d.category)
+            .data(Object.keys(categoriesDetails).map(key => ({ category: key })), d => d.category)
             .enter()
             .append('path')
             .attr('class', d => 'hull_' + (d.category));
@@ -704,13 +745,6 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
                 update => update,
                 exit => exit.remove()
             );
-
-        const categoryNodeColors = {
-            3: "#8a2a44",
-            4: "#10712b",
-            1: "#411c58",
-            2: "#00308e",
-        }
 
         const shortenText = (t) => {
             if (t.length <= 15) return t;
@@ -848,7 +882,7 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
 
         simulation.force("link").links(subgraph.links);
 
-        updateForces({ simulation, maxLinkDist });
+        updateForces({ simulation, maxLinkDist, categoriesDetailsLength });
 
         simulation.on("tick", () => {
             link.selectAll('line')
@@ -865,7 +899,7 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
                 .attr('transform', d => `translate(${d.x},${d.y})`);
 
             const hullPoints = [];
-            for (let i = 1; i <= 4; i++) {
+            for (let i = 1; i <= categoriesDetailsLength; i++) {
                 hullPoints.push({
                     category: i,
                     hulls: d3.polygonHull(subgraph.nodes.filter(d => d["category"] === i).map(d => [d.x, d.y]))
@@ -873,7 +907,7 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
             }
 
             const hullPadding = 25;
-            for (let i = 1; i <= 4; i++) {
+            for (let i = 1; i <= categoriesDetailsLength; i++) {
                 if (hullPoints[i - 1].hulls) {
                     d3.select('.hull_' + i).attr('d', smoothHull(hullPoints[i - 1].hulls, hullPadding));
                 }
@@ -911,16 +945,15 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
         })
 
         d3.selectAll(".clusternodecount").on('change', (e) => {
-            const categoryIds = ['cluster1count', 'cluster2count', 'cluster3count', 'cluster4count'];
+            const categoryIds = BlobLegendsColors.map(d => ({encoding: d.encoding, id:'cluster'+d.encoding+'count'}));
+            const categorycount = {}
+            categoryIds.forEach((categoryId) => {
+                categorycount[categoryId.encoding] = d3.select('#' + categoryId.id).property('value');
+            });
             setSelectedNode({
                 ...selectedNode,
                 category_count: {
-                    categorycount: {
-                        "1": d3.select('#' + categoryIds[0]).property('value'),
-                        "2": d3.select('#' + categoryIds[1]).property('value'),
-                        "3": d3.select('#' + categoryIds[2]).property('value'),
-                        "4": d3.select('#' + categoryIds[3]).property('value'),
-                    }
+                    categorycount: categorycount
                 }
             });
         });
@@ -978,6 +1011,7 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
                         nodeRadiusScaleChanged={nodeRadiusScaleChanged}
                         forceProperties={forceProperties}
                         updateForces={updateForces}
+                        onChangeCategoryDetails={(dataFromChild) => {setSidePanelCategoryDetails = dataFromChild} }
                     />
                     <div style={{
                         width: "100%",
@@ -1044,11 +1078,13 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
                                     influenceLinkColors={influenceLinkColors}
                                     influenceNodeColors={influenceNodeColors}
                                     height="60%"
+                                    onChangeCategoryCount={(dataFromChild) => {setBlobLegendsColors = dataFromChild; }}
                                 />
                                 <NodeDetail
                                     apiUrl={apiUrl}
                                     onNodeDetailChange={(dataFromChild) => { setDetailNodeLegend = dataFromChild; }}
                                     height="40%"
+                                    onCategoryCountChange={(dataFromChild) => {setNodeDetailColors = dataFromChild; }}
                                 />
                             </div>
                         </div>

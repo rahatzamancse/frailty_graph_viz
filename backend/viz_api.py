@@ -49,6 +49,7 @@ def get_category_name_from_id(node_id):
     return categories[node_id.split(':')[0]]
 
 
+
 def get_category_number_from_id(node_id):
     return category_encoding_rev[get_category_name_from_id(node_id)]
 
@@ -90,6 +91,9 @@ def get_blob_graph() -> PreprocessedVizData:
 # Router, to be exposed by the API entry point
 api_router = APIRouter(prefix="/viz_api")
 
+@api_router.get("/categories")
+async def categories_details():
+    return category_encoding
 
 # Endpoints of the blob viz api
 @api_router.post('/getbestsubgraph')
@@ -108,7 +112,8 @@ async def get_best_subgraph(nodes: NodesList, category_count: CategoryCount,
             "1": 10,
             "2": 10,
             "3": 15,
-            "4": 20
+            "4": 20,
+            ...
             }
         }
     }
@@ -132,7 +137,7 @@ async def get_best_subgraph(nodes: NodesList, category_count: CategoryCount,
                 'id': d[0],
                 'freq': d[1]['freq'],
                 'pinned': False
-            }, filter(lambda x: x[0] !='' and get_category_number_from_id(x[0]) == cat_id, dict(G_se[node]).items()))) # TODO: Rahat, I had to add that condition to filter the empty node. Please fix
+            }, filter(lambda x: x[0] != '' and get_category_number_from_id(x[0]) == cat_id, dict(G_se[node]).items())))
             to_neighbors = sorted(neighbors, key=lambda x: x['freq'], reverse=True)[
                            :cat_count]
 
@@ -143,7 +148,7 @@ async def get_best_subgraph(nodes: NodesList, category_count: CategoryCount,
             }, filter(lambda x: get_category_number_from_id(x[0]) == cat_id, dict(G_se_rev[node]).items())))
             from_neighbors = sorted(neighbors, key=lambda x: x['freq'], reverse=True)[
                              :cat_count]
-
+            
             seen = set(list(map(lambda x: x['id'], finalList)) + nodes)
             for e in (to_neighbors + from_neighbors):
                 found = e
