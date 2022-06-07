@@ -37,7 +37,7 @@ const NodeDetail = ({ apiUrl, onNodeDetailChange, height, onCategoryCountChange 
         }}>{categoryDetails.length===0?"":categoryDetails[currentDetailNode.category - 1].id}</span></p>
         <p><b>Detected Synonyms:</b><br/></p>
         <ul>
-            {synonyms.map(syn => <li>{syn}</li>)}
+            {synonyms.map((syn, i) => <li key={i}>{syn}</li>)}
         </ul>
     </aside>
 }

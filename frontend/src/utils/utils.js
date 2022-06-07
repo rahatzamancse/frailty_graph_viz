@@ -76,10 +76,10 @@ export const categoryNodeColors = {
     3: "#8a2a44",
     4: "#10712b",
     // https://coolors.co/4e7e72-fe9c9a-c1aa85-848a9a
-    5: "#4e7e72",
-    6: "#fe9c9a",
-    7: "#c1aa85",
-    8: "#848a9a",
+    5: "#1f332e", 
+    6: "#fd2521", 
+    7: "#886e44", 
+    8: "#494e5a", 
 }
 
 export const categoryHullColors = {

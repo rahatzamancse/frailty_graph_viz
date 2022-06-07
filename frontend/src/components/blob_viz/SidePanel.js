@@ -125,7 +125,7 @@ function SidePanel({ currentView, simulation, maxLinkDist, apiUrl, updateNodeSug
                             <input type="range" className="form-range" min="0" max="1" step="0.01" id="graphparamsepfactor" defaultValue="0.1" onChange={e => {
                                 if(currentView.view !== "root") return;
                                 forceProperties.separation.strength = parseFloat(e.target.value);
-                                updateForces({ simulation, maxLinkDist, categoriesDetailsLength });
+                                updateForces({ simulation, maxLinkDist, categoriesDetailsLength, restart:true });
                             }} />
                         </li>
                         <li>
@@ -133,7 +133,7 @@ function SidePanel({ currentView, simulation, maxLinkDist, apiUrl, updateNodeSug
                             <input type="range" className="form-range" min="0" max="1" step="0.01" id="linkstrength" defaultValue="0.9" onChange={e => {
                                 if(currentView.view !== "root") return;
                                 forceProperties.link.strength = parseFloat(e.target.value);
-                                updateForces({ simulation, maxLinkDist, categoriesDetailsLength });
+                                updateForces({ simulation, maxLinkDist, categoriesDetailsLength, restart:true });
                             }} />
                         </li>
                     </ul>
