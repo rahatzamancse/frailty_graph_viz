@@ -1,12 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Draggable } from 'react-beautiful-dnd';
-
-const colorCategory1 = "#d282beff"; // middle-purple
-const colorCategory2 = "#a6d9efff"; // uranian-blue
-const colorCategory3 = "#ffa770ff"; // atomic-tangerine
-const colorCategory4 = "#e5f684ff"; // mindaro
-const colorCategory5 = "#fef1f3ff"; // lavender-blush
+import { categoryHullColors } from '../../utils/utils';
 
 const Container = styled.div`
     border: 1px solid lightgrey;
@@ -15,11 +10,11 @@ const Container = styled.div`
     margin-bottom: 8px;
     background-color: ${props => (
         // @ts-ignore
-        [colorCategory1, colorCategory2, colorCategory3, colorCategory4, colorCategory5][props.category-1]
+        Object.values(categoryHullColors)[props.category-1]
     )};
 `;
 
-const Task = ({task, index}) => {
+const Task = ({task, index }) => {
     return (
         <Draggable draggableId={task.id} index={index}>
             {(provided, snapshot) => (

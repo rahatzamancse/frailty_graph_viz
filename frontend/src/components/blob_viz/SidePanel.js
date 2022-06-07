@@ -3,11 +3,15 @@ import EntityAutoComplete from "./entityAutoComplete";
 import { useState } from "react";
 import "../styles/SidePanel.scss";
 
-function SidePanel({ currentView, simulation, maxLinkDist, apiUrl, updateNodeSuggestions, initialPinnedNodes, initialSuggestionNodes, nodeRadiusScaleChanged, forceProperties, updateForces }) {
+function SidePanel({ currentView, simulation, maxLinkDist, apiUrl, updateNodeSuggestions, initialPinnedNodes, initialSuggestionNodes, nodeRadiusScaleChanged, forceProperties, updateForces, onChangeCategoryDetails }) {
     const [entityOpen, setEntityOpen] = useState(false);
     const [visualOpen, setVisualOpen] = useState(false);
     const [graphParamsOpen, setGraphParamsOpen] = useState(false);
     const [othersOpen, setOthersOpen] = useState(false);
+    const [categoryDetails, setCategoryDetails] = useState([]);
+    const categoriesDetailsLength = Object.keys(categoryDetails).length;
+
+    onChangeCategoryDetails(setCategoryDetails);
 
 
 
@@ -43,22 +47,10 @@ function SidePanel({ currentView, simulation, maxLinkDist, apiUrl, updateNodeSug
                                 suggestionNodes={initialSuggestionNodes}
                             />
                         </li>
-                        <li>
-                            <label htmlFor="cluster1count" className="form-label">Protein Entity Count</label>
-                            <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster1count" defaultValue="5" />
-                        </li>
-                        <li>
-                            <label htmlFor="cluster2count" className="form-label">Disease Entity Count</label>
-                            <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster2count" defaultValue="5" />
-                        </li>
-                        <li>
-                            <label htmlFor="cluster3count" className="form-label">Biological Process Entity Count</label>
-                            <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster3count" defaultValue="5" />
-                        </li>
-                        <li>
-                            <label htmlFor="cluster4count" className="form-label">Chemical Entity Count</label>
-                            <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id="cluster4count" defaultValue="5" />
-                        </li>
+                        {categoryDetails.map(({id, color, encoding}, i) => <li key={encoding}>
+                            <label htmlFor={"cluster"+(encoding)+"count"} className="form-label" style={{color: color}}>{id}</label>
+                            <input type="number" className="form-control clusternodecount" min="3" max="50" step="1" id={"cluster"+(encoding)+"count"} defaultValue="5" />
+                        </li>)}
                     </ul>
                 </Collapse>
             </li>
@@ -133,7 +125,7 @@ function SidePanel({ currentView, simulation, maxLinkDist, apiUrl, updateNodeSug
                             <input type="range" className="form-range" min="0" max="1" step="0.01" id="graphparamsepfactor" defaultValue="0.1" onChange={e => {
                                 if(currentView.view !== "root") return;
                                 forceProperties.separation.strength = parseFloat(e.target.value);
-                                updateForces({ simulation, maxLinkDist });
+                                updateForces({ simulation, maxLinkDist, categoriesDetailsLength, restart:true });
                             }} />
                         </li>
                         <li>
@@ -141,7 +133,7 @@ function SidePanel({ currentView, simulation, maxLinkDist, apiUrl, updateNodeSug
                             <input type="range" className="form-range" min="0" max="1" step="0.01" id="linkstrength" defaultValue="0.9" onChange={e => {
                                 if(currentView.view !== "root") return;
                                 forceProperties.link.strength = parseFloat(e.target.value);
-                                updateForces({ simulation, maxLinkDist });
+                                updateForces({ simulation, maxLinkDist, categoriesDetailsLength, restart:true });
                             }} />
                         </li>
                     </ul>

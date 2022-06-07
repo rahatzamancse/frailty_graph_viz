@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import * as d3 from "d3";
-import { sankey, sankeyLinkHorizontal} from "d3-sankey";
+import { sankey, sankeyLinkHorizontal } from "d3-sankey";
 import smoothHull from '../../utils/convexHull';
 
 
@@ -8,7 +8,7 @@ import "../styles/MainGraph.scss";
 import WeightPanel from '../weight/WeightPanel';
 import SidePanel from "./SidePanel";
 import EvidencePanelWrapper from './EvidencePanelWrapper';
-import { idToClass, calculateCategoryCenters, calculateCategoryCentersEllipse, normalizeDistance } from '../../utils/utils';
+import { idToClass, calculateCategoryCenters, calculateCategoryCentersEllipse, normalizeDistance, categoryNodeColors } from '../../utils/utils';
 import BlobLegends from './BlobLegends';
 import NodeDetail from './NodeDetail';
 
@@ -51,19 +51,28 @@ const forceProperties = {
         radiusFunc: (width, height) => (width + height) / 2.0 * 0.25
     },
     link: {
-        enabled: true,
+        enabled: false,
         strength: 0.9,
         iterations: 1,
         distanceFactor: 5
-    },
-    radial: {
-        enabled: false,
-        strength: 1,
-        categoryRadius: [400, 300, 200, 1]
     }
 };
 
-const updateForces = ({ simulation, maxLinkDist }) => {
+const influenceLinkColors = [
+    { id:"Pos", value: "#4bb543"},
+    { id:"Neu", value: "grey"},
+    { id:"Neg", value: "#ff8484"},
+];
+
+const influenceNodeColors = [
+    { id:"Pos", value: "#5cc654"},
+    { id:"Neu", value: "lightgrey"},
+    { id:"Neg", value: "#ff9595"},
+];
+
+
+const updateForces = ({ simulation, maxLinkDist, categoriesDetailsLength, restart }) => {
+    simulation.stop();
     // get each force by name and update the properties
     simulation.force("center")
         // @ts-ignore
@@ -81,7 +90,7 @@ const updateForces = ({ simulation, maxLinkDist }) => {
         .radius(forceProperties.collide.radius)
         .iterations(forceProperties.collide.iterations);
 
-    const cat_centers = calculateCategoryCenters(4, forceProperties.separation.radius, width, height)
+    const cat_centers = calculateCategoryCenters(categoriesDetailsLength, forceProperties.separation.radius, width, height)
     simulation.force("forceX")
         // @ts-ignore
         .strength(forceProperties.separation.strength * forceProperties.separation.enabled)
@@ -90,11 +99,6 @@ const updateForces = ({ simulation, maxLinkDist }) => {
         // @ts-ignore
         .strength(forceProperties.separation.strength * forceProperties.separation.enabled)
         .y(d => cat_centers[d['category'] - 1][1]);
-
-    simulation.force("r")
-        // @ts-ignore
-        .radius(d => forceProperties.radial.categoryRadius[d['category'] - 1])
-        .strength(forceProperties.radial.strength * (forceProperties.radial.enabled ? 1 : 0));
 
     simulation.force("link")
         // @ts-ignore
@@ -106,16 +110,37 @@ const updateForces = ({ simulation, maxLinkDist }) => {
     // updates ignored until this is run
     // restarts the simulation (important if simulation has already slowed down)
     simulation.alpha(ALPHA_INIT).alphaMin(ALPHA_MINVAL);
+    if(restart) simulation.restart();
 }
 
 
 const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
-    // Will be moved to component prop later
+    const categoryCount = {};
+    if("category_count" in defaultEntities) {
+        categoryCount["category_count"] = {
+            categorycount: defaultEntities.category_count.categorycount
+        };
+    }
+    else {
+        categoryCount["category_count"] = {categorycount:{}}
+    }
+    
+    defaultEntities = {
+        ...categoryCount,
+        nodes: {...defaultEntities.nodes},
+    }
+
+    console.log("Module Loading");
+
+
     const initialSuggestionNodes = [{
         "id": "go:GO:0006954",
         "label": "inflammation",
         "category": 3
     }];
+
+    let setBlobLegendsColors = null;
+    let setSidePanelCategoryDetails = null;
 
     const initialPinnedNodes = [];
     for(let i = 0; i < defaultEntities.nodes.nodes.length; i++) {
@@ -126,12 +151,21 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
         });
     }
 
-    console.log("Module Loading");
-    console.log(initialPinnedNodes);
-
     const svgRef = React.useRef();
     let maxLinkDist = 100;
+
     let selectedNode = defaultEntities;
+    const setSelectedNode = (d) => {
+        selectedNode = d;
+        d3UpdateFunc();
+    };
+    const updateNodeSuggestions = (d) => {
+        setSelectedNode({
+            ...selectedNode,
+            nodes: { nodes: d }
+        });
+    };
+
     const simulation = d3.forceSimulation();
 
     simulation.stop()
@@ -140,12 +174,12 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
         .force("collide", d3.forceCollide())
         .force("center", d3.forceCenter())
         .force("forceX", d3.forceX())
-        .force("forceY", d3.forceY())
-        .force("r", d3.forceRadial(
-            d => forceProperties.radial.categoryRadius[d['category'] - 1],
-            width / 2,
-            height / 2
-        ));
+        .force("forceY", d3.forceY());
+        // .force("r", d3.forceRadial(
+        //     d => forceProperties.radial.categoryRadius[d['category'] - 1],
+        //     width / 2,
+        //     height / 2
+        // ));
 
     const cleanUp = () => {
         simulation.stop();
@@ -160,17 +194,6 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
 
     const subgraph = {
         nodes: [], links: []
-    };
-
-    const setSelectedNode = (d) => {
-        selectedNode = d;
-        d3UpdateFunc();
-    };
-    const updateNodeSuggestions = (d) => {
-        setSelectedNode({
-            ...selectedNode,
-            nodes: { nodes: d }
-        });
     };
 
     const nodeRadiusScale = {
@@ -327,275 +350,19 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
         
 
     let setEvidenceData = null;
-
-    // BEGIN: Setup RelationView
-    const influenceLinkColors = [
-        { id:"Pos", value: "#4bb543"},
-        { id:"Neu", value: "grey"},
-        { id:"Neg", value: "#ff8484"},
-    ];
-
-    const influenceNodeColors = [
-        { id:"Pos", value: "#5cc654"},
-        { id:"Neu", value: "lightgrey"},
-        { id:"Neg", value: "#ff9595"},
-    ];
-
-
-    const clickedOnRelation = async (node1, node2) => {
-        simulation.stop();
-        d3.select(".selected").classed("selected", false);
-        d3.selectAll(".hovered").classed("hovered", false);
-        d3.selectAll(".largehovered").classed("largehovered", false);
-
-        setShowRelationViewLegends(true);
-
-        const transitionSpeed = 750;
-        const depGraphResponse = await fetch(`${apiUrl}/interaction/${node1}/${node2}/true`);
-        const depGraph = processCytoscapeGraph(await depGraphResponse.json());
-        
-        const relationalNodeSepDist = 800;
-        const relationalMaxHeight = 400;
-
-        // Add the relational Edges
-        const sankeyGraphData = getSankeyGraph(depGraph, node1, node2);
-        const nodeOrder = {
-            "rightPos": 0,
-            "rightNeu": 1,
-            "rightNeg": 2,
-            "leftPos": 3,
-            "leftNeu": 4,
-            "leftNeg": 5
-        }
-        const sankeyGraph = sankey()
-            .nodeId(d => d.id)
-            .nodeAlign(d => {
-                if(d.id === node1) return 0;
-                if(d.id === node2) return 2;
-                return 1;
-            })
-            .nodeSort((a, b) => {
-                nodeOrder[node1] = -2;
-                nodeOrder[node2] = -1;
-                return nodeOrder[a] - nodeOrder[b];
-            })
-            .nodeWidth(1)
-            .nodePadding(1000000)
-            .extent([
-                [width/2 - relationalNodeSepDist/2, height/2-relationalMaxHeight/2],
-                [width/2 + relationalNodeSepDist/2, height/2+relationalMaxHeight/2]
-            ])(sankeyGraphData);
-
-        const node1Loc = {
-            x: sankeyGraph.nodes.find(node => node.id === node1).x0,
-            y: sankeyGraph.nodes.find(node => node.id === node1).y0
-        }
-        const node2Loc = {
-            x: sankeyGraph.nodes.find(node => node.id === node2).x0,
-            y: sankeyGraph.nodes.find(node => node.id === node2).y0
-        }
-
-        const heightScale = d3.scaleLinear()
-            .range([10, nodeRadiusScale[selectedNodeRadiusScale].range()[1]])
-            .domain([
-                Math.min(...sankeyGraph.links.map(val => val.value)),
-                Math.max(...sankeyGraph.links.map(val => val.value)),
-            ])
-        const rectWidth = 200;
-
-        const node = d3.select("g.relationview g.relationnodes").selectAll(".sankeyNode")
-            .data(sankeyGraph.nodes)
-            .enter().append("g")
-                .attr("class", "sankeyNode")
-                .attr("id", d => d.id)
-                .classed("original", d => d.id === node1 || d.id === node2)
-                .classed("fake", d => d.id !== node1 && d.id !== node2)
-                .attr("transform", d => `translate(${d.x0-rectWidth/2}, ${d.y0-heightScale(d.value)/2})`);
-
-
-        const getLinkColor = (data, colors) => {
-            let interNode = data.source.id===node1?data.target:data.source;
-            return colors.find(color => color.id === interNode.id.substring(interNode.id.length-3)).value;
-        }
-        const getNodeColor = (data, colors) => colors.find(color => color.id===data.id.substring(data.id.length-3)).value;
-
-        const onClickFakeNodes = (e) => {
-            const eData = d3.select(e.target.parentNode).data()[0];
-            setEvidenceData({
-                source: eData.source,
-                target: eData.target,
-                polarity: eData.polarity
-            });
-        };
-
-        const originalNodes = d3.select("g.relationnodes").selectAll(".original");
-        const fakeNodes = d3.select("g.relationnodes").selectAll(".fake");
-
-        fakeNodes.append("path")
-            .attr("class", "relationarrow")
-            .attr("transform", d => `translate(70, 0),scale(80,${Math.max(30, heightScale(d.value))})`)
-            .attr("d", d => {
-                if(d.id === node1 || d.id === node2) return "";
-                if(d.id.startsWith("right"))
-                    return "M 0 0 h 1 l 0.5 0.5 l -0.5 0.5 h -1 Z";
-                if(d.id.startsWith("left"))
-                    return "M 0 0 h 1 v 1 h -1 l -0.5 -0.5 Z";
-            })
-            .attr("fill", d => getNodeColor(d, influenceNodeColors));
-        
-
-        const text = fakeNodes.append("text")
-            .attr("x", rectWidth/2)
-            .attr("y", -5)
-            .attr("dominant-baseline", "text-top")
-            .attr("text-anchor", "left")
-            .attr("transform", "translate(0, 0)")
-
-        text.append("tspan")
-            .attr("x", rectWidth/2)
-            .attr("dy", "1.4em")
-            .text(d => `F: ${d.freq}`);
-        // We can add more text by appending more tspan
-        // ...
-
-        fakeNodes.append("span")
-            .attr("class", "relationhover")
-            .attr("data-hover", d => d.id);
-            // TODO: Add hover show more information
-
-
-        fakeNodes
-            .on("mouseover", e => {
-                const elId = d3.select(e.target).data()[0].id;
-                d3.select("#"+elId).classed("hovered", true);
-            })
-            .on("mouseout", e => {
-                const elId = d3.select(e.target).data()[0].id;
-                d3.select("#"+elId).classed("hovered", false);
-            })
-            .on("click", onClickFakeNodes);
-
-
-
-        const link = d3.select("g.relationview g.relationlinks")
-            .attr("fill", "none")
-            .attr("stroke-opacity", 0.5)
-            .style("mix-blend-mode", "multiply")
-            .selectAll(".sankeylink")
-                .data(sankeyGraph.links)
-                .enter().append("path")
-                    .attr("class", "sankeylink")
-                    .attr("d", sankeyLinkHorizontal())
-                    .attr("stroke", d => getLinkColor(d, influenceLinkColors))
-                    .style("stroke-width", d => heightScale(d.value));
-
-
-
-        d3.select("g.relationview g.relationlinks").transition().duration(transitionSpeed).style("opacity",1);
-        d3.select("g.relationview g.relationnodes").transition().duration(transitionSpeed).style("opacity",1);
-
-        relationViewSimulation.nodes(subgraph.nodes);
-        relationViewSimulation.force("link").links(subgraph.links);
-
-        const oldCatCenters = calculateCategoryCenters(4, forceProperties.separation.radius, width, height);
-        const newCatCenters = calculateCategoryCentersEllipse(4, relationalNodeSepDist+60, relationalMaxHeight + 80, width, height);
-        const catTransition = newCatCenters.map((center, idx) => [center[0] - oldCatCenters[idx][0], center[1] - oldCatCenters[idx][1]]);
-        
-        const getForceX = (d) => d.x + catTransition[d.category-1][0];
-        const getForceY = (d) => d.y + catTransition[d.category-1][1];
-        relationViewSimulation.force("forceX").strength(0.1)
-            .x(d => {
-                if(d.id === node1) return node1Loc.x;
-                if(d.id === node2) return node2Loc.x;
-                return getForceX(d);
-            });
-        relationViewSimulation.force("forceY").strength(0.1)
-            .y(d => {
-                if(d.id === node1) return node1Loc.y;
-                if(d.id === node2) return node2Loc.y;
-                return getForceY(d);
-            });
-
-        relationViewSimulation.on("tick", () => {
-            d3.selectAll("g.line").selectAll('line')
-                .attr("x1", d => d.source.x)
-                .attr("y1", d => d.source.y)
-                .attr("x2", d => d.target.x)
-                .attr("y2", d => d.target.y);
-
-            d3.selectAll("g.line").selectAll('text')
-                .attr('x', d => d.target.x + 20)
-                .attr('y', d => d.target.y + 20);
-
-            d3.select("g.nodegroup").selectAll("g.node")
-                .attr('transform', d => {
-                    return `translate(${d.x},${d.y})`
-                });
-        })
-
-        relationViewSimulation.alpha(ALPHA_INIT).alphaTarget(ALPHA_TARGET).restart();
-
-        const _intercluster_opac_el = d3.select("#interclusterEdgeOpacity").node();
-        _intercluster_opac_el.value = 0;
-        _intercluster_opac_el.dispatchEvent(new Event('change'));
-        const _intracluster_opac_el = d3.select("#intraclusterEdgeOpacity").node();
-        _intracluster_opac_el.value = 0;
-        _intracluster_opac_el.dispatchEvent(new Event('change'));
-
-        // Hide hulls and links
-        d3.selectAll("g.hullgroup").style("opacity", 0).transition().duration(transitionSpeed).on("end", () => {
-            d3.selectAll("g.hullgroup").style("display", "none");
-        });
-        // d3.selectAll("g.linkgroup").style("opacity", 0).transition().duration(transitionSpeed).on("end", () => {
-        //     d3.selectAll("g.linkgroup").style("display", "none");
-        // });
-
-        
-        // Initialize back button
-        const backbtn = d3.select(".ui .backbtn");
-        backbtn.style("opacity", 0).style("display", "inline-block").transition().duration(transitionSpeed*2).style("opacity", 1);
-        backbtn.on("click", () => {
-            // Update view state
-            currentView.view = "root";
-            setShowRelationViewLegends(false);
-
-            d3.selectAll("g.hullgroup").style("display", "inline-block");
-            d3.selectAll("g.linkgroup").style("display", "inline-block");
-
-            d3.selectAll("g.hullgroup").style("opacity", 1);
-            // d3.selectAll("g.linkgroup").style("opacity", 1);
-
-            relationViewSimulation.stop();
-            simulation.alpha(ALPHA_INIT).restart();
-
-
-            d3.select("g.relationview g.relationlinks").transition().duration(transitionSpeed).style("opacity",0).on("end", () => {
-                d3.select("g.relationview g.relationlinks").html("");
-            });
-            d3.select("g.relationview g.relationnodes").transition().duration(transitionSpeed).style("opacity",0).on("end", () => {
-                d3.select("g.relationview g.relationnodes").html("");
-            });
-
-            backbtn.transition().duration(transitionSpeed*2).style("opacity", 0).on("end", () => {backbtn.style("display", "none")});
-
-            // remove legends
-            d3.select("g.relationlegends").html("");
-        });
-        // Update the view state
-        currentView.view = "relation";
-    }
+    let setNodeDetailColors = null;
 
 
     const d3UpdateFunc = async () => {
         // This is not actually an effect, but it works like an effect as it is run after component is mounted and rendered.
         console.log("effect called");
+        simulation.stop();
         if (selectedNode.nodes.nodes.length === 0) {
             console.log("reseting nodes");
             setSelectedNode(defaultEntities);
             return;
         }
 
-        simulation.stop();
 
         const svgRoot = d3.select(svgRef.current);
         const svg = d3.select(svgRef.current).select("g.everything");
@@ -607,9 +374,31 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
         width = Math.max(parseInt(svgRoot.style("width")), minWidth);
         forceProperties.separation.radius = forceProperties.separation.radiusFunc(width, height);
 
+        const categoriesDetailsResponse = await fetch(`${vizApiUrl}/categories`)
+        const categoriesDetails = await categoriesDetailsResponse.json();
+
+        const BlobLegendsColors = Object.entries(categoriesDetails).map(([k, v]) => ({
+            id: v,
+            color: categoryNodeColors[k],
+            encoding: k
+        }));;
+        setBlobLegendsColors(BlobLegendsColors);
+        setNodeDetailColors(BlobLegendsColors);
+        setSidePanelCategoryDetails(BlobLegendsColors);
+
+
+        const initialDefaultCategoryCount = 5;
+        for(const cat in categoriesDetails) {
+            if(!(cat in selectedNode.category_count.categorycount)) {
+                selectedNode.category_count.categorycount[cat] = initialDefaultCategoryCount;
+            }
+        }
+
+        const categoriesDetailsLength = Object.keys(categoriesDetails).length;
+
         svgHullGroup
             .selectAll('path')
-            .data([{ category: 1 }, { category: 2 }, { category: 3 }, { category: 4 }], d => d.category)
+            .data(Object.keys(categoriesDetails).map(key => ({ category: key })), d => d.category)
             .enter()
             .append('path')
             .attr('class', d => 'hull_' + (d.category));
@@ -704,13 +493,6 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
                 update => update,
                 exit => exit.remove()
             );
-
-        const categoryNodeColors = {
-            3: "#8a2a44",
-            4: "#10712b",
-            1: "#411c58",
-            2: "#00308e",
-        }
 
         const shortenText = (t) => {
             if (t.length <= 15) return t;
@@ -848,7 +630,7 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
 
         simulation.force("link").links(subgraph.links);
 
-        updateForces({ simulation, maxLinkDist });
+        updateForces({ simulation, maxLinkDist, categoriesDetailsLength, restart:false });
 
         simulation.on("tick", () => {
             link.selectAll('line')
@@ -865,7 +647,7 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
                 .attr('transform', d => `translate(${d.x},${d.y})`);
 
             const hullPoints = [];
-            for (let i = 1; i <= 4; i++) {
+            for (let i = 1; i <= categoriesDetailsLength; i++) {
                 hullPoints.push({
                     category: i,
                     hulls: d3.polygonHull(subgraph.nodes.filter(d => d["category"] === i).map(d => [d.x, d.y]))
@@ -873,7 +655,7 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
             }
 
             const hullPadding = 25;
-            for (let i = 1; i <= 4; i++) {
+            for (let i = 1; i <= categoriesDetailsLength; i++) {
                 if (hullPoints[i - 1].hulls) {
                     d3.select('.hull_' + i).attr('d', smoothHull(hullPoints[i - 1].hulls, hullPadding));
                 }
@@ -911,16 +693,15 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
         })
 
         d3.selectAll(".clusternodecount").on('change', (e) => {
-            const categoryIds = ['cluster1count', 'cluster2count', 'cluster3count', 'cluster4count'];
+            const categoryIds = BlobLegendsColors.map(d => ({encoding: d.encoding, id:'cluster'+d.encoding+'count'}));
+            const categorycount = {}
+            categoryIds.forEach((categoryId) => {
+                categorycount[categoryId.encoding] = d3.select('#' + categoryId.id).property('value');
+            });
             setSelectedNode({
                 ...selectedNode,
                 category_count: {
-                    categorycount: {
-                        "1": d3.select('#' + categoryIds[0]).property('value'),
-                        "2": d3.select('#' + categoryIds[1]).property('value'),
-                        "3": d3.select('#' + categoryIds[2]).property('value'),
-                        "4": d3.select('#' + categoryIds[3]).property('value'),
-                    }
+                    categorycount: categorycount
                 }
             });
         });
@@ -932,11 +713,257 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
             // @ts-ignore
         })(svgRoot);
 
+        // BEGIN: Setup RelationView
+
+        const clickedOnRelation = async (node1, node2) => {
+            simulation.stop();
+            d3.select(".selected").classed("selected", false);
+            d3.selectAll(".hovered").classed("hovered", false);
+            d3.selectAll(".largehovered").classed("largehovered", false);
+
+            setShowRelationViewLegends(true);
+
+            const transitionSpeed = 750;
+            const depGraphResponse = await fetch(`${apiUrl}/interaction/${node1}/${node2}/true`);
+            const depGraph = processCytoscapeGraph(await depGraphResponse.json());
+            
+            const relationalNodeSepDist = 800;
+            const relationalMaxHeight = 400;
+
+            // Add the relational Edges
+            const sankeyGraphData = getSankeyGraph(depGraph, node1, node2);
+            const nodeOrder = {
+                "rightPos": 0,
+                "rightNeu": 1,
+                "rightNeg": 2,
+                "leftPos": 3,
+                "leftNeu": 4,
+                "leftNeg": 5
+            }
+            const sankeyGraph = sankey()
+                .nodeId(d => d.id)
+                .nodeAlign(d => {
+                    if(d.id === node1) return 0;
+                    if(d.id === node2) return 2;
+                    return 1;
+                })
+                .nodeSort((a, b) => {
+                    nodeOrder[node1] = -2;
+                    nodeOrder[node2] = -1;
+                    return nodeOrder[a] - nodeOrder[b];
+                })
+                .nodeWidth(1)
+                .nodePadding(1000000)
+                .extent([
+                    [width/2 - relationalNodeSepDist/2, height/2-relationalMaxHeight/2],
+                    [width/2 + relationalNodeSepDist/2, height/2+relationalMaxHeight/2]
+                ])(sankeyGraphData);
+
+            const node1Loc = {
+                x: sankeyGraph.nodes.find(node => node.id === node1).x0,
+                y: sankeyGraph.nodes.find(node => node.id === node1).y0
+            }
+            const node2Loc = {
+                x: sankeyGraph.nodes.find(node => node.id === node2).x0,
+                y: sankeyGraph.nodes.find(node => node.id === node2).y0
+            }
+
+            const heightScale = d3.scaleLinear()
+                .range([10, nodeRadiusScale[selectedNodeRadiusScale].range()[1]])
+                .domain([
+                    Math.min(...sankeyGraph.links.map(val => val.value)),
+                    Math.max(...sankeyGraph.links.map(val => val.value)),
+                ])
+            const rectWidth = 200;
+
+            const node = d3.select("g.relationview g.relationnodes").selectAll(".sankeyNode")
+                .data(sankeyGraph.nodes)
+                .enter().append("g")
+                    .attr("class", "sankeyNode")
+                    .attr("id", d => d.id)
+                    .classed("original", d => d.id === node1 || d.id === node2)
+                    .classed("fake", d => d.id !== node1 && d.id !== node2)
+                    .attr("transform", d => `translate(${d.x0-rectWidth/2}, ${d.y0-heightScale(d.value)/2})`);
+
+
+            const getLinkColor = (data, colors) => {
+                let interNode = data.source.id===node1?data.target:data.source;
+                return colors.find(color => color.id === interNode.id.substring(interNode.id.length-3)).value;
+            }
+            const getNodeColor = (data, colors) => colors.find(color => color.id===data.id.substring(data.id.length-3)).value;
+
+            const onClickFakeNodes = (e) => {
+                const eData = d3.select(e.target.parentNode).data()[0];
+                setEvidenceData({
+                    source: eData.source,
+                    target: eData.target,
+                    polarity: eData.polarity
+                });
+            };
+
+            const originalNodes = d3.select("g.relationnodes").selectAll(".original");
+            const fakeNodes = d3.select("g.relationnodes").selectAll(".fake");
+
+            fakeNodes.append("path")
+                .attr("class", "relationarrow")
+                .attr("transform", d => `translate(70, 0),scale(80,${Math.max(30, heightScale(d.value))})`)
+                .attr("d", d => {
+                    if(d.id === node1 || d.id === node2) return "";
+                    if(d.id.startsWith("right"))
+                        return "M 0 0 h 1 l 0.5 0.5 l -0.5 0.5 h -1 Z";
+                    if(d.id.startsWith("left"))
+                        return "M 0 0 h 1 v 1 h -1 l -0.5 -0.5 Z";
+                })
+                .attr("fill", d => getNodeColor(d, influenceNodeColors));
+            
+
+            const text = fakeNodes.append("text")
+                .attr("x", rectWidth/2)
+                .attr("y", -5)
+                .attr("dominant-baseline", "text-top")
+                .attr("text-anchor", "left")
+                .attr("transform", "translate(0, 0)")
+
+            text.append("tspan")
+                .attr("x", rectWidth/2)
+                .attr("dy", "1.4em")
+                .text(d => `F: ${d.freq}`);
+            // We can add more text by appending more tspan
+            // ...
+
+            fakeNodes.append("span")
+                .attr("class", "relationhover")
+                .attr("data-hover", d => d.id);
+                // TODO: Add hover show more information
+
+
+            fakeNodes
+                .on("mouseover", e => {
+                    const elId = d3.select(e.target).data()[0].id;
+                    d3.select("#"+elId).classed("hovered", true);
+                })
+                .on("mouseout", e => {
+                    const elId = d3.select(e.target).data()[0].id;
+                    d3.select("#"+elId).classed("hovered", false);
+                })
+                .on("click", onClickFakeNodes);
+
+
+
+            const link = d3.select("g.relationview g.relationlinks")
+                .attr("fill", "none")
+                .attr("stroke-opacity", 0.5)
+                .style("mix-blend-mode", "multiply")
+                .selectAll(".sankeylink")
+                    .data(sankeyGraph.links)
+                    .enter().append("path")
+                        .attr("class", "sankeylink")
+                        .attr("d", sankeyLinkHorizontal())
+                        .attr("stroke", d => getLinkColor(d, influenceLinkColors))
+                        .style("stroke-width", d => heightScale(d.value));
+
+
+
+            d3.select("g.relationview g.relationlinks").transition().duration(transitionSpeed).style("opacity",1);
+            d3.select("g.relationview g.relationnodes").transition().duration(transitionSpeed).style("opacity",1);
+
+            relationViewSimulation.nodes(subgraph.nodes);
+            relationViewSimulation.force("link").links(subgraph.links);
+
+            const oldCatCenters = calculateCategoryCenters(categoriesDetailsLength, forceProperties.separation.radius, width, height);
+            const newCatCenters = calculateCategoryCentersEllipse(categoriesDetailsLength, relationalNodeSepDist+60, relationalMaxHeight + 80, width, height);
+            const catTransition = newCatCenters.map((center, idx) => [center[0] - oldCatCenters[idx][0], center[1] - oldCatCenters[idx][1]]);
+            
+            const getForceX = (d) => d.x + catTransition[d.category-1][0];
+            const getForceY = (d) => d.y + catTransition[d.category-1][1];
+            relationViewSimulation.force("forceX").strength(0.1)
+                .x(d => {
+                    if(d.id === node1) return node1Loc.x;
+                    if(d.id === node2) return node2Loc.x;
+                    return getForceX(d);
+                });
+            relationViewSimulation.force("forceY").strength(0.1)
+                .y(d => {
+                    if(d.id === node1) return node1Loc.y;
+                    if(d.id === node2) return node2Loc.y;
+                    return getForceY(d);
+                });
+
+            relationViewSimulation.on("tick", () => {
+                d3.selectAll("g.line").selectAll('line')
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                d3.selectAll("g.line").selectAll('text')
+                    .attr('x', d => d.target.x + 20)
+                    .attr('y', d => d.target.y + 20);
+
+                d3.select("g.nodegroup").selectAll("g.node")
+                    .attr('transform', d => {
+                        return `translate(${d.x},${d.y})`
+                    });
+            })
+
+            relationViewSimulation.alpha(ALPHA_INIT).alphaTarget(ALPHA_TARGET).restart();
+
+            const _intercluster_opac_el = d3.select("#interclusterEdgeOpacity").node();
+            _intercluster_opac_el.value = 0;
+            _intercluster_opac_el.dispatchEvent(new Event('change'));
+            const _intracluster_opac_el = d3.select("#intraclusterEdgeOpacity").node();
+            _intracluster_opac_el.value = 0;
+            _intracluster_opac_el.dispatchEvent(new Event('change'));
+
+            // Hide hulls and links
+            d3.selectAll("g.hullgroup").style("opacity", 0).transition().duration(transitionSpeed).on("end", () => {
+                d3.selectAll("g.hullgroup").style("display", "none");
+            });
+            // d3.selectAll("g.linkgroup").style("opacity", 0).transition().duration(transitionSpeed).on("end", () => {
+            //     d3.selectAll("g.linkgroup").style("display", "none");
+            // });
+
+            
+            // Initialize back button
+            const backbtn = d3.select(".ui .backbtn");
+            backbtn.style("opacity", 0).style("display", "inline-block").transition().duration(transitionSpeed*2).style("opacity", 1);
+            backbtn.on("click", () => {
+                // Update view state
+                currentView.view = "root";
+                setShowRelationViewLegends(false);
+
+                d3.selectAll("g.hullgroup").style("display", "inline-block");
+                d3.selectAll("g.linkgroup").style("display", "inline-block");
+
+                d3.selectAll("g.hullgroup").style("opacity", 1);
+                // d3.selectAll("g.linkgroup").style("opacity", 1);
+
+                relationViewSimulation.stop();
+                simulation.alpha(ALPHA_INIT).restart();
+
+
+                d3.select("g.relationview g.relationlinks").transition().duration(transitionSpeed).style("opacity",0).on("end", () => {
+                    d3.select("g.relationview g.relationlinks").html("");
+                });
+                d3.select("g.relationview g.relationnodes").transition().duration(transitionSpeed).style("opacity",0).on("end", () => {
+                    d3.select("g.relationview g.relationnodes").html("");
+                });
+
+                backbtn.transition().duration(transitionSpeed*2).style("opacity", 0).on("end", () => {backbtn.style("display", "none")});
+
+                // remove legends
+                d3.select("g.relationlegends").html("");
+            });
+            // Update the view state
+            currentView.view = "relation";
+        }
+
         // Start the normal simulation
         if(currentView.view === "root") simulation.restart();
 
         return cleanUp;
     }
+
 
     function debounce(func) {
         var timer;
@@ -978,6 +1005,7 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
                         nodeRadiusScaleChanged={nodeRadiusScaleChanged}
                         forceProperties={forceProperties}
                         updateForces={updateForces}
+                        onChangeCategoryDetails={(dataFromChild) => {setSidePanelCategoryDetails = dataFromChild} }
                     />
                     <div style={{
                         width: "100%",
@@ -1044,11 +1072,13 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
                                     influenceLinkColors={influenceLinkColors}
                                     influenceNodeColors={influenceNodeColors}
                                     height="60%"
+                                    onChangeCategoryCount={(dataFromChild) => {setBlobLegendsColors = dataFromChild; }}
                                 />
                                 <NodeDetail
                                     apiUrl={apiUrl}
                                     onNodeDetailChange={(dataFromChild) => { setDetailNodeLegend = dataFromChild; }}
                                     height="40%"
+                                    onCategoryCountChange={(dataFromChild) => {setNodeDetailColors = dataFromChild; }}
                                 />
                             </div>
                         </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import * as d3 from "d3";
 
-const NodeDetail = ({ apiUrl, onNodeDetailChange, height }) => {
+const NodeDetail = ({ apiUrl, onNodeDetailChange, height, onCategoryCountChange }) => {
     const [synonyms, setSynonyms] = React.useState([]);
     const [currentDetailNode, setCurrentDetailNode] = React.useState({
         "id": "uniprot:P05231",
@@ -14,20 +14,8 @@ const NodeDetail = ({ apiUrl, onNodeDetailChange, height }) => {
         setSynonyms(synonyms);
         setCurrentDetailNode(d);
     });
-
-    console.log("letgeds")
-
-
-    const categoryDetails = [
-        { id: "Protein", color: "#411c58" },
-        { id: "Diseases", color: "#00308e" },
-        { id: "Biological Process", color: "#8a2a44" },
-        { id: "Chemical", color: "#10712b" },
-    ];
-    React.useEffect(() => {
-        return () => {
-        }
-    });
+    const [categoryDetails, setCategoryDetails] = React.useState([]);
+    onCategoryCountChange(setCategoryDetails);
 
     return <aside className=" rsection" style={{
         width: "100%",
@@ -44,10 +32,12 @@ const NodeDetail = ({ apiUrl, onNodeDetailChange, height }) => {
             textDecoration: "underline",
         }}>{currentDetailNode.label}</h5>
         <p><b>ID:</b> {currentDetailNode.id}</p>
-        <p><b>Category:</b> {categoryDetails[currentDetailNode.category - 1].id}</p>
+        <p><b>Category:</b> <span  style={{
+            color: categoryDetails.length===0?"black":categoryDetails[currentDetailNode.category-1].color
+        }}>{categoryDetails.length===0?"":categoryDetails[currentDetailNode.category - 1].id}</span></p>
         <p><b>Detected Synonyms:</b><br/></p>
         <ul>
-            {synonyms.map(syn => <li>{syn}</li>)}
+            {synonyms.map((syn, i) => <li key={i}>{syn}</li>)}
         </ul>
     </aside>
 }
