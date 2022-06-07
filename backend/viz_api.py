@@ -46,7 +46,7 @@ category_encoding_rev = {v: k for k, v in category_encoding.items()}
 
 
 def get_category_name_from_id(node_id):
-    return categories[node_id.split(':')[0]]
+    return categories[node_id.split(':')[0].lower()]
 
 
 
@@ -196,6 +196,7 @@ async def search_node(node_text: str, n: int, data: PreprocessedVizData = Depend
 
     search_space = set(list(G_se.nodes) + list(map(lambda x: x[1]["label"].strip(
     ), filter(lambda x: "label" in x[1], G_se.nodes.data()))))
+    # TODO Enrique, investigate difflib to increase the search space surface
     results = difflib.get_close_matches(node_text, search_space, n=n)
 
     ret = []
