@@ -72,9 +72,9 @@ ReactDOM.render(
 					<>
 						<MainGraph key="MainGraphTNFFAT" vizApiUrl={vizApiUrl} apiUrl={apiUrl} defaultEntities={{
 							nodes: {
-								nodes: ["uniprot:P01375", "mesh:D005218"],
-								labels: ["TNF", "Fat"],
-								categories: [1, 1]
+								nodes: ["uniprot:P01375", "cl:CL:0000136", "uberon:UBERON:0001013"],
+								labels: ["TNF", "Adipocytes",  "Adipose Tissue"],
+								categories: [1, 1, 1]
 							}
 						}} />
 						<ScrollToTop />
