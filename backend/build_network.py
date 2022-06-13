@@ -126,7 +126,7 @@ def decompose_complex(sq):
                 e = suffix.sub("", e)
                 assert e != ''
                 if 'uaz:' not in e:
-                    txt, gid = e.split('::')
+                    txt, gid = e.split('::', maxsplit=1)
                     yield txt, gid.split('.')[0]
 
 
