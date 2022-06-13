@@ -46,7 +46,13 @@ category_encoding_rev = {v: k for k, v in category_encoding.items()}
 
 
 def get_category_name_from_id(node_id):
-    return categories[node_id.split(':')[0].lower()]
+    try:
+        cat = categories[node_id.split(':')[0].lower()]
+    except:
+        print(f"Problem getting the category pf {node_id}")
+        cat = categories["go"]
+
+    return cat
 
 
 
