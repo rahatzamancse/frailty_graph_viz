@@ -106,6 +106,13 @@ def record_weights(data: md.UserRecord, db: Session = Depends(get_db),
 async def anchor(term, graph: MultiDiGraph = Depends(get_graph), frequencies=Depends(get_frequencies),
                  significance=Depends(get_significance)):
     """ Returns the neighors, classified by influenced on, by and reciprocal """
+
+    if term not in graph:
+        return {
+            "reciprocals": [],
+            "influenced": [],
+            "influencers": []
+        }
     successors = set(graph.neighbors(term))
     predecessors = set(graph.predecessors(term))
 

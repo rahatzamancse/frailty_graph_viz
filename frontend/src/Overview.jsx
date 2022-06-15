@@ -3,7 +3,7 @@ import EntityColumn from './components/overview/EntityColumn';
 import { getOverviewData } from "./utils/api"
 import customWeight from './utils/custom_weight';
 import { getEntityCategory, groupBy } from './utils/utils';
-import {Container, Row, Col, Form, Spinner} from 'react-bootstrap'
+import {Container, Row, Col, Form, Spinner, Dropdown} from 'react-bootstrap'
 import WeightPanel from './components/weight/WeightPanel';
 
 function filterItems(items, shouldContain){
@@ -74,12 +74,13 @@ function groupByEntityType(items){
 }
 //////////////////////////////////////////
 
-export default function Overview({apiUrl, entityId, entityName}){
+export default function Overview({apiUrl, entityChoices}){
 
 	const [isLoading, setLoading] = useState(true);
 	let [reciprocals, setReciprocals] = useState([]);
 	let [influenced, setInfluenced] = useState([]);
 	let [influencers, setInfluencers] = useState([]);
+	let [chosenEntity, setChosenEntity]  = useState(0);
 
 	const [orderCriterion, setOrderCritertion] = useState(1);
 	const [shouldContain, setShouldContain] = useState('');
@@ -102,6 +103,8 @@ export default function Overview({apiUrl, entityId, entityName}){
 		}
 	}, []); // Use this empty array to make sure the effect is only run once
 
+	let [entityId, entityName] = entityChoices[chosenEntity];
+
 	// Filter the data by the shouldContain variable either by name or id
 	influenced = filterItems(influenced, shouldContain);
 	influencers = filterItems(influencers, shouldContain);
@@ -123,7 +126,7 @@ export default function Overview({apiUrl, entityId, entityName}){
 				setLoading(false);
 			}
 		)
-	}, []); // Second argument necessary to make sure the effect is only called once
+	}, [entityId]); // Second argument necessary to make sure the effect is only called once
 
 
 	
@@ -145,12 +148,34 @@ export default function Overview({apiUrl, entityId, entityName}){
 		default:
 			throw `Invalid order criterion: ${orderCriterion}`;
 	}
+
+	// Build the dropdown for the entity chooser. This is temporary until the new control is ready
+	let dropDownItems = entityChoices.map(
+		([id, name], ix) => <Dropdown.Item onClick={
+			() => {
+				setChosenEntity(ix);
+				setLoading(true);
+			}
+		} key={ix}>
+			<b>{name}</b> - {id}</Dropdown.Item>
+	)
+	let entityDropdown= <Dropdown>
+						  <Dropdown.Toggle variant="secondary" id="dropdown-basic">
+							  Choose another entity
+						  </Dropdown.Toggle>
+
+						  <Dropdown.Menu>
+							  {dropDownItems}
+						  </Dropdown.Menu>
+						</Dropdown>
 	
 
 	return (
 		<>
 			{isLoading && <Spinner animation="border" variant="danger" className='loading'/>}
-			<h1>Overview of {entityName}</h1>
+			<span style={{fontSize: "1.5em"}}><b>Overview of </b> <span style={{fontStyle: "italic"}}>{entityName}</span> - <span style={{fontSize: "0.8em" }}>{entityId}</span></span>
+			<br />
+			{entityDropdown}
 			<br />
 			<Form>
 				<Row className='mb-3'>

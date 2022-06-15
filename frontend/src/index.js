@@ -24,6 +24,22 @@ const rootElement = document.getElementById('root');
 const { apiUrl, vizApiUrl } = config
 console.log(apiUrl)
 
+let candidateOverviewEntities = [
+	["uniprot:P05231", "IL-6"],
+	["uniprot:P53816", "Phospholipase A and acyltransferase 3"],
+	["uniprot:Q53H76", "Phospholipase A1 member A"],
+	["uniprot:O15496", "Group 10 secretory phospholipase A2"],
+	["uniprot:Q9BX93", "Group XIIB secretory phospholipase A2-like protein"],
+	["uniprot:P04054", "Phospholipase A2"],
+	["uniprot:P14555", "Phospholipase A2, membrane associated"],
+	["uniprot:Q5R387", "Putative inactive group IIC secretory phospholipase A2"],
+	["uniprot:Q9UNK4", "Group IID secretory phospholipase A2"],
+	["uniprot:Q9NZK7", "Group IIE secretory phospholipase A2"],
+	["uniprot:P39877", "Phospholipase A2 group V"],
+	["uniprot:Q13093", "Platelet-activating factor acetylhydrolase"],
+	["uniprot:Q13018", "Secretory phospholipase A2 receptor"]
+]
+
 ReactDOM.render(
 	<BrowserRouter>
 		<Routes>
@@ -32,8 +48,10 @@ ReactDOM.render(
 					<>
 						<Overview 
 							apiUrl={ apiUrl }
-							entityId="uniprot:P05231"
-							entityName="IL-6" />
+							// entityId="uniprot:P05231"
+							// entityName="IL-6"
+							entityChoices={candidateOverviewEntities}
+						/>
 						
 						<ScrollToTop />
 					</>}
