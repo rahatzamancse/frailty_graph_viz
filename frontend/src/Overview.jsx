@@ -82,6 +82,10 @@ export default function Overview({apiUrl, entityChoices}){
 	let [influencers, setInfluencers] = useState([]);
 	let [chosenEntity, setChosenEntity]  = useState(0);
 
+	let [showInfluence, setShowInfluence] = useState(true);
+	let [showReciprocal, setShowReciprocal] = useState(true);
+	let [showInfluenced, setShowInfluenced] = useState(false);
+
 	const [orderCriterion, setOrderCritertion] = useState(1);
 	const [shouldContain, setShouldContain] = useState('');
 
@@ -218,31 +222,69 @@ export default function Overview({apiUrl, entityChoices}){
 			<WeightPanel updateWeightValues={setWeightValues} />
 			<br />
 			<Container fluid>
+				<Form>
+					<Form.Group>
+					<Form.Label><h4>Columns to display:</h4></Form.Label>
+						<br/>
+				  <Form.Check
+					  inline
+					type="switch"
+					label="Influenced"
+					checked={showInfluenced}
+					onChange={() =>  setShowInfluenced(!showInfluenced)}
+				  />
+					<Form.Check
+						inline
+					type="switch"
+					label="Reciprocal"
+					checked={showReciprocal}
+					onChange={() =>  setShowReciprocal(!showReciprocal)}
+				  />
+				  <Form.Check
+					  inline
+					type="switch"
+					label="Influence"
+					checked={showInfluence}
+					onChange={() =>  setShowInfluence(!showInfluence)}
+				  />
+
+					</Form.Group>
+
+				</Form>
+			</Container>
+			<br />
+			<Container fluid>
 				<Row>
-					{/*<Col>*/}
-					{/*<EntityColumn title="Influenced By:"*/}
-					{/*	data={influenced}*/}
-					{/*	sorter={sorter}*/}
-					{/*	grouper={groupByEntityType}*/}
-					{/*	anchor={entityId}*/}
-					{/*	/>*/}
-					{/*</Col>*/}
-					<Col>
-						<EntityColumn title="Reciprocal With:" 
-							data={reciprocals}
-							sorter={sorter}
-							grouper={groupByEntityType}
-							anchor={entityId}
+					{showInfluenced &&
+						<Col>
+							<EntityColumn title="Influenced By:"
+										  data={influenced}
+										  sorter={sorter}
+										  grouper={groupByEntityType}
+										  anchor={entityId}
 							/>
-					</Col>
-					<Col>
-						<EntityColumn title="Influence:" 
-							data={influencers}
-							sorter={sorter}
-							grouper={groupByEntityType}
-							anchor={entityId}
+						</Col>
+					}
+					{showReciprocal &&
+						<Col>
+							<EntityColumn title="Reciprocal With:"
+										  data={reciprocals}
+										  sorter={sorter}
+										  grouper={groupByEntityType}
+										  anchor={entityId}
 							/>
-					</Col>
+						</Col>
+					}
+					{showInfluence &&
+						<Col>
+							<EntityColumn title="Influence:"
+										  data={influencers}
+										  sorter={sorter}
+										  grouper={groupByEntityType}
+										  anchor={entityId}
+							/>
+						</Col>
+					}
 				 </Row>
 			</Container>
 		</>
