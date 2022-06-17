@@ -79,7 +79,7 @@ function EntityTypeahead({ items, onInputChange, onChange }){
 
   return <Typeahead
             id="basic-typeahead-single"
-            labelKey={ (option) => `${option.id.text}`}
+            labelKey={ (option) => `${option.desc.text} (${option.id.text})`}
             onChange={onChange}
 			onInputChange={onInputChange}
             options={items}
@@ -87,6 +87,7 @@ function EntityTypeahead({ items, onInputChange, onChange }){
             // multiple
             renderMenuItemChildren={
               (option, { text }, index) => {
+
 				  let synonyms = option.synonyms.map(s => s.text).join(', ')
                 return <>
                   <Highlighter search={text}>
@@ -106,18 +107,6 @@ function EntityTypeahead({ items, onInputChange, onChange }){
                 </>
               }
             }
-
-            // renderToken={
-            //     (option, { onRemove }, index) =>
-            //         <Token
-            //           key={index}
-            //           onRemove={onRemove}
-            //           option={option}>
-            //           {/*{`${option.label} (id: ${option.id})`}*/}
-            //             Test
-            //         </Token>
-            //
-            // }
         />
 }
 
@@ -151,7 +140,6 @@ export default function Overview({apiUrl, entityChoices}){
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
-			console.log(inputSearchEntity)
 				searchEntity(apiUrl, inputSearchEntity)
 				.then((r) => setQueryResults(r))
 		}, 1000)
@@ -183,6 +171,7 @@ export default function Overview({apiUrl, entityChoices}){
 
 	useEffect(() => {
 		// Fetch the Overview data from the API
+		setLoading(true);
 		getOverviewData(apiUrl, entityId,
 			(data) => {
 				setReciprocals(array2obj(data.reciprocals));
@@ -224,16 +213,15 @@ export default function Overview({apiUrl, entityChoices}){
 		} key={ix}>
 			<b>{name}</b> - {id}</Dropdown.Item>
 	)
-	let entityDropdown= <Dropdown>
-						  <Dropdown.Toggle variant="secondary" id="dropdown-basic">
-							  Choose another entity
-						  </Dropdown.Toggle>
-
-						  <Dropdown.Menu>
-							  {dropDownItems}
-						  </Dropdown.Menu>
-						</Dropdown>
-	
+	// let entityDropdown= <Dropdown>
+	// 					  <Dropdown.Toggle variant="secondary" id="dropdown-basic">
+	// 						  Choose another entity
+	// 					  </Dropdown.Toggle>
+	//
+	// 					  <Dropdown.Menu>
+	// 						  {dropDownItems}
+	// 					  </Dropdown.Menu>
+	// 					</Dropdown>
 
 	return (
 		<>
@@ -254,7 +242,6 @@ export default function Overview({apiUrl, entityChoices}){
 					if(choice.length > 0) {
 						let id = choice[0].id.text;
 						let newId = id.split(":").map((s, ix) => (ix > 0) ? s.toUpperCase() : s).join(':');
-						console.log(newId)
 						let label = choice[0].desc.text
 						setAnchorEntity([newId, label])
 					}
