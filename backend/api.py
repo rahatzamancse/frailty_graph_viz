@@ -10,14 +10,15 @@ from sqlalchemy.orm import Session
 from .utils import convert2cytoscapeJSON, get_global_edge_data
 from evidence_index import Evidence
 from evidence_index.client import EvidenceIndexClient
-from . import models as md
+from . import models as md, utils
 from .config import Settings
 from .sql_app import schemas, crud
 from .sql_app.schemas import RecordCreate, RecordMetadataCreate
 import itertools as it
 
 from .dependencies import get_db, get_evidence, get_entities, get_structured_entities, get_commit_hash, get_graph_hash, \
-    get_rankings_hash, get_cli_args, get_graph, get_frequencies, get_es_client, get_significance, get_synonyms
+    get_rankings_hash, get_cli_args, get_graph, get_frequencies, get_es_client, get_significance, get_synonyms, \
+    get_entity_search_databases
 
 api_router = APIRouter(prefix="/api")
 
@@ -238,6 +239,42 @@ async def structured_search(controller: str, controlled: str, interaction: Optio
         ret.append(ev)
 
     return total_hits, ret
+
+
+@api_router.get("/search_entity/{query}")
+async def search_entity(query:str,
+                        databases = Depends(get_entity_search_databases),
+                        synonyms = Depends(get_synonyms)):
+
+    query = query.strip().lower()
+
+    ids, inv_names, inv_synonyms = databases
+
+    id_matches = [i for i in ids if query in i]
+    name_matches = [i for n, i in inv_names.items() if query in n]
+    syn_matches = [i for s, i in inv_synonyms.items() if query in s]
+
+    matched_ids = set(id_matches) | set(it.chain.from_iterable(n for n in name_matches)) | set(s for s in syn_matches)
+
+    ret = []
+    for m_id in matched_ids:
+        if m_id in ids:
+            label  = ids[m_id]
+            syns = synonyms.get(m_id, [])
+
+            ret.append(
+                {
+                    "id": {"text":m_id, "matched":query in m_id},
+                    "desc": {"text":label, "matched":query in label},
+                    "synonyms": [
+                        {"text":s, "matched":query in s} for s in syns if s != label
+                    ]
+                }
+            )
+
+    return ret
+
+
 
 
 @api_router.get("/interaction/{source}/{destination}/{bidirectional}")

@@ -95,3 +95,10 @@ export function structuredSearch(apiUrl, controller, controlled, interaction){
 	return fetch(apiUrl + path)
 		.then(response => response.json())
 }
+
+export function searchEntity(apiUrl, query){
+	let path = `/search_entity/${query}`
+
+	return fetch(apiUrl  + path)
+		.then(response => response.json())
+}

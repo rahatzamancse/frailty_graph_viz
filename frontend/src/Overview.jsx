@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import EntityColumn from './components/overview/EntityColumn';
-import { getOverviewData } from "./utils/api"
+import { getOverviewData, searchEntity } from "./utils/api"
 import customWeight from './utils/custom_weight';
 import { getEntityCategory, groupBy } from './utils/utils';
 import {Container, Row, Col, Form, Spinner, Dropdown} from 'react-bootstrap'
 import WeightPanel from './components/weight/WeightPanel';
+import {Typeahead, Highlighter, Token} from 'react-bootstrap-typeahead';
 
 function filterItems(items, shouldContain){
 	if(shouldContain){
@@ -74,6 +75,52 @@ function groupByEntityType(items){
 }
 //////////////////////////////////////////
 
+function EntityTypeahead({ items, onInputChange, onChange }){
+
+  return <Typeahead
+            id="basic-typeahead-single"
+            labelKey={ (option) => `${option.id.text}`}
+            onChange={onChange}
+			onInputChange={onInputChange}
+            options={items}
+            placeholder="Type an entity name or id..."
+            // multiple
+            renderMenuItemChildren={
+              (option, { text }, index) => {
+				  let synonyms = option.synonyms.map(s => s.text).join(', ')
+                return <>
+                  <Highlighter search={text}>
+                    {option.desc.text}
+                  </Highlighter>
+                  <div>
+                    <small>
+                      ID: <Highlighter search={text}>
+                        {`${option.id.text}`}
+                      </Highlighter>
+                        <br />
+						Synonyms: <Highlighter search={text}>{synonyms}</Highlighter>
+						<br />
+                        {/*{option.type}*/}
+                    </small>
+                  </div>
+                </>
+              }
+            }
+
+            // renderToken={
+            //     (option, { onRemove }, index) =>
+            //         <Token
+            //           key={index}
+            //           onRemove={onRemove}
+            //           option={option}>
+            //           {/*{`${option.label} (id: ${option.id})`}*/}
+            //             Test
+            //         </Token>
+            //
+            // }
+        />
+}
+
 export default function Overview({apiUrl, entityChoices}){
 
 	const [isLoading, setLoading] = useState(true);
@@ -81,6 +128,10 @@ export default function Overview({apiUrl, entityChoices}){
 	let [influenced, setInfluenced] = useState([]);
 	let [influencers, setInfluencers] = useState([]);
 	let [chosenEntity, setChosenEntity]  = useState(0);
+	let [anchorEntity,  setAnchorEntity] = useState(["uniprot:P05231", "Interleukin-6"])
+	let [inputSearchEntity, setInputSearchEntity]  = useState(null);
+
+	let [queryResults, setQueryResults] = useState([]);
 
 	let [showInfluence, setShowInfluence] = useState(true);
 	let [showReciprocal, setShowReciprocal] = useState(true);
@@ -98,6 +149,16 @@ export default function Overview({apiUrl, entityChoices}){
 		pValue: 1,
 	});
 
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			console.log(inputSearchEntity)
+				searchEntity(apiUrl, inputSearchEntity)
+				.then((r) => setQueryResults(r))
+		}, 1000)
+
+		return () => clearTimeout(timer);
+	},  [inputSearchEntity])
+
 
 	// Side effect to load the weight values from local storage
 	useEffect(() => {
@@ -107,7 +168,7 @@ export default function Overview({apiUrl, entityChoices}){
 		}
 	}, []); // Use this empty array to make sure the effect is only run once
 
-	let [entityId, entityName] = entityChoices[chosenEntity];
+	let [entityId, entityName] = anchorEntity;
 
 	// Filter the data by the shouldContain variable either by name or id
 	influenced = filterItems(influenced, shouldContain);
@@ -179,7 +240,27 @@ export default function Overview({apiUrl, entityChoices}){
 			{isLoading && <Spinner animation="border" variant="danger" className='loading'/>}
 			<span style={{fontSize: "1.5em"}}><b>Overview of </b> <span style={{fontStyle: "italic"}}>{entityName}</span> - <span style={{fontSize: "0.8em" }}>{entityId}</span></span>
 			<br />
-			{entityDropdown}
+			{/*{entityDropdown}*/}
+			<EntityTypeahead items={queryResults} onInputChange={
+				(input) => {
+					if(input) {
+						// console.log(input)
+						setInputSearchEntity(input);
+					}
+				}
+			}
+			onChange={
+				(choice) => {
+					if(choice.length > 0) {
+						let id = choice[0].id.text;
+						let newId = id.split(":").map((s, ix) => (ix > 0) ? s.toUpperCase() : s).join(':');
+						console.log(newId)
+						let label = choice[0].desc.text
+						setAnchorEntity([newId, label])
+					}
+				}
+			}
+			/>
 			<br />
 			<Form>
 				<Row className='mb-3'>

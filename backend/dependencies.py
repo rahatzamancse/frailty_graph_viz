@@ -1,5 +1,5 @@
 """ Global dependencies of the API server """
-
+import itertools
 import logging
 import pickle
 from collections import defaultdict
@@ -91,7 +91,7 @@ def read_graph_and_significance():
 
     graph = data['graph']
     significance = data['significance']
-    synonyms  = data['synonyms']
+    synonyms  = {k.strip().lower():list({s.strip().lower() for s in v}) for k, v in data['synonyms'].items()}
 
     # Add polarity to all edges. This will go away soon
     for (_, _, data) in graph.edges(data=True):
@@ -120,6 +120,31 @@ def get_synonyms():
     _, _, synonyms = read_graph_and_significance()
     return synonyms
 
+@lru_cache()
+def get_entity_search_databases():
+    synonyms = get_synonyms()
+    graph = get_graph()
+    inverted_synonyms = dict()
+
+    for k, syns in synonyms.items():
+        for s in syns:
+            inverted_synonyms[s.strip().lower()] = k.strip().lower()
+
+    inverted_entities = defaultdict(list)
+    for n in graph.nodes:
+        if 'label' in graph.nodes[n]:
+            inverted_entities[graph.nodes[n]['label'].strip().lower()].append(n.strip().lower())
+
+    # inverted_entities = {graph.nodes[n]['label'].lower():n.lower() for n in graph.nodes if 'label' in graph.nodes[n]}
+
+    ids = dict()
+    for l, iss in inverted_entities.items():
+        for i in iss:
+            assert i not in ids, f"{i} already in ids"
+            ids[i] = l
+    # ids = {l:i for i, l in inverted_entities.items()}
+
+    return ids, inverted_entities, inverted_synonyms
 
 @lru_cache()
 def get_entities():
