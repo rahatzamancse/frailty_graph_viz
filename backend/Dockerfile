@@ -5,7 +5,7 @@ ENV PYTHONBUFFERED 1
 
 COPY requirements.txt /requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /requirements.txt
-COPY app /code/backend/
+COPY backend /code/backend/
 COPY data /data
 
 ENV GRAPH_FILE=/data/graph_xdd.pickle

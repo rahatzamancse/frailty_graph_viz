@@ -16,4 +16,7 @@ services:
       - "3000:3000"
     depends_on:
       - backend
+    environment:
+    - PORT=3000
+    - REACT_APP_BACKEND_PORT=1601
     command: npm start
