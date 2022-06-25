@@ -47,8 +47,8 @@ const forceProperties = {
     separation: {
         enabled: true,
         strength: 0.1,
-        radius: (width + height) / 2.0 * 0.25,
-        radiusFunc: (width, height) => (width + height) / 2.0 * 0.25
+        radius: (width + height) / 2.0 * 0.2,
+        radiusFunc: (width, height) => (width + height) / 2.0 * 0.2
     },
     link: {
         enabled: false,
@@ -114,7 +114,7 @@ const updateForces = ({ simulation, maxLinkDist, categoriesDetailsLength, restar
 }
 
 
-const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
+const MainGraph = ({ apiUrls, defaultEntities }) => {
     const categoryCount = {};
     if("category_count" in defaultEntities) {
         categoryCount["category_count"] = {
@@ -132,13 +132,6 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
 
     console.log("Module Loading");
 
-
-    const initialSuggestionNodes = [{
-        "id": "go:GO:0006954",
-        "label": "inflammation",
-        "category": 3
-    }];
-
     let setBlobLegendsColors = null;
     let setSidePanelCategoryDetails = null;
 
@@ -154,12 +147,15 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
     const svgRef = React.useRef();
     let maxLinkDist = 100;
 
-    let selectedNode = defaultEntities;
+    let selectedNode = {
+        category_count: defaultEntities.category_count,
+        nodes: { nodes: defaultEntities.nodes.nodes }
+    };
     const setSelectedNode = (d) => {
         selectedNode = d;
         d3UpdateFunc();
     };
-    const updateNodeSuggestions = (d) => {
+    const updateSelectedNode = (d) => {
         setSelectedNode({
             ...selectedNode,
             nodes: { nodes: d }
@@ -175,11 +171,6 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
         .force("center", d3.forceCenter())
         .force("forceX", d3.forceX())
         .force("forceY", d3.forceY());
-        // .force("r", d3.forceRadial(
-        //     d => forceProperties.radial.categoryRadius[d['category'] - 1],
-        //     width / 2,
-        //     height / 2
-        // ));
 
     const cleanUp = () => {
         simulation.stop();
@@ -224,7 +215,7 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
 
     const weightUpdated = async () => {
         if (Object.keys(nodeWeightParams).length === 0) return;
-        const nodeWeightsResponse = await fetch(`${vizApiUrl}/noderadius`, {
+        const nodeWeightsResponse = await fetch(`${apiUrls.viz}/noderadius`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -363,18 +354,18 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
             return;
         }
 
-
         const svgRoot = d3.select(svgRef.current);
         const svg = d3.select(svgRef.current).select("g.everything");
         const svgHullGroup = svg.select('g.hullgroup');
         const svgLinkGroup = svg.select('g.linkgroup');
         const svgNodeGroup = svg.select('g.nodegroup');
 
+
         height = Math.max(parseInt(svgRoot.style("height")), minHeight);
         width = Math.max(parseInt(svgRoot.style("width")), minWidth);
         forceProperties.separation.radius = forceProperties.separation.radiusFunc(width, height);
 
-        const categoriesDetailsResponse = await fetch(`${vizApiUrl}/categories`)
+        const categoriesDetailsResponse = await fetch(`${apiUrls.viz}/categories`)
         const categoriesDetails = await categoriesDetailsResponse.json();
 
         const BlobLegendsColors = Object.entries(categoriesDetails).map(([k, v]) => ({
@@ -403,7 +394,7 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
             .append('path')
             .attr('class', d => 'hull_' + (d.category));
 
-        const newSubgraphResponse = await fetch(`${vizApiUrl}/getbestsubgraph`, {
+        const newSubgraphResponse = await fetch(`${apiUrls.viz}/getbestsubgraph`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -724,7 +715,7 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
             setShowRelationViewLegends(true);
 
             const transitionSpeed = 750;
-            const depGraphResponse = await fetch(`${apiUrl}/interaction/${node1}/${node2}/true`);
+            const depGraphResponse = await fetch(`${apiUrls.general}/interaction/${node1}/${node2}/true`);
             const depGraph = processCytoscapeGraph(await depGraphResponse.json());
             
             const relationalNodeSepDist = 800;
@@ -908,21 +899,13 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
 
             relationViewSimulation.alpha(ALPHA_INIT).alphaTarget(ALPHA_TARGET).restart();
 
-            const _intercluster_opac_el = d3.select("#interclusterEdgeOpacity").node();
-            _intercluster_opac_el.value = 0;
-            _intercluster_opac_el.dispatchEvent(new Event('change'));
-            const _intracluster_opac_el = d3.select("#intraclusterEdgeOpacity").node();
-            _intracluster_opac_el.value = 0;
-            _intracluster_opac_el.dispatchEvent(new Event('change'));
+            d3.selectAll("g.line").selectAll('line').style('display', 'none');
+            d3.selectAll("g.line").selectAll('text').style('display', 'none');
 
             // Hide hulls and links
             d3.selectAll("g.hullgroup").style("opacity", 0).transition().duration(transitionSpeed).on("end", () => {
                 d3.selectAll("g.hullgroup").style("display", "none");
             });
-            // d3.selectAll("g.linkgroup").style("opacity", 0).transition().duration(transitionSpeed).on("end", () => {
-            //     d3.selectAll("g.linkgroup").style("display", "none");
-            // });
-
             
             // Initialize back button
             const backbtn = d3.select(".ui .backbtn");
@@ -941,6 +924,8 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
                 relationViewSimulation.stop();
                 simulation.alpha(ALPHA_INIT).restart();
 
+                d3.selectAll("g.line").selectAll('line').style('display', 'inline-block');
+                d3.selectAll("g.line").selectAll('text').style('display', 'inline-block');
 
                 d3.select("g.relationview g.relationlinks").transition().duration(transitionSpeed).style("opacity",0).on("end", () => {
                     d3.select("g.relationview g.relationlinks").html("");
@@ -978,6 +963,8 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
         d3UpdateFunc();
     }));
 
+    React.useEffect(d3UpdateFunc);
+
     return (
         <>
             <div style={{
@@ -995,17 +982,21 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
                     flexDirection: "row",
                 }}>
                     <SidePanel
+                        apiUrls={apiUrls}
+
                         currentView={{view: "root"}}
-                        simulation={simulation}
-                        maxLinkDist={maxLinkDist}
-                        apiUrl={vizApiUrl}
-                        updateNodeSuggestions={updateNodeSuggestions}
-                        initialPinnedNodes={initialPinnedNodes}
-                        initialSuggestionNodes={initialSuggestionNodes}
-                        nodeRadiusScaleChanged={nodeRadiusScaleChanged}
+
                         forceProperties={forceProperties}
                         updateForces={updateForces}
+                        simulation={simulation}
+                        maxLinkDist={maxLinkDist}
+
+
+                        initialPinnedNodes={initialPinnedNodes}
+                        updateSelectedNode={updateSelectedNode}
                         onChangeCategoryDetails={(dataFromChild) => {setSidePanelCategoryDetails = dataFromChild} }
+
+                        nodeRadiusScaleChanged={nodeRadiusScaleChanged}
                     />
                     <div style={{
                         width: "100%",
@@ -1037,14 +1028,6 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
                                         <g className="linkgroup"></g>
                                         <g className="nodegroup"></g>
                                     </g>
-                                    {/* <g className="legendgroup" style={{
-                                        outline: "1px solid black",
-                                        outlineOffset: "10px"
-                                    }}>
-                                        <g className="categorylegends" transform={`translate(${width - 200},25)`}></g>
-                                        <g className="sizelegends" transform={`translate(${width - 200},160)`}></g>
-                                        <g className="relationlegends" transform={`translate(${width-200},500)`}></g>
-                                    </g> */}
                                     <g className="ui">
                                         <g transform="scale(0.4, 0.4),translate(100, 100)" className="backbtn" style={{
                                             position: "absolute"
@@ -1075,14 +1058,14 @@ const MainGraph = ({ vizApiUrl, apiUrl, defaultEntities }) => {
                                     onChangeCategoryCount={(dataFromChild) => {setBlobLegendsColors = dataFromChild; }}
                                 />
                                 <NodeDetail
-                                    apiUrl={apiUrl}
+                                    apiUrls={apiUrls}
                                     onNodeDetailChange={(dataFromChild) => { setDetailNodeLegend = dataFromChild; }}
                                     height="40%"
                                     onCategoryCountChange={(dataFromChild) => {setNodeDetailColors = dataFromChild; }}
                                 />
                             </div>
                         </div>
-                        <EvidencePanelWrapper apiUrl={apiUrl} onDataChange={(dataFromChild) => { setEvidenceData = dataFromChild; }} />
+                        <EvidencePanelWrapper apiUrls={apiUrls} onDataChange={(dataFromChild) => { setEvidenceData = dataFromChild; }} />
                     </div>
                 </div>
             </div>

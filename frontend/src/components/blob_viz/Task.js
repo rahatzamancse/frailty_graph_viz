@@ -2,6 +2,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { Draggable } from 'react-beautiful-dnd';
 import { categoryHullColors } from '../../utils/utils';
+import EntitySearchResultItem from '../../EntitySearchResultItem';
 
 const Container = styled.div`
     border: 1px solid lightgrey;
@@ -14,9 +15,10 @@ const Container = styled.div`
     )};
 `;
 
-const Task = ({task, index }) => {
+const Task = ({ searchText, task, index }) => {
+
     return (
-        <Draggable draggableId={task.id} index={index}>
+        <Draggable draggableId={task.id.text} index={index}>
             {(provided, snapshot) => (
                 <Container
                     {...provided.draggableProps}
@@ -25,7 +27,11 @@ const Task = ({task, index }) => {
                     // @ts-ignore
                     category={task.category}
                 >
-                    {task.label}
+                    <EntitySearchResultItem
+                        option={task}
+                        searchText={searchText}
+                        showCategoryColor={true}
+                    />
                 </Container>
 
             )}
