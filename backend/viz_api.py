@@ -135,25 +135,26 @@ async def get_best_subgraph(nodes: NodesList, category_count: CategoryCount,
         finalList = [{
             'id': node,
             'freq': max_freq + 1,
-            'pinned': True
+            'pinned': True,
+            'total_search_freq': float('inf')
         } for node in nodes if get_category_number_from_id(node) == cat_id]
-        search_space = []
+        search_space = finalList
         for node in nodes:
             neighbors = list(map(lambda d: {
                 'id': d[0],
                 'freq': d[1]['freq'],
                 'pinned': False
-            }, filter(lambda x: x[0] != '' and get_category_number_from_id(x[0]) == cat_id, dict(G_se[node]).items())))
-            to_neighbors = sorted(neighbors, key=lambda x: x['freq'], reverse=True)[
-                           :cat_count]
+            }, filter(lambda x: x[0] != '' and get_category_number_from_id(x[0]) == cat_id and x[0] not in nodes, dict(G_se[node]).items())))
+            to_neighbors = sorted(neighbors, key=lambda x: x['freq'], reverse=True)[:cat_count]
 
             neighbors = list(map(lambda d: {
                 'id': d[0],
                 'freq': d[1]['freq'],
                 'pinned': False
-            }, filter(lambda x: get_category_number_from_id(x[0]) == cat_id, dict(G_se_rev[node]).items())))
-            from_neighbors = sorted(neighbors, key=lambda x: x['freq'], reverse=True)[
-                             :cat_count]
+            }, filter(lambda x: get_category_number_from_id(x[0]) == cat_id and x[0] not in nodes, dict(G_se_rev[node]).items())))
+            from_neighbors = sorted(neighbors, key=lambda x: x['freq'], reverse=True)[:cat_count]
+
+            all_neighbors = to_neighbors + from_neighbors
 
             for neighbor in (to_neighbors + from_neighbors):
                 for search_space_item in search_space:
@@ -164,7 +165,7 @@ async def get_best_subgraph(nodes: NodesList, category_count: CategoryCount,
                     neighbor['total_search_freq'] = neighbor['freq']
                     search_space.append(neighbor)
 
-        catFinalList[cat_id] = sorted(search_space, key=lambda x: x['total_search_freq'], reverse=True)[:cat_count - len(finalList)] + finalList
+        catFinalList[cat_id] = sorted(search_space, key=lambda x: x['total_search_freq'], reverse=True)[:cat_count]
 
     finalNodes = []
     for v in catFinalList.values():

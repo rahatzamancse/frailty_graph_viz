@@ -21,11 +21,17 @@ const Column = ({column, tasks, searchText }) => {
     return (
         <Container>
             <Title>{column.title}</Title>
-            <Droppable droppableId={column.id}>
+            <Droppable
+                droppableId={column.id}
+            >
                 {(provided, snapshot) => (
                     <TaskList 
                         ref={provided.innerRef}
                         {...provided.droppableProps}
+                        style={{
+                            height: '300px',
+                            overflow: 'auto'
+                        }}
                     >
                         {tasks.map((task, index) => <Task key={task.id.text} searchText={searchText} task={task} index={index} />)}
                         {provided.placeholder}
