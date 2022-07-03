@@ -129,6 +129,7 @@ async def anchor(term, graph: MultiDiGraph = Depends(get_graph), frequencies=Dep
         impacts = list()
         p_vals = list()
         max_impact = 0.
+        seen_in = set()
 
         if bidirectional:
             edges = it.chain(((a, b, i) for i in graph[a][b]), ((b, a, i) for i in graph[b][a]))
@@ -142,6 +143,7 @@ async def anchor(term, graph: MultiDiGraph = Depends(get_graph), frequencies=Dep
             avg_sig += doc_data['num_w_significance']
             impacts += edge_data['impact_factors']
             p_vals += doc_data['p_values']
+            seen_in |= edge_data['seen_in']
             for impact in edge_data['impact_factors']:
                 if impact > max_impact:
                     max_impact = impact
@@ -151,7 +153,7 @@ async def anchor(term, graph: MultiDiGraph = Depends(get_graph), frequencies=Dep
         avg_p_value = (sum(p_vals) / len(p_vals)) if len(p_vals) > 0 else 1.
 
         return {'percentage_significance': avg_sig, 'has_significance': int(has_sig), 'avg_impact': avg_impact,
-                'max_impact': max_impact, 'avg_pvalue': avg_p_value}
+                'max_impact': max_impact, 'avg_pvalue': avg_p_value, 'num_papers':len(seen_in)}
 
     return {
         'reciprocals': list(sorted(

@@ -33,13 +33,13 @@ export default function EntityColumn({ title, data, sorter, grouper, anchor }){
 				const innerItems =
 					groupedData[group].map(
 						item => {
-							const {id, name, freq, weight} = item;
+							const {id, name, freq, meta, weight} = item;
 							return (
 								<li key={id} className="entity_column_item">
 									<Link to={{
 										pathname: "viz",
 										search: `?src=${anchor}&dst=${id}&bidirect`
-									}}>{`${name} (${id})`}</Link> - F: {freq} - W: {weight.toFixed(2)}
+									}}>{`${name} (${id})`}</Link> - F: {freq} - W: {weight.toFixed(2)} - D: {meta.num_papers}
 								</li>
 							);
 					});
